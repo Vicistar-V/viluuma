@@ -45,7 +45,7 @@ const LoginScreen = () => {
         title: "Welcome back!",
         description: "Successfully logged in"
       });
-      navigate('/dashboard');
+      navigate('/goals');
     }
     
     setLoading(false);

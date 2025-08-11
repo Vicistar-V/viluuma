@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
@@ -8,7 +8,7 @@ import { LogOut, User, Activity } from 'lucide-react';
 import UserProfileCard from '@/components/UserProfileCard';
 import ThemeToggle from '@/components/ThemeToggle';
 
-const Dashboard = () => {
+const GoalsScreen = () => {
   const { user, signOut, loading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -50,10 +50,16 @@ const Dashboard = () => {
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <User className="h-6 w-6 text-primary" />
-            <h1 className="text-xl font-semibold">Dashboard</h1>
+            <h1 className="text-xl font-semibold">Goals</h1>
           </div>
           <div className="flex items-center space-x-2">
             <ThemeToggle />
+            <Button asChild variant="outline" size="sm" className="h-10">
+              <Link to="/profile">
+                <User className="h-4 w-4 mr-2" />
+                Profile
+              </Link>
+            </Button>
             <Button 
               variant="outline" 
               size="sm"
@@ -76,9 +82,9 @@ const Dashboard = () => {
           {/* Welcome Card */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl">Welcome Back!</CardTitle>
+              <CardTitle className="text-2xl">Your Goals</CardTitle>
               <CardDescription>
-                You're successfully logged into your dashboard
+                Track and manage your personal goals
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -102,29 +108,29 @@ const Dashboard = () => {
             <CardHeader>
               <div className="flex items-center space-x-2">
                 <Activity className="h-5 w-5 text-primary" />
-                <CardTitle>App Features</CardTitle>
+                <CardTitle>Goal Tracking</CardTitle>
               </div>
               <CardDescription>
-                Cached data and real-time updates powered by Supabase
+                Start setting and achieving your goals
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
                 <div className="flex items-center space-x-3">
                   <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  <span className="text-sm">Atomic RPC functions for efficient data fetching</span>
+                  <span className="text-sm">Create and track personal goals</span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                  <span className="text-sm">React Query caching with smart invalidation</span>
+                  <span className="text-sm">Monitor progress with visual indicators</span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                  <span className="text-sm">Mobile-optimized interface components</span>
+                  <span className="text-sm">Set deadlines and milestones</span>
                 </div>
                 <div className="flex items-center space-x-3">
                   <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                  <span className="text-sm">Secure authentication with protected routes</span>
+                  <span className="text-sm">Celebrate achievements and wins</span>
                 </div>
               </div>
             </CardContent>
@@ -135,4 +141,4 @@ const Dashboard = () => {
   );
 };
 
-export default Dashboard;
+export default GoalsScreen;

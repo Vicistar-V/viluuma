@@ -8,7 +8,8 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import Index from "./pages/Index";
 import LoginScreen from "./pages/LoginScreen";
 import SignUpScreen from "./pages/SignUpScreen";
-import Dashboard from "./pages/Dashboard";
+import GoalsScreen from "./pages/GoalsScreen";
+import ProfileScreen from "./pages/ProfileScreen";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -25,7 +26,8 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/login" element={<LoginScreen />} />
               <Route path="/signup" element={<SignUpScreen />} />
-              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/goals" element={<GoalsScreen />} />
+              <Route path="/profile" element={<ProfileScreen />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
