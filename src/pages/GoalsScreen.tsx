@@ -53,24 +53,7 @@ const GoalsScreen = () => {
             <User className="h-6 w-6 text-primary" />
             <h1 className="text-xl font-semibold">Goals</h1>
           </div>
-          <div className="flex items-center space-x-2">
-            <ThemeToggle />
-            <Button asChild variant="outline" size="sm" className="h-10">
-              <Link to="/profile">
-                <User className="h-4 w-4 mr-2" />
-                Profile
-              </Link>
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={handleSignOut}
-              className="h-10"
-            >
-              <LogOut className="h-4 w-4 mr-2" />
-              Sign Out
-            </Button>
-          </div>
+          <ThemeToggle />
         </div>
       </header>
 
