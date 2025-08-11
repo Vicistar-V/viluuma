@@ -14,6 +14,106 @@ export type Database = {
   }
   public: {
     Tables: {
+      goals: {
+        Row: {
+          completed_at: string | null
+          completed_tasks: number
+          created_at: string
+          description: string | null
+          id: string
+          modality: string
+          status: string
+          target_date: string | null
+          title: string
+          total_tasks: number
+          updated_at: string
+          user_id: string
+          weekly_hours: number | null
+        }
+        Insert: {
+          completed_at?: string | null
+          completed_tasks?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          modality: string
+          status?: string
+          target_date?: string | null
+          title: string
+          total_tasks?: number
+          updated_at?: string
+          user_id: string
+          weekly_hours?: number | null
+        }
+        Update: {
+          completed_at?: string | null
+          completed_tasks?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          modality?: string
+          status?: string
+          target_date?: string | null
+          title?: string
+          total_tasks?: number
+          updated_at?: string
+          user_id?: string
+          weekly_hours?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goals_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      milestones: {
+        Row: {
+          completed_tasks: number
+          created_at: string
+          goal_id: string
+          id: string
+          order_index: number | null
+          status: string
+          title: string
+          total_tasks: number
+          updated_at: string
+        }
+        Insert: {
+          completed_tasks?: number
+          created_at?: string
+          goal_id: string
+          id?: string
+          order_index?: number | null
+          status?: string
+          title: string
+          total_tasks?: number
+          updated_at?: string
+        }
+        Update: {
+          completed_tasks?: number
+          created_at?: string
+          goal_id?: string
+          id?: string
+          order_index?: number | null
+          status?: string
+          title?: string
+          total_tasks?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "milestones_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -35,14 +135,132 @@ export type Database = {
         }
         Relationships: []
       }
+      tasks: {
+        Row: {
+          created_at: string
+          description: string | null
+          duration_hours: number | null
+          end_date: string | null
+          goal_id: string
+          id: string
+          is_anchored: boolean
+          milestone_id: string
+          priority: string | null
+          start_date: string | null
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          duration_hours?: number | null
+          end_date?: string | null
+          goal_id: string
+          id?: string
+          is_anchored?: boolean
+          milestone_id: string
+          priority?: string | null
+          start_date?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          duration_hours?: number | null
+          end_date?: string | null
+          goal_id?: string
+          id?: string
+          is_anchored?: boolean
+          milestone_id?: string
+          priority?: string | null
+          start_date?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_milestone_id_fkey"
+            columns: ["milestone_id"]
+            isOneToOne: false
+            referencedRelation: "milestones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      create_manual_goal: {
+        Args: { p_title: string; p_modality: string; p_target_date?: string }
+        Returns: string
+      }
+      create_milestone: {
+        Args: { p_goal_id: string; p_title: string; p_order_index?: number }
+        Returns: string
+      }
+      create_task: {
+        Args: {
+          p_milestone_id: string
+          p_title: string
+          p_description?: string
+          p_priority?: string
+          p_start_date?: string
+          p_end_date?: string
+          p_duration_hours?: number
+          p_is_anchored?: boolean
+        }
+        Returns: string
+      }
+      delete_milestone_and_tasks: {
+        Args: { p_milestone_id: string }
+        Returns: number
+      }
+      delete_task: {
+        Args: { p_task_id: string }
+        Returns: undefined
+      }
       get_user_data: {
         Args: { user_uuid?: string }
         Returns: Json
+      }
+      goal_belongs_to_current_user: {
+        Args: { p_goal_id: string }
+        Returns: boolean
+      }
+      milestone_belongs_to_current_user: {
+        Args: { p_milestone_id: string }
+        Returns: boolean
+      }
+      task_belongs_to_current_user: {
+        Args: { p_task_id: string }
+        Returns: boolean
+      }
+      update_milestone_title: {
+        Args: { p_milestone_id: string; p_title: string }
+        Returns: undefined
       }
     }
     Enums: {

@@ -10,6 +10,8 @@ import LoginScreen from "./pages/LoginScreen";
 import SignUpScreen from "./pages/SignUpScreen";
 import GoalsScreen from "./pages/GoalsScreen";
 import ProfileScreen from "./pages/ProfileScreen";
+import CreateManualGoalScreen from "./pages/CreateManualGoalScreen";
+import GoalDetailScreen from "./pages/GoalDetailScreen";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -27,6 +29,8 @@ const App = () => (
               <Route path="/login" element={<LoginScreen />} />
               <Route path="/signup" element={<SignUpScreen />} />
               <Route path="/goals" element={<GoalsScreen />} />
+              <Route path="/goals/new" element={<CreateManualGoalScreen />} />
+              <Route path="/goals/:id" element={<GoalDetailScreen />} />
               <Route path="/profile" element={<ProfileScreen />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
