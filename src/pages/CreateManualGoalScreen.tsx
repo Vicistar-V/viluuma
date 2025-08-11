@@ -74,7 +74,7 @@ const CreateManualGoalScreen = () => {
             <CardDescription>Pick AI or go fully manual</CardDescription>
           </CardHeader>
           <CardContent className="grid grid-cols-2 gap-3">
-            <Button variant="secondary" className="h-20" disabled>
+            <Button variant="secondary" className="h-20" onClick={() => navigate("/goals/ai")}> 
               <Sparkles className="mr-2" /> Use AI Planner
             </Button>
             <Button className="h-20" onClick={() => setShowForm(true)}>
