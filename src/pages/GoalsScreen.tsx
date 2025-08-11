@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { LogOut, User, Activity } from 'lucide-react';
+import { LogOut, User, Activity, Plus } from 'lucide-react';
 import UserProfileCard from '@/components/UserProfileCard';
 import ThemeToggle from '@/components/ThemeToggle';
 import { BottomNav } from '@/components/BottomNav';
@@ -53,7 +53,12 @@ const GoalsScreen = () => {
             <User className="h-6 w-6 text-primary" />
             <h1 className="text-xl font-semibold">Goals</h1>
           </div>
-          <ThemeToggle />
+          <div className="flex items-center gap-2">
+            <Button asChild size="sm">
+              <Link to="/goals/new"><span className="inline-flex items-center"><Plus className="mr-1 h-4 w-4" /> New Goal</span></Link>
+            </Button>
+            <ThemeToggle />
+          </div>
         </div>
       </header>
 
