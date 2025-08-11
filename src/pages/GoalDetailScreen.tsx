@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -189,23 +190,64 @@ const GoalDetailScreen = () => {
               </AccordionTrigger>
               <AccordionContent>
                 <div className="space-y-2">
-                  {(groupedTasks[m.id] || []).map((t) => (
-                    <div key={t.id} className="flex items-center justify-between rounded-md border p-3">
-                      <div className="flex items-center gap-3">
-                        <input
-                          aria-label="Toggle"
-                          type="checkbox"
-                          checked={t.status === 'completed'}
-                          onChange={() => toggleTask(t)}
-                          className="h-5 w-5"
-                        />
-                        <button className="text-left" onClick={() => setActiveTaskId(t.id)}>
-                          <div className="font-medium leading-tight">{t.title}</div>
-                          {goal.modality === 'project' && t.duration_hours ? (
-                            <div className="text-xs text-muted-foreground">{t.duration_hours}h</div>
-                          ) : null}
-                        </button>
-                      </div>
+                   {(groupedTasks[m.id] || []).map((t) => (
+                     <div key={t.id} className="flex items-center justify-between rounded-md border p-3">
+                       <div className="flex items-center gap-3 flex-1">
+                         <input
+                           aria-label="Toggle"
+                           type="checkbox"
+                           checked={t.status === 'completed'}
+                           onChange={() => toggleTask(t)}
+                           className="h-5 w-5 shrink-0"
+                         />
+                         <button className="text-left flex-1 min-w-0" onClick={() => setActiveTaskId(t.id)}>
+                           <div className="flex items-center gap-2 mb-1">
+                             <div className="font-medium leading-tight truncate">{t.title}</div>
+                             {goal.modality === 'project' && (
+                               <>
+                                 {t.priority && (
+                                   <Badge 
+                                     variant={
+                                       t.priority === 'high' ? 'destructive' : 
+                                       t.priority === 'medium' ? 'secondary' : 
+                                       'outline'
+                                     }
+                                     className="text-xs px-1 py-0"
+                                   >
+                                     {t.priority}
+                                   </Badge>
+                                 )}
+                                 {t.is_anchored && (
+                                   <Badge variant="outline" className="text-xs px-1 py-0">
+                                     📌
+                                   </Badge>
+                                 )}
+                               </>
+                             )}
+                           </div>
+                           {goal.modality === 'project' && (
+                             <div className="space-y-1">
+                               {t.description && (
+                                 <div className="text-xs text-muted-foreground line-clamp-1">
+                                   {t.description.length > 50 ? `${t.description.slice(0, 50)}...` : t.description}
+                                 </div>
+                               )}
+                               <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                 {t.duration_hours && (
+                                   <span>{t.duration_hours}h</span>
+                                 )}
+                                 {(t.start_date || t.end_date) && (
+                                   <span>
+                                     {t.start_date && new Date(t.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                     {t.start_date && t.end_date && ' - '}
+                                     {t.end_date && new Date(t.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                   </span>
+                                 )}
+                               </div>
+                             </div>
+                           )}
+                         </button>
+                       </div>
 
                       <div className="flex items-center gap-1">
                         <Button size="icon" variant="ghost" onClick={() => setActiveTaskId(t.id)} aria-label="Edit">
