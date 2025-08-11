@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { Eye, EyeOff, Mail, Lock, User } from 'lucide-react';
+import ThemeToggle from '@/components/ThemeToggle';
 
 const SignUpScreen = () => {
   const [email, setEmail] = useState('');
@@ -70,6 +71,11 @@ const SignUpScreen = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-background">
+      {/* Theme Toggle */}
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
+      
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1 text-center">
           <CardTitle className="text-2xl font-bold">Create Account</CardTitle>

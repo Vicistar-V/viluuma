@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { LogOut, User, Activity } from 'lucide-react';
 import UserProfileCard from '@/components/UserProfileCard';
+import ThemeToggle from '@/components/ThemeToggle';
 
 const Dashboard = () => {
   const { user, signOut, loading } = useAuth();
@@ -51,15 +52,18 @@ const Dashboard = () => {
             <User className="h-6 w-6 text-primary" />
             <h1 className="text-xl font-semibold">Dashboard</h1>
           </div>
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={handleSignOut}
-            className="h-10"
-          >
-            <LogOut className="h-4 w-4 mr-2" />
-            Sign Out
-          </Button>
+          <div className="flex items-center space-x-2">
+            <ThemeToggle />
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={handleSignOut}
+              className="h-10"
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              Sign Out
+            </Button>
+          </div>
         </div>
       </header>
 

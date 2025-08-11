@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
 import { Smartphone, UserPlus, LogIn } from 'lucide-react';
+import ThemeToggle from '@/components/ThemeToggle';
 
 const Index = () => {
   const { user, loading } = useAuth();
@@ -28,6 +29,11 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="p-4 flex justify-end">
+        <ThemeToggle />
+      </header>
+      
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-md mx-auto space-y-8">
           {/* Header */}
