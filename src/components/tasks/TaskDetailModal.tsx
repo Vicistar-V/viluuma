@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, CheckIcon, Loader2Icon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
@@ -31,6 +31,11 @@ const TaskDetailModal = ({ taskId, onOpenChange, goalModality, onSaved }: Props)
   const [start, setStart] = useState<Date | undefined>();
   const [end, setEnd] = useState<Date | undefined>();
   const [anchored, setAnchored] = useState(false);
+  
+  // Save state management
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [hasChanges, setHasChanges] = useState(false);
+  const [originalData, setOriginalData] = useState<any>(null);
 
   useEffect(() => {
     let ignore = false;
@@ -39,22 +44,58 @@ const TaskDetailModal = ({ taskId, onOpenChange, goalModality, onSaved }: Props)
       const { data, error } = await supabase.from('tasks').select('*').eq('id', taskId).maybeSingle();
       if (error) { toast({ title: 'Error', description: error.message }); return; }
       if (ignore || !data) return;
-      setTitle(data.title || "");
-      setDescription(data.description || "");
-      setPriority(data.priority || undefined);
-      setDuration(data.duration_hours || undefined);
-      setAnchored(!!data.is_anchored);
-      setStart(data.start_date ? new Date(data.start_date) : undefined);
-      setEnd(data.end_date ? new Date(data.end_date) : undefined);
+      
+      const taskData = {
+        title: data.title || "",
+        description: data.description || "",
+        priority: data.priority || undefined,
+        duration: data.duration_hours || undefined,
+        anchored: !!data.is_anchored,
+        start: data.start_date ? new Date(data.start_date) : undefined,
+        end: data.end_date ? new Date(data.end_date) : undefined,
+      };
+      
+      setTitle(taskData.title);
+      setDescription(taskData.description);
+      setPriority(taskData.priority);
+      setDuration(taskData.duration);
+      setAnchored(taskData.anchored);
+      setStart(taskData.start);
+      setEnd(taskData.end);
+      setOriginalData(taskData);
+      setHasChanges(false);
+      setSaveState('idle');
     };
     load();
     return () => { ignore = true; };
   }, [taskId]);
 
-  // Debounced save
+  // Check for changes
   useEffect(() => {
-    const handle = setTimeout(async () => {
-      if (!taskId) return;
+    if (!originalData) return;
+    const currentData = {
+      title,
+      description,
+      priority,
+      duration,
+      anchored,
+      start,
+      end,
+    };
+    
+    const changed = JSON.stringify(currentData) !== JSON.stringify(originalData);
+    setHasChanges(changed);
+    if (changed && saveState === 'saved') {
+      setSaveState('idle');
+    }
+  }, [title, description, priority, duration, anchored, start, end, originalData, saveState]);
+
+  // Manual save function
+  const handleSave = async () => {
+    if (!taskId || !hasChanges) return;
+    
+    setSaveState('saving');
+    try {
       const payload: any = { title, description, priority };
       if (goalModality === 'project') {
         payload.duration_hours = duration ?? null;
@@ -62,12 +103,51 @@ const TaskDetailModal = ({ taskId, onOpenChange, goalModality, onSaved }: Props)
         payload.start_date = start ? format(start, 'yyyy-MM-dd') : null;
         payload.end_date = end ? format(end, 'yyyy-MM-dd') : null;
       }
+      
       const { error } = await supabase.from('tasks').update(payload).eq('id', taskId);
-      if (error) toast({ title: 'Save failed', description: error.message });
-      else onSaved();
-    }, 500);
+      if (error) {
+        toast({ title: 'Save failed', description: error.message, variant: 'destructive' });
+        setSaveState('idle');
+      } else {
+        setSaveState('saved');
+        setOriginalData({ title, description, priority, duration, anchored, start, end });
+        setHasChanges(false);
+        onSaved();
+        
+        // Reset to idle after showing saved state
+        setTimeout(() => setSaveState('idle'), 2000);
+      }
+    } catch (error) {
+      setSaveState('idle');
+      toast({ title: 'Save failed', description: 'An unexpected error occurred', variant: 'destructive' });
+    }
+  };
+
+  // Keyboard shortcut
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        e.preventDefault();
+        handleSave();
+      }
+    };
+    
+    if (open) {
+      document.addEventListener('keydown', handleKeyDown);
+      return () => document.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [open, handleSave]);
+
+  // Light auto-save backup (3 seconds)
+  useEffect(() => {
+    if (!hasChanges || saveState === 'saving') return;
+    
+    const handle = setTimeout(() => {
+      handleSave();
+    }, 3000);
+    
     return () => clearTimeout(handle);
-  }, [title, description, priority, duration, anchored, start, end, taskId]);
+  }, [hasChanges, saveState, handleSave]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -143,6 +223,25 @@ const TaskDetailModal = ({ taskId, onOpenChange, goalModality, onSaved }: Props)
             </div>
           )}
         </div>
+
+        <DialogFooter className="flex-row justify-between items-center">
+          <div className="text-sm text-muted-foreground">
+            {hasChanges && saveState === 'idle' && "Press Ctrl+S or Save to save changes"}
+            {saveState === 'saving' && "Saving changes..."}
+            {saveState === 'saved' && "Changes saved successfully"}
+            {!hasChanges && saveState === 'idle' && "No unsaved changes"}
+          </div>
+          <Button
+            onClick={handleSave}
+            disabled={!hasChanges || saveState === 'saving'}
+            size="sm"
+            className="ml-auto"
+          >
+            {saveState === 'saving' && <Loader2Icon className="w-4 h-4 animate-spin" />}
+            {saveState === 'saved' && <CheckIcon className="w-4 h-4" />}
+            {saveState === 'saving' ? 'Saving...' : saveState === 'saved' ? 'Saved' : 'Save'}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
