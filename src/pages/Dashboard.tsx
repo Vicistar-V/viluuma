@@ -6,7 +6,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { LogOut, User, Activity } from 'lucide-react';
 import UserProfileCard from '@/components/UserProfileCard';
-import CacheDemo from '@/components/CacheDemo';
 
 const Dashboard = () => {
   const { user, signOut, loading } = useAuth();
@@ -126,9 +125,6 @@ const Dashboard = () => {
               </div>
             </CardContent>
           </Card>
-
-          {/* Cache Demo */}
-          <CacheDemo />
         </div>
       </main>
     </div>
