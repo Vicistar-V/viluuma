@@ -7,6 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { LogOut, User, Activity } from 'lucide-react';
 import UserProfileCard from '@/components/UserProfileCard';
 import ThemeToggle from '@/components/ThemeToggle';
+import { BottomNav } from '@/components/BottomNav';
 
 const GoalsScreen = () => {
   const { user, signOut, loading } = useAuth();
@@ -137,6 +138,7 @@ const GoalsScreen = () => {
           </Card>
         </div>
       </main>
+      <BottomNav />
     </div>
   );
 };

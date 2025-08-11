@@ -7,6 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { LogOut, User, Settings, Camera, Bell, Target } from 'lucide-react';
 import UserProfileCard from '@/components/UserProfileCard';
 import ThemeToggle from '@/components/ThemeToggle';
+import { BottomNav } from '@/components/BottomNav';
 
 const ProfileScreen = () => {
   const { user, signOut, loading } = useAuth();
@@ -150,6 +151,7 @@ const ProfileScreen = () => {
           </Card>
         </div>
       </main>
+      <BottomNav />
     </div>
   );
 };

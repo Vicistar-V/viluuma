@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useAuth } from '@/hooks/useAuth';
 import { Smartphone, UserPlus, LogIn } from 'lucide-react';
 import ThemeToggle from '@/components/ThemeToggle';
+import { BottomNav } from '@/components/BottomNav';
 
 const Index = () => {
   const { user, loading } = useAuth();
@@ -98,6 +99,7 @@ const Index = () => {
           </Card>
         </div>
       </div>
+      {user && <BottomNav />}
     </div>
   );
 };
