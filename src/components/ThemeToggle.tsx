@@ -1,12 +1,6 @@
 import React from 'react';
 import { Moon, Sun, Monitor } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { useTheme, type Theme } from '@/contexts/ThemeContext';
 
 interface ThemeToggleProps {
@@ -22,92 +16,64 @@ const ThemeToggle: React.FC<ThemeToggleProps> = ({
 }) => {
   const { theme, setTheme, actualTheme } = useTheme();
 
-  const themeOptions: Array<{
-    value: Theme;
-    label: string;
-    icon: React.ComponentType<{ className?: string }>;
-    description: string;
-  }> = [
-    {
-      value: 'light',
-      label: 'Light',
+  // Theme cycle order: light -> dark -> system -> light...
+  const themeOrder: Theme[] = ['light', 'dark', 'system'];
+  
+  const themeConfig = {
+    light: {
       icon: Sun,
-      description: 'Light theme'
+      label: 'Light',
+      nextTheme: 'dark' as Theme
     },
-    {
-      value: 'dark',
-      label: 'Dark',
+    dark: {
       icon: Moon,
-      description: 'Dark theme'
+      label: 'Dark', 
+      nextTheme: 'system' as Theme
     },
-    {
-      value: 'system',
-      label: 'System',
+    system: {
       icon: Monitor,
-      description: 'Follow system preference'
+      label: 'System',
+      nextTheme: 'light' as Theme
     }
-  ];
+  };
 
-  const currentThemeOption = themeOptions.find(option => option.value === theme);
-  const CurrentIcon = currentThemeOption?.icon || Monitor;
+  const currentConfig = themeConfig[theme];
+  const CurrentIcon = currentConfig.icon;
+
+  const handleToggle = () => {
+    const currentIndex = themeOrder.indexOf(theme);
+    const nextIndex = (currentIndex + 1) % themeOrder.length;
+    const nextTheme = themeOrder[nextIndex];
+    setTheme(nextTheme);
+  };
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button 
-          variant={variant} 
-          size={size}
-          className="relative"
-          aria-label="Toggle theme"
-        >
-          <CurrentIcon className="h-4 w-4" />
-          {showLabel && (
-            <span className="ml-2 hidden sm:inline">
-              {currentThemeOption?.label}
-            </span>
-          )}
-          
-          {/* Visual indicator of actual theme */}
-          <div className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-background">
-            <div 
-              className={`w-full h-full rounded-full ${
-                actualTheme === 'dark' 
-                  ? 'bg-slate-800' 
-                  : 'bg-yellow-400'
-              }`}
-            />
-          </div>
-        </Button>
-      </DropdownMenuTrigger>
+    <Button 
+      variant={variant} 
+      size={size}
+      onClick={handleToggle}
+      className="relative transition-all duration-200 hover:scale-105 active:scale-95"
+      aria-label={`Switch to ${currentConfig.nextTheme} theme`}
+      title={`Current: ${currentConfig.label}. Click to switch to ${themeConfig[currentConfig.nextTheme].label}`}
+    >
+      <CurrentIcon className="h-4 w-4 transition-transform duration-200" />
+      {showLabel && (
+        <span className="ml-2 hidden sm:inline">
+          {currentConfig.label}
+        </span>
+      )}
       
-      <DropdownMenuContent align="end" className="w-48">
-        {themeOptions.map((option) => {
-          const Icon = option.icon;
-          const isSelected = theme === option.value;
-          
-          return (
-            <DropdownMenuItem
-              key={option.value}
-              onClick={() => setTheme(option.value)}
-              className={`flex items-center gap-2 cursor-pointer ${
-                isSelected ? 'bg-accent text-accent-foreground' : ''
-              }`}
-            >
-              <Icon className="h-4 w-4" />
-              <div className="flex flex-col">
-                <span className="text-sm font-medium">{option.label}</span>
-                <span className="text-xs text-muted-foreground">
-                  {option.description}
-                </span>
-              </div>
-              {isSelected && (
-                <div className="ml-auto w-2 h-2 rounded-full bg-primary" />
-              )}
-            </DropdownMenuItem>
-          );
-        })}
-      </DropdownMenuContent>
-    </DropdownMenu>
+      {/* Visual indicator of actual theme */}
+      <div className="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-background transition-colors duration-200">
+        <div 
+          className={`w-full h-full rounded-full transition-colors duration-200 ${
+            actualTheme === 'dark' 
+              ? 'bg-slate-800' 
+              : 'bg-yellow-400'
+          }`}
+        />
+      </div>
+    </Button>
   );
 };
 
