@@ -254,6 +254,16 @@ export type Database = {
         Args: { p_milestone_id: string }
         Returns: boolean
       }
+      save_goal_plan: {
+        Args: {
+          p_title: string
+          p_modality: string
+          p_target_date: string
+          p_milestones: Json
+          p_tasks: Json
+        }
+        Returns: string
+      }
       task_belongs_to_current_user: {
         Args: { p_task_id: string }
         Returns: boolean
