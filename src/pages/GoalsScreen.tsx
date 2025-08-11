@@ -1,41 +1,103 @@
-import { useEffect } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
+import { useGoals, useUpdateGoalStatus, useDeleteGoal } from '@/hooks/useGoals';
 import { useToast } from '@/hooks/use-toast';
-import { LogOut, User, Activity, Plus } from 'lucide-react';
-import UserProfileCard from '@/components/UserProfileCard';
+import { Target, Plus, TrendingUp, CheckCircle, Archive } from 'lucide-react';
+import { GoalCard } from '@/components/goals/GoalCard';
+import { GoalFiltersComponent, GoalFilters } from '@/components/goals/GoalFilters';
 import ThemeToggle from '@/components/ThemeToggle';
 import { BottomNav } from '@/components/BottomNav';
 
 const GoalsScreen = () => {
-  const { user, signOut, loading } = useAuth();
+  const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const { data: goals, isLoading: goalsLoading } = useGoals();
+  const updateGoalStatus = useUpdateGoalStatus();
+  const deleteGoal = useDeleteGoal();
+  
+  const [filters, setFilters] = useState<GoalFilters>({
+    search: '',
+    status: 'all',
+    modality: 'all'
+  });
 
   useEffect(() => {
     if (!loading && !user) {
       navigate('/login');
     }
   }, [user, loading, navigate]);
-
-  const handleSignOut = async () => {
-    await signOut();
-    toast({
-      title: "Signed out",
-      description: "You have been successfully signed out"
+  
+  const filteredGoals = useMemo(() => {
+    if (!goals) return [];
+    
+    return goals.filter(goal => {
+      const matchesSearch = !filters.search || 
+        goal.title.toLowerCase().includes(filters.search.toLowerCase()) ||
+        goal.description?.toLowerCase().includes(filters.search.toLowerCase());
+      
+      const matchesStatus = filters.status === 'all' || goal.status === filters.status;
+      const matchesModality = filters.modality === 'all' || goal.modality === filters.modality;
+      
+      return matchesSearch && matchesStatus && matchesModality;
     });
-    navigate('/login');
+  }, [goals, filters]);
+  
+  const stats = useMemo(() => {
+    if (!goals) return { total: 0, active: 0, completed: 0, archived: 0 };
+    
+    return {
+      total: goals.length,
+      active: goals.filter(g => g.status === 'active').length,
+      completed: goals.filter(g => g.status === 'completed').length,
+      archived: goals.filter(g => g.status === 'archived').length,
+    };
+  }, [goals]);
+  
+  const handleStatusChange = (goalId: string, status: 'active' | 'archived' | 'completed') => {
+    updateGoalStatus.mutate({ goalId, status });
+  };
+  
+  const handleDelete = (goalId: string) => {
+    deleteGoal.mutate(goalId);
   };
 
-  if (loading) {
+  if (loading || goalsLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading...</p>
-        </div>
+      <div className="min-h-screen bg-background">
+        <header className="border-b bg-card">
+          <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <Target className="h-6 w-6 text-primary" />
+              <h1 className="text-xl font-semibold">Goals</h1>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button asChild size="sm">
+                <Link to="/goals/new"><span className="inline-flex items-center"><Plus className="mr-1 h-4 w-4" /> New Goal</span></Link>
+              </Button>
+              <ThemeToggle />
+            </div>
+          </div>
+        </header>
+        
+        <main className="container mx-auto px-4 py-8">
+          <div className="max-w-4xl mx-auto space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {[1, 2, 3].map(i => (
+                <Skeleton key={i} className="h-24 rounded-lg" />
+              ))}
+            </div>
+            <div className="space-y-4">
+              {[1, 2, 3].map(i => (
+                <Skeleton key={i} className="h-48 rounded-lg" />
+              ))}
+            </div>
+          </div>
+        </main>
+        <BottomNav />
       </div>
     );
   }
@@ -50,7 +112,7 @@ const GoalsScreen = () => {
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <User className="h-6 w-6 text-primary" />
+            <Target className="h-6 w-6 text-primary" />
             <h1 className="text-xl font-semibold">Goals</h1>
           </div>
           <div className="flex items-center gap-2">
@@ -64,66 +126,111 @@ const GoalsScreen = () => {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
-        <div className="max-w-2xl mx-auto space-y-6">
-          {/* User Profile Card */}
-          <UserProfileCard />
+        <div className="max-w-4xl mx-auto space-y-8">
+          {/* Stats Overview */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center space-x-2">
+                  <Target className="h-5 w-5 text-primary" />
+                  <div>
+                    <p className="text-2xl font-bold">{stats.total}</p>
+                    <p className="text-sm text-muted-foreground">Total Goals</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center space-x-2">
+                  <TrendingUp className="h-5 w-5 text-blue-500" />
+                  <div>
+                    <p className="text-2xl font-bold">{stats.active}</p>
+                    <p className="text-sm text-muted-foreground">Active</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center space-x-2">
+                  <CheckCircle className="h-5 w-5 text-green-500" />
+                  <div>
+                    <p className="text-2xl font-bold">{stats.completed}</p>
+                    <p className="text-sm text-muted-foreground">Completed</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center space-x-2">
+                  <Archive className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <p className="text-2xl font-bold">{stats.archived}</p>
+                    <p className="text-sm text-muted-foreground">Archived</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
-          {/* Welcome Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-2xl">Your Goals</CardTitle>
-              <CardDescription>
-                Track and manage your personal goals
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">
-                  <strong>Email:</strong> {user.email}
+          {/* Goals List */}
+          {goals && goals.length > 0 ? (
+            <div className="space-y-6">
+              <GoalFiltersComponent
+                filters={filters}
+                onFiltersChange={setFilters}
+                totalCount={goals.length}
+                filteredCount={filteredGoals.length}
+              />
+              
+              {filteredGoals.length > 0 ? (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {filteredGoals.map((goal) => (
+                    <GoalCard
+                      key={goal.id}
+                      goal={goal}
+                      onStatusChange={handleStatusChange}
+                      onDelete={handleDelete}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <Card>
+                  <CardContent className="p-8 text-center">
+                    <Target className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">No goals match your filters</h3>
+                    <p className="text-muted-foreground mb-4">
+                      Try adjusting your search or filter criteria.
+                    </p>
+                    <Button variant="outline" onClick={() => setFilters({ search: '', status: 'all', modality: 'all' })}>
+                      Clear Filters
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="p-8 text-center">
+                <Target className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-xl font-semibold mb-2">No goals yet</h3>
+                <p className="text-muted-foreground mb-6">
+                  Start your journey by creating your first goal. Set milestones, track progress, and achieve your dreams.
                 </p>
-                <p className="text-sm text-muted-foreground">
-                  <strong>User ID:</strong> {user.id}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  <strong>Account created:</strong>{' '}
-                  {new Date(user.created_at).toLocaleDateString()}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Features Card */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center space-x-2">
-                <Activity className="h-5 w-5 text-primary" />
-                <CardTitle>Goal Tracking</CardTitle>
-              </div>
-              <CardDescription>
-                Start setting and achieving your goals
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div className="flex items-center space-x-3">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  <span className="text-sm">Create and track personal goals</span>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                  <span className="text-sm">Monitor progress with visual indicators</span>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                  <span className="text-sm">Set deadlines and milestones</span>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                  <span className="text-sm">Celebrate achievements and wins</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+                <Button asChild size="lg">
+                  <Link to="/goals/new">
+                    <Plus className="mr-2 h-5 w-5" />
+                    Create Your First Goal
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </main>
       <BottomNav />
