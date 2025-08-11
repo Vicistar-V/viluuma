@@ -138,16 +138,6 @@ const TaskDetailModal = ({ taskId, onOpenChange, goalModality, onSaved }: Props)
     }
   }, [open, handleSave]);
 
-  // Light auto-save backup (3 seconds)
-  useEffect(() => {
-    if (!hasChanges || saveState === 'saving') return;
-    
-    const handle = setTimeout(() => {
-      handleSave();
-    }, 3000);
-    
-    return () => clearTimeout(handle);
-  }, [hasChanges, saveState, handleSave]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
