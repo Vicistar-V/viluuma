@@ -40,10 +40,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      get_profile_summary: {
-        Args: { user_uuid?: string }
-        Returns: Json
-      }
       get_user_data: {
         Args: { user_uuid?: string }
         Returns: Json

@@ -5,7 +5,6 @@ import { useAuth } from './useAuth';
 // Query keys for consistent caching
 export const QUERY_KEYS = {
   userData: (userId?: string) => ['userData', userId] as const,
-  profileSummary: (userId?: string) => ['profileSummary', userId] as const,
 } as const;
 
 // Types for our data structures
@@ -68,35 +67,6 @@ export const useUserData = (userId?: string) => {
   });
 };
 
-// Hook for lighter profile summary with caching
-export const useProfileSummary = (userId?: string) => {
-  const { user } = useAuth();
-  const targetUserId = userId || user?.id;
-
-  return useQuery({
-    queryKey: QUERY_KEYS.profileSummary(targetUserId),
-    queryFn: async () => {
-      if (!targetUserId) {
-        throw new Error('No user ID provided');
-      }
-
-      const { data, error } = await supabase.rpc('get_profile_summary', {
-        user_uuid: targetUserId
-      });
-
-      if (error) {
-        throw new Error(`Failed to fetch profile summary: ${error.message}`);
-      }
-
-      return data;
-    },
-    enabled: !!targetUserId,
-    staleTime: 2 * 60 * 1000, // 2 minutes
-    gcTime: 5 * 60 * 1000, // 5 minutes
-    retry: 1,
-  });
-};
-
 // Hook to update profile with cache invalidation
 export const useUpdateProfile = () => {
   const queryClient = useQueryClient();
@@ -122,12 +92,9 @@ export const useUpdateProfile = () => {
       return data;
     },
     onSuccess: () => {
-      // Invalidate and refetch both user data and profile summary
+      // Invalidate and refetch user data
       queryClient.invalidateQueries({
         queryKey: QUERY_KEYS.userData(user?.id)
-      });
-      queryClient.invalidateQueries({
-        queryKey: QUERY_KEYS.profileSummary(user?.id)
       });
     },
   });
@@ -170,17 +137,11 @@ export const useDataCache = () => {
     queryClient.removeQueries({
       queryKey: QUERY_KEYS.userData(userId)
     });
-    queryClient.removeQueries({
-      queryKey: QUERY_KEYS.profileSummary(userId)
-    });
   };
 
   const refreshUserData = async (userId?: string) => {
     await queryClient.invalidateQueries({
       queryKey: QUERY_KEYS.userData(userId)
-    });
-    await queryClient.invalidateQueries({
-      queryKey: QUERY_KEYS.profileSummary(userId)
     });
   };
 

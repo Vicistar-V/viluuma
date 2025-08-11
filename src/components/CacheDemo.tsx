@@ -3,11 +3,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { useProfileSummary, usePrefetchUserData, useDataCache } from '@/hooks/useUserData';
+import { useUserData, usePrefetchUserData, useDataCache } from '@/hooks/useUserData';
 import { Database, RefreshCw, Trash2, Eye } from 'lucide-react';
 
 const CacheDemo = () => {
-  const { data: profileSummary, isLoading, refetch, dataUpdatedAt } = useProfileSummary();
+  const { data: userData, isLoading, refetch, dataUpdatedAt } = useUserData();
   const { prefetchUserData } = usePrefetchUserData();
   const { clearUserCache, refreshUserData, getCachedUserData } = useDataCache();
   const { toast } = useToast();
@@ -78,9 +78,9 @@ const CacheDemo = () => {
       <CardContent className="space-y-4">
         {/* Cache Status */}
         <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-          <div className="space-y-1">
-            <p className="text-sm font-medium">Profile Summary Cache</p>
-            <p className="text-xs text-muted-foreground">
+        <div className="space-y-1">
+          <p className="text-sm font-medium">User Data Cache</p>
+          <p className="text-xs text-muted-foreground">
               {lastUpdated 
                 ? `Last updated: ${lastUpdated.toLocaleTimeString()}` 
                 : 'No data cached'
@@ -93,11 +93,15 @@ const CacheDemo = () => {
         </div>
 
         {/* Cache Data Preview */}
-        {profileSummary && (
+        {userData && (
           <div className="p-3 bg-background border rounded-lg">
-            <p className="text-xs font-medium text-muted-foreground mb-2">Cached Profile Summary:</p>
+            <p className="text-xs font-medium text-muted-foreground mb-2">Cached User Data:</p>
             <pre className="text-xs bg-muted p-2 rounded overflow-x-auto">
-              {JSON.stringify(profileSummary, null, 2)}
+              {JSON.stringify({
+                profile: userData.profile,
+                stats: userData.stats,
+                metadata: userData.metadata
+              }, null, 2)}
             </pre>
           </div>
         )}
@@ -147,7 +151,7 @@ const CacheDemo = () => {
 
         {/* Performance Info */}
         <div className="text-xs text-muted-foreground space-y-1">
-          <p>• RPC functions fetch data atomically in single DB round-trip</p>
+          <p>• Single RPC function fetches all data atomically in one DB call</p>
           <p>• React Query caches with 5min stale time for optimal performance</p>
           <p>• Cache automatically invalidates on mutations</p>
         </div>
