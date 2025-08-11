@@ -40,7 +40,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_profile_summary: {
+        Args: { user_uuid?: string }
+        Returns: Json
+      }
+      get_user_data: {
+        Args: { user_uuid?: string }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never

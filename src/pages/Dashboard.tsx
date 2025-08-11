@@ -4,7 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { LogOut, User } from 'lucide-react';
+import { LogOut, User, Activity } from 'lucide-react';
+import UserProfileCard from '@/components/UserProfileCard';
+import CacheDemo from '@/components/CacheDemo';
 
 const Dashboard = () => {
   const { user, signOut, loading } = useAuth();
@@ -65,6 +67,9 @@ const Dashboard = () => {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-2xl mx-auto space-y-6">
+          {/* User Profile Card */}
+          <UserProfileCard />
+
           {/* Welcome Card */}
           <Card>
             <CardHeader>
@@ -89,22 +94,41 @@ const Dashboard = () => {
             </CardContent>
           </Card>
 
-          {/* Placeholder Content */}
+          {/* Features Card */}
           <Card>
             <CardHeader>
-              <CardTitle>Getting Started</CardTitle>
+              <div className="flex items-center space-x-2">
+                <Activity className="h-5 w-5 text-primary" />
+                <CardTitle>App Features</CardTitle>
+              </div>
               <CardDescription>
-                This is your protected dashboard area
+                Cached data and real-time updates powered by Supabase
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground">
-                This is a placeholder dashboard screen. You can now start building 
-                your app's main features here. All users must be authenticated to 
-                access this area.
-              </p>
+              <div className="space-y-3">
+                <div className="flex items-center space-x-3">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span className="text-sm">Atomic RPC functions for efficient data fetching</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <span className="text-sm">React Query caching with smart invalidation</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                  <span className="text-sm">Mobile-optimized interface components</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                  <span className="text-sm">Secure authentication with protected routes</span>
+                </div>
+              </div>
             </CardContent>
           </Card>
+
+          {/* Cache Demo */}
+          <CacheDemo />
         </div>
       </main>
     </div>
