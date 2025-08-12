@@ -307,6 +307,52 @@ function processAIBlueprint(rawJSONString: string): ViluumaTask[] {
   return allTasks;
 }
 
+// Station 4: The Calculator - calculateRelativeSchedule
+interface ScheduledViluumaTask extends ViluumaTask {
+  start_day_offset: number;
+  end_day_offset: number;
+}
+
+function calculateRelativeSchedule(
+  tasks: ViluumaTask[],
+  intel: { hoursPerWeek?: number }
+): { scheduledTasks: ScheduledViluumaTask[]; totalProjectDays: number } {
+  // Step 4.1: The Personalizer - determine daily work budget
+  const weeklyBudget = intel.hoursPerWeek ?? 20; // Default to 20 hours/week
+  const workdaysPerWeek = 5;
+  const dailyBudgetHours = Math.max(1, weeklyBudget / workdaysPerWeek);
+
+  console.log(`🧠 Station 4: Personalizing schedule with a daily budget of ${dailyBudgetHours.toFixed(1)} hours.`);
+
+  // Step 4.2: The Scheduling Loop - sequential, no dependencies
+  const scheduledTasks: ScheduledViluumaTask[] = [];
+  let currentDayOffset = 0; // Project starts at Day 0
+
+  for (const task of tasks) {
+    const startDay = currentDayOffset;
+    const durationInDays = Math.max(1, Math.ceil(task.duration_hours / dailyBudgetHours));
+    const endDay = startDay + durationInDays - 1;
+
+    scheduledTasks.push({
+      ...task,
+      start_day_offset: startDay,
+      end_day_offset: endDay,
+    });
+
+    // +1 day rule: next task starts the day after this one ends
+    currentDayOffset = endDay + 1;
+  }
+
+  // Step 4.3: Final calculation & output
+  const totalProjectDays = scheduledTasks.length > 0
+    ? scheduledTasks[scheduledTasks.length - 1].end_day_offset + 1
+    : 0;
+
+  console.log(`✅ Station 4: Schedule calculated. Total relative duration: ${totalProjectDays} days.`);
+
+  return { scheduledTasks, totalProjectDays };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   
@@ -387,38 +433,32 @@ serve(async (req) => {
         order_index: idx + 1
       }));
 
-    const tasks = viluumaTasks.map((task, idx) => ({
+    // Station 4: Calculate personalized relative schedule
+    const { scheduledTasks: scheduledViluuma, totalProjectDays } = calculateRelativeSchedule(
+      viluumaTasks,
+      { hoursPerWeek: userConstraints?.hoursPerWeek }
+    );
+
+    // Map scheduled tasks to response format with milestone_index
+    const scheduledTasks = scheduledViluuma.map((task) => ({
       id: task.id,
       title: task.name,
       description: task.description,
       milestone_index: milestones.findIndex(m => m.title === task.milestone_name) + 1,
       duration_hours: task.duration_hours,
       priority: task.priority,
+      start_day_offset: task.start_day_offset,
+      end_day_offset: task.end_day_offset,
     }));
-
-    // Calculate timeline using standard methodology
-    const STANDARD_DAILY_BUDGET = 2;
-    const daysPerWeek = 5;
-
-    let currentOffset = 0;
-    const scheduledTasks = tasks.map((t: any) => {
-      const durationDays = Math.max(1, Math.ceil(t.duration_hours / STANDARD_DAILY_BUDGET));
-      const start = currentOffset;
-      const end = start + durationDays - 1;
-      currentOffset = end + 1;
-      return { ...t, start_day_offset: start, end_day_offset: end };
-    });
 
     // Calculate REALISTIC project timeline
     const today = new Date();
-    const totalProjectDays = scheduledTasks.length ? scheduledTasks[scheduledTasks.length - 1].end_day_offset + 1 : 0;
-    
     const projectedEndDate = new Date(today);
     projectedEndDate.setUTCDate(projectedEndDate.getUTCDate() + totalProjectDays);
     const calculatedEndDate = projectedEndDate.toISOString().split('T')[0];
     
     console.log("📊 REALISTIC TIMELINE CALCULATION:");
-    console.log("  - Total tasks:", tasks.length);
+    console.log("  - Total tasks:", scheduledTasks.length);
     console.log("  - Total project days:", totalProjectDays);
     console.log("  - Calculated end date:", calculatedEndDate);
 
@@ -429,8 +469,8 @@ serve(async (req) => {
       plan: {
         milestones,
         scheduledTasks,
-        hoursPerWeek: userConstraints?.hoursPerWeek || 8,
-        dailyBudget: userConstraints?.hoursPerWeek ? Math.max(1, Math.floor(userConstraints.hoursPerWeek / daysPerWeek)) : STANDARD_DAILY_BUDGET,
+        hoursPerWeek: userConstraints?.hoursPerWeek ?? 20,
+        dailyBudget: Math.max(1, (userConstraints?.hoursPerWeek ?? 20) / 5),
       },
     };
     

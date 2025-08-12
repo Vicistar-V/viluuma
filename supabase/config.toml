@@ -5,3 +5,6 @@ verify_jwt = true
 
 [functions.delete-and-refactor-plan]
 verify_jwt = true
+
+[functions.generate-plan]
+verify_jwt = true
