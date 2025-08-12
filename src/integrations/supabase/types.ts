@@ -242,6 +242,10 @@ export type Database = {
         Args: { p_task_id: string }
         Returns: undefined
       }
+      execute_plan_update: {
+        Args: { p_tasks_to_update?: Json; p_task_id_to_delete?: string }
+        Returns: undefined
+      }
       get_all_overdue_tasks: {
         Args: Record<PropertyKey, never>
         Returns: Json
