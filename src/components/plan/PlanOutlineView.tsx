@@ -9,12 +9,17 @@ interface Plan {
     milestone_index: number;
     duration_hours: number;
     priority: "low" | "medium" | "high" | null;
-    start_day_offset: number;
-    end_day_offset: number;
+    start_day_offset?: number;
+    end_day_offset?: number;
   }[];
 }
 
-const PlanOutlineView = ({ plan }: { plan: Plan }) => {
+interface PlanOutlineViewProps {
+  plan: Plan;
+  showDurations?: boolean;
+}
+
+const PlanOutlineView = ({ plan, showDurations = true }: PlanOutlineViewProps) => {
   const byMilestone = new Map<number, Plan["scheduledTasks"]>();
   for (const m of plan.milestones) {
     byMilestone.set(m.order_index, []);
@@ -43,9 +48,16 @@ const PlanOutlineView = ({ plan }: { plan: Plan }) => {
                   <li key={t.id} className="rounded-md border p-3">
                     <div className="flex items-center justify-between">
                       <p className="font-medium">{t.title}</p>
-                      <span className="text-xs text-muted-foreground">
-                        {t.duration_hours}h • ({t.end_day_offset - t.start_day_offset + 1} days)
-                      </span>
+                      {showDurations && t.start_day_offset !== undefined && t.end_day_offset !== undefined && (
+                        <span className="text-xs text-muted-foreground">
+                          {t.duration_hours}h • ({t.end_day_offset - t.start_day_offset + 1} days)
+                        </span>
+                      )}
+                      {!showDurations && (
+                        <span className="text-xs text-muted-foreground">
+                          {t.duration_hours}h
+                        </span>
+                      )}
                     </div>
                     {t.description && (
                       <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{t.description}</p>

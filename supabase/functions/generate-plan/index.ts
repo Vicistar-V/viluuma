@@ -70,6 +70,89 @@ function daysBetweenUTC(a: Date, b: Date) {
   return Math.max(0, Math.floor(ms / (1000 * 60 * 60 * 24)));
 }
 
+async function handleChecklistGeneration(intel: any, compression_requested: boolean, apiKey: string) {
+  const prompt = buildPrompt(intel, { compression: compression_requested });
+
+  const response = await fetch(OPENROUTER_URL, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "deepseek/deepseek-chat-v3-0324:free",
+      temperature: 0.2,
+      messages: [
+        { role: "system", content: "Return only valid JSON." },
+        { role: "user", content: prompt },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    console.error("generate-plan upstream error:", errText);
+    return new Response(JSON.stringify({ error: "Upstream error", details: errText }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const data = await response.json();
+  let content: string = "";
+  const choice = data?.choices?.[0]?.message;
+  if (typeof choice?.content === "string") content = choice.content;
+  else if (Array.isArray(choice?.content)) content = choice.content.map((c: any) => c?.text || "").join("\n");
+
+  const raw = tryExtractJson(content);
+  if (!raw || !Array.isArray(raw.milestones) || !Array.isArray(raw.tasks)) {
+    return new Response(JSON.stringify({ error: "Model did not return valid JSON" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  // Sanitize for checklist (no scheduling needed)
+  const milestones = raw.milestones.map((m: any, idx: number) => ({
+    title: String(m?.title || `Milestone ${idx + 1}`),
+    order_index: Number(m?.order_index ?? idx + 1),
+  }));
+
+  const compressionFactor = compression_requested ? 0.8 : 1.0;
+  const tasks = raw.tasks.map((t: any, idx: number) => ({
+    id: crypto.randomUUID(),
+    title: String(t?.title || `Task ${idx + 1}`),
+    description: t?.description ? String(t.description) : null,
+    milestone_index: Number(t?.milestone_index ?? 1),
+    duration_hours: Math.max(1, Math.round(Number(t?.duration_hours ?? 2) * compressionFactor)),
+    priority: ["low","medium","high"].includes(String(t?.priority)) ? String(t.priority) : null,
+  }));
+
+  // Simple quality check for checklists
+  let status: "success_checklist" | "low_quality" = "success_checklist";
+  let message = "Here's your checklist! Does this look like a good starting point?";
+
+  if (tasks.length < 3) {
+    status = "low_quality";
+    message = "This checklist seems too light. Let's try again with more detail.";
+  }
+
+  const payload = {
+    status,
+    message,
+    plan: {
+      milestones,
+      scheduledTasks: tasks, // No scheduling offsets for checklists
+      hoursPerWeek: 0, // Not relevant for checklists
+      dailyBudget: 0, // Not relevant for checklists
+    },
+  };
+
+  return new Response(JSON.stringify(payload), {
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
@@ -87,6 +170,11 @@ serve(async (req) => {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // Handle checklist modality with simplified logic
+    if (intel.modality === 'checklist') {
+      return await handleChecklistGeneration(intel, compression_requested, apiKey);
     }
 
     const prompt = buildPrompt(intel, { compression: compression_requested, extension: extension_requested });

@@ -6,7 +6,8 @@ import { supabase } from "@/integrations/supabase/client";
 import LoadingAnimation from "@/components/plan/LoadingAnimation";
 import ErrorMessage from "@/components/plan/ErrorMessage";
 import PlanOutlineView from "@/components/plan/PlanOutlineView";
-import ActionFooter from "@/components/plan/ActionFooter";
+import ProjectActionFooter from "@/components/plan/ProjectActionFooter";
+import ChecklistActionFooter from "@/components/plan/ChecklistActionFooter";
 
 interface Intel {
   title: string;
@@ -28,7 +29,7 @@ interface ScheduledTask {
 }
 
 interface Blueprint {
-  status: "success" | "under_scoped" | "over_scoped" | "low_quality";
+  status: "success" | "under_scoped" | "over_scoped" | "low_quality" | "success_checklist";
   message: string;
   calculatedEndDate?: string;
   plan: {
@@ -80,7 +81,8 @@ const PlanReviewScreen = () => {
     run();
   }, [intel, navigate]);
 
-  const handleAction = async (action: {
+  // Project-specific action handler
+  const handleProjectAction = async (action: {
     type: 'SAVE' | 'REGENERATE' | 'ACCEPT_AND_SAVE';
     plan?: any;
     newDeadline?: string;
@@ -89,11 +91,11 @@ const PlanReviewScreen = () => {
     if (!intel) return;
 
     if (action.type === 'SAVE') {
-      return handleSave(action.plan);
+      return handleProjectSave(action.plan);
     }
 
     if (action.type === 'ACCEPT_AND_SAVE') {
-      return handleSave(action.plan, action.newDeadline);
+      return handleProjectSave(action.plan, action.newDeadline);
     }
 
     if (action.type === 'REGENERATE') {
@@ -116,7 +118,35 @@ const PlanReviewScreen = () => {
     }
   };
 
-  const handleSave = async (plan?: any, newDeadline?: string) => {
+  // Checklist-specific action handler
+  const handleChecklistAction = async (action: {
+    type: 'SAVE' | 'REGENERATE';
+    plan?: any;
+  }) => {
+    if (!intel) return;
+
+    if (action.type === 'SAVE') {
+      return handleChecklistSave(action.plan);
+    }
+
+    if (action.type === 'REGENERATE') {
+      try {
+        setRecomputing(true);
+        const { data, error } = await supabase.functions.invoke("generate-plan", {
+          body: { intel },
+        });
+        if (error) throw error;
+        setBlueprint(data as Blueprint);
+      } catch (e: any) {
+        toast({ title: "Failed to regenerate", description: String(e?.message || e), variant: "destructive" });
+      } finally {
+        setRecomputing(false);
+      }
+    }
+  };
+
+  // Project save with date anchoring
+  const handleProjectSave = async (plan?: any, newDeadline?: string) => {
     const planToSave = plan || blueprint?.plan;
     if (!intel || !planToSave) return;
     
@@ -166,22 +196,81 @@ const PlanReviewScreen = () => {
     }
   };
 
+  // Checklist save without date anchoring
+  const handleChecklistSave = async (plan?: any) => {
+    const planToSave = plan || blueprint?.plan;
+    if (!intel || !planToSave) return;
+    
+    try {
+      setSaving(true);
+
+      // For checklists, save tasks without dates (no anchoring)
+      const tasksPayload = planToSave.scheduledTasks.map((t: any) => ({
+        title: t.title,
+        description: t.description,
+        duration_hours: t.duration_hours,
+        start_date: null, // No dates for checklists
+        end_date: null,   // No dates for checklists
+        milestone_index: t.milestone_index,
+        priority: t.priority,
+        is_anchored: false, // Not anchored to dates
+      }));
+
+      const { data, error } = await supabase.rpc("save_goal_plan", {
+        p_title: intel.title,
+        p_modality: intel.modality,
+        p_target_date: null, // No deadline for checklists
+        p_milestones: planToSave.milestones,
+        p_tasks: tasksPayload,
+      });
+
+      if (error) throw error;
+      const goalId = data as string;
+      toast({ title: "Checklist saved!" });
+      navigate(`/goals/${goalId}`);
+    } catch (e: any) {
+      toast({ title: "Save failed", description: String(e?.message || e), variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (loading) return <LoadingAnimation label="Architecting your plan..." />;
   if (error || !blueprint) return <ErrorMessage message={error || "Unknown error"} />;
 
+  // Dual-path rendering based on modality
+  if (intel.modality === 'checklist') {
+    return (
+      <main className="mx-auto max-w-screen-md p-4 pb-40">
+        <h1 className="sr-only">Checklist Review</h1>
+
+        <PlanOutlineView plan={blueprint.plan} showDurations={false} />
+
+        <ChecklistActionFooter
+          blueprint={blueprint as any} // Cast to handle checklist-specific status
+          intel={intel}
+          recomputing={recomputing}
+          saving={saving}
+          onAction={handleChecklistAction}
+        />
+      </main>
+    );
+  }
+
+  // Project path (default)
   return (
     <main className="mx-auto max-w-screen-md p-4 pb-40">
       <h1 className="sr-only">Plan Review</h1>
 
-      <PlanOutlineView plan={blueprint.plan} />
+      <PlanOutlineView plan={blueprint.plan} showDurations={true} />
 
-      <ActionFooter
-        blueprint={blueprint}
-        intel={intel}
-        recomputing={recomputing}
-        saving={saving}
-        onAction={handleAction}
-      />
+        <ProjectActionFooter
+          blueprint={blueprint}
+          intel={intel}
+          recomputing={recomputing}
+          saving={saving}
+          onAction={handleProjectAction}
+        />
     </main>
   );
 };
