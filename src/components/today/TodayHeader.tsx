@@ -13,30 +13,22 @@ const TodayHeader: React.FC<TodayHeaderProps> = ({ overdueCount }) => {
   const formattedDate = format(today, 'EEEE, MMMM d');
   const currentHour = getHours(today);
   
-  // Get time-based greeting
-  const getGreeting = () => {
-    if (currentHour < 12) {
-      return 'Good morning';
-    } else if (currentHour < 17) {
-      return 'Good afternoon';
-    } else {
-      return 'Good evening';
-    }
-  };
-
   const firstName = user?.user_metadata?.full_name?.split(' ')[0] || 'there';
 
-  // Get context-aware message and UI state based on overdue count
+  // Get greeting with name
+  const getGreeting = () => {
+    const timeGreeting = currentHour < 12 ? 'Good morning' : currentHour < 17 ? 'Good afternoon' : 'Good evening';
+    return `${timeGreeting}, ${firstName}`;
+  };
+
+  // Get context-aware message based on overdue count
   const getContextMessage = () => {
     if (overdueCount === 0) {
-      // Perfect state - no overdue tasks (Happy and positive)
-      return `Happy ${format(today, 'EEEE')}, ${firstName}! Here is your clear path for today.`;
+      return "Your day is clear and ready to go!";
     } else if (overdueCount <= 5) {
-      // Gentle nudge state (Include subtle guidance)
-      return `Good ${getGreeting().split(' ')[1]}, ${firstName}! You have a few things to catch up on below, but first, here is today's plan.`;
+      return "A few things need attention, but you've got this";
     } else {
-      // Overwhelmed state - proactive coaching (Empathetic and directive)
-      return `Hey ${firstName}, it looks like things are piling up, and that's completely okay. Don't worry about the tasks below for a second. The most important thing is to just get started. Let's focus on clearing one or two things from your 'Overdue' list to get the momentum back.`;
+      return "Let's tackle the backlog one step at a time";
     }
   };
 
@@ -67,28 +59,27 @@ const TodayHeader: React.FC<TodayHeaderProps> = ({ overdueCount }) => {
   const isOverwhelmed = overdueCount > 5;
 
   return (
-    <div className={`mb-6 animate-fade-in ${isOverwhelmed ? 'coaching-card' : ''}`}>
-      {/* Main Header */}
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          {headerIcon && (
-            <span className="text-lg animate-gentle-pulse" role="img" aria-label="status-icon">
-              {headerIcon}
-            </span>
-          )}
-          <div>
-            <p className="text-sm text-muted-foreground">{formattedDate}</p>
-          </div>
-        </div>
-      </div>
+    <div className="mb-6 animate-fade-in">
+      {/* Date */}
+      <p className="text-xs text-muted-foreground mb-1">{formattedDate}</p>
       
-      {/* Compact Message */}
-      <div className={`${
+      {/* Greeting Title */}
+      <h1 className="text-xl font-semibold text-foreground mb-2">
+        {getGreeting()}
+      </h1>
+      
+      {/* Context Message */}
+      <div className={`flex items-center gap-2 ${
         isOverwhelmed 
-          ? 'p-3 bg-warning/5 border border-warning/20 rounded-lg' 
+          ? 'p-2 bg-warning/5 border border-warning/20 rounded-md' 
           : ''
       }`}>
-        <p className={`text-sm font-medium ${textColor} ${isOverwhelmed ? 'text-warning-foreground' : ''}`}>
+        {headerIcon && (
+          <span className="text-sm" role="img" aria-label="status-icon">
+            {headerIcon}
+          </span>
+        )}
+        <p className={`text-sm ${textColor} ${isOverwhelmed ? 'text-warning-foreground' : ''}`}>
           {getContextMessage()}
         </p>
       </div>
