@@ -197,7 +197,7 @@ serve(async (req) => {
 
     console.log("🌐 Making API call to OpenRouter...");
     const requestPayload = {
-      model: "deepseek/deepseek-chat-v3-0324:free",
+      model: "openai/gpt-oss-20b:free",
       temperature: 0.1, // Reduced for speed and consistency
       max_tokens: 150, // Limit response length for speed
       messages: finalMessages,
