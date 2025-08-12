@@ -246,12 +246,20 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: Json
       }
+      get_goal_stats: {
+        Args: { goal_uuid: string }
+        Returns: Json
+      }
       get_today_page_payload: {
         Args: Record<PropertyKey, never>
         Returns: Json
       }
       get_user_data: {
         Args: { user_uuid?: string }
+        Returns: Json
+      }
+      get_user_goal_summary: {
+        Args: Record<PropertyKey, never>
         Returns: Json
       }
       goal_belongs_to_current_user: {
