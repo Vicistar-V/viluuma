@@ -719,98 +719,38 @@ const prompt = constructAIPrompt({
       });
     }
 
-    const raw = tryExtractJson(content);
-    if (!raw || !Array.isArray(raw.milestones) || !Array.isArray(raw.tasks)) {
-      console.log("❌ Invalid JSON structure - missing milestones or tasks arrays");
-      console.log("🔄 Attempting retry with different model...");
-      
-      // Retry with the same model but different temperature
-      const retryResponse = await fetch(OPENROUTER_URL, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "openai/gpt-oss-20b:free", // Same model
-          temperature: 0.05, // Lower temperature for more consistency
-          max_tokens: 2000,
-          messages: [
-            { role: "system", content: "You are a JSON generator. Return ONLY valid JSON. No prose, no backticks, no explanations." },
-            { role: "user", content: prompt },
-          ],
-        }),
+    // Station 3: Process AI Blueprint using our robust sanitizer
+    console.log("🔧 Station 3: Processing AI Blueprint...");
+    let sanitizedTasks: ViluumaTask[];
+    try {
+      sanitizedTasks = processAIBlueprint(content);
+    } catch (err) {
+      console.error('❌ Station 3 failed:', err);
+      return new Response(JSON.stringify({ error: String(err) }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
-      
-      if (retryResponse.ok) {
-        const retryText = await retryResponse.text();
-        console.log("📦 Retry API Response:", retryText);
-        const retryData = JSON.parse(retryText);
-        const retryChoice = retryData?.choices?.[0]?.message;
-        if (retryChoice?.content) {
-          const retryRaw = tryExtractJson(retryChoice.content);
-          if (retryRaw && Array.isArray(retryRaw.milestones) && Array.isArray(retryRaw.tasks)) {
-            console.log("✅ Retry succeeded with valid JSON");
-            raw = retryRaw;
-          }
-        }
-      }
-      
-      if (!raw || !Array.isArray(raw.milestones) || !Array.isArray(raw.tasks)) {
-        return new Response(JSON.stringify({ error: "Model did not return valid JSON structure after retry" }), {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
     }
-    
-    // Validate task structure to catch malformed content
-    console.log("🔍 Validating task structure...");
-    for (let i = 0; i < raw.tasks.length; i++) {
-      const task = raw.tasks[i];
-      if (!task || typeof task !== 'object') {
-        console.log(`❌ Task ${i} is not a valid object:`, task);
-        return new Response(JSON.stringify({ error: `Task ${i + 1} is malformed` }), {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      
-      // Check for incomplete description field (common JSON malformation)
-      if (task.description && typeof task.description === 'string') {
-        if (task.description.includes('"milestone_index"') || task.description.includes('"duration_hours"')) {
-          console.log(`❌ Task ${i} has malformed description containing field names:`, task.description);
-          // Try to fix by truncating at the point where it gets malformed
-          const cutoff = task.description.search(/"[\w_]+"\s*:/);
-          if (cutoff > 0) {
-            task.description = task.description.substring(0, cutoff).trim();
-            console.log(`🔧 Fixed task ${i} description:`, task.description);
-          } else {
-            task.description = "Task description unavailable";
-          }
-        }
-      }
-    }
-    console.log("✅ Task structure validation completed");
 
-    // Sanitize & enrich
-    const milestones = raw.milestones.map((m: any, idx: number) => ({
-      title: String(m?.title || `Milestone ${idx + 1}`),
-      order_index: Number(m?.order_index ?? idx + 1),
+    // Extract milestone data from sanitized tasks for compatibility
+    const uniqueMilestones = new Set(sanitizedTasks.map(t => t.milestone_name));
+    const milestones = Array.from(uniqueMilestones).map((name, idx) => ({
+      title: name,
+      order_index: idx + 1,
     }));
 
+    // Convert ViluumaTask format to API response format  
     const compressionFactor = compression_requested ? 0.8 : 1.0;
-    const tasks = raw.tasks.map((t: any, idx: number) => ({
-      id: crypto.randomUUID(),
-      title: String(t?.title || `Task ${idx + 1}`),
-      description: t?.description ? String(t.description) : null,
-      milestone_index: Number(t?.milestone_index ?? 1),
-      duration_hours: Math.max(1, Math.round(Number(t?.duration_hours ?? 2) * compressionFactor)),
-      priority: ["low","medium","high"].includes(String(t?.priority)) ? String(t.priority) : null,
+    const tasks = sanitizedTasks.map((t: ViluumaTask) => ({
+      id: t.id,
+      title: t.name,
+      description: t.description || null,
+      milestone_index: milestones.findIndex(m => m.title === t.milestone_name) + 1,
+      duration_hours: Math.round(t.duration_hours * compressionFactor),
+      priority: t.priority,
     }));
 
     // Use a STANDARD daily budget for REALISTIC timeline calculation
-    // This is independent of user's personal time commitment
     const STANDARD_DAILY_BUDGET = 2; // 2 hours per day as realistic standard
     const daysPerWeek = 5;
 
