@@ -88,10 +88,12 @@ const TodayHeader: React.FC<TodayHeaderProps> = ({ overdueCount }) => {
           ? 'p-4 bg-warning/5 border border-warning/20 rounded-lg' 
           : ''
       }`}>
-        <p className={`text-sm font-medium leading-relaxed ${textColor} ${
-          isOverwhelmed ? 'text-warning-foreground' : ''
-        }`}>
-          {getContextMessage()}
+        <p className={`text-base md:text-lg font-medium leading-relaxed ${textColor} ${isOverwhelmed ? 'text-warning-foreground' : ''}`}>
+          <span className="block">{getContextMessage()}</span>
+          <span className="mt-1 block text-muted-foreground">
+            Take a deep breath — you're in control. This is your calm, curated launchpad.
+            Tap a task to make progress, or open the overdue tray when you're ready.
+          </span>
         </p>
       </div>
     </div>
