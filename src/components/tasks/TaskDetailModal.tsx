@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { CalendarIcon, CheckIcon, Loader2Icon, Anchor, RotateCcwIcon, TrashIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -224,69 +225,96 @@ const TaskDetailModal = ({ taskId, onOpenChange, goalModality, goalStatus = 'act
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label className="flex items-center gap-1">
+                    <Label className="flex items-center gap-2">
                       <Anchor className="w-3 h-3" />
-                      Anchored Task
+                      📌 Lock this date
                     </Label>
-                    <Button 
-                      variant={anchored ? 'default' : 'outline'} 
-                      onClick={() => setAnchored((a) => !a)}
-                      disabled={isReadOnly}
-                      className="w-full"
-                    >
-                      {anchored ? '📌 Anchored' : 'Flexible'}
-                    </Button>
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        checked={anchored}
+                        onCheckedChange={setAnchored}
+                        disabled={isReadOnly}
+                      />
+                      <span className="text-sm text-muted-foreground">
+                        {anchored ? 'Fixed date' : 'Flexible'}
+                      </span>
+                    </div>
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-3 mt-3">
-                  <div className="space-y-2">
-                    <Label>Start Date</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button 
-                          variant="outline" 
-                          className={cn("w-full justify-start", !start && "text-muted-foreground")}
-                          disabled={isReadOnly}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" /> 
-                          {start ? format(start, 'PPP') : 'Pick a date'}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar 
-                          mode="single" 
-                          selected={start} 
-                          onSelect={setStart} 
-                          className={cn("p-3 pointer-events-auto")} 
-                        />
-                      </PopoverContent>
-                    </Popover>
+                {/* Date Management: Different UI based on anchor state */}
+                {anchored ? (
+                  // ANCHORED: User can edit start date directly
+                  <div className="space-y-3 mt-3">
+                    <div className="space-y-2">
+                      <Label>Start Date</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button 
+                            variant="outline" 
+                            className={cn("w-full justify-start", !start && "text-muted-foreground")}
+                            disabled={isReadOnly}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" /> 
+                            {start ? format(start, 'PPP') : 'Pick a date'}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar 
+                            mode="single" 
+                            selected={start} 
+                            onSelect={(date) => {
+                              setStart(date);
+                              // Auto-calculate end date based on duration
+                              if (date && duration) {
+                                const endDate = new Date(date);
+                                endDate.setDate(endDate.getDate() + Math.ceil(duration / 8)); // Assuming 8 hours per day
+                                setEnd(endDate);
+                              }
+                            }} 
+                            className={cn("p-3 pointer-events-auto")} 
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>End Date (calculated)</Label>
+                      <div className="p-2 border rounded-md bg-muted/30 text-sm text-muted-foreground">
+                        {end ? format(end, 'PPP') : 'Set start date and duration first'}
+                      </div>
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Due Date</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button 
-                          variant="outline" 
-                          className={cn("w-full justify-start", !end && "text-muted-foreground")}
-                          disabled={isReadOnly}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" /> 
-                          {end ? format(end, 'PPP') : 'Pick a date'}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar 
-                          mode="single" 
-                          selected={end} 
-                          onSelect={setEnd} 
-                          className={cn("p-3 pointer-events-auto")} 
-                        />
-                      </PopoverContent>
-                    </Popover>
+                ) : (
+                  // FLOATING: Read-only dates with Reschedule button
+                  <div className="space-y-3 mt-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-2">
+                        <Label>Start Date</Label>
+                        <div className="p-2 border rounded-md bg-muted/30 text-sm">
+                          {start ? format(start, 'PPP') : 'Not scheduled'}
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>End Date</Label>
+                        <div className="p-2 border rounded-md bg-muted/30 text-sm">
+                          {end ? format(end, 'PPP') : 'Not scheduled'}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {!isReadOnly && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowRescheduleModal(true)}
+                        className="w-full flex items-center gap-2"
+                      >
+                        <RotateCcwIcon className="w-4 h-4" />
+                        Reschedule Task
+                      </Button>
+                    )}
                   </div>
-                </div>
+                )}
                 
                 {anchored && (
                   <div className="mt-3 p-3 bg-muted/50 rounded-lg border">
@@ -300,48 +328,25 @@ const TaskDetailModal = ({ taskId, onOpenChange, goalModality, goalStatus = 'act
                   </div>
                 )}
                 
-                {/* Living Plan Actions for Project Tasks */}
+                {/* Delete Action */}
                 {!isReadOnly && goalModality === 'project' && (
                   <div className="mt-4 pt-4 border-t">
                     <div className="flex items-center justify-between mb-3">
-                      <h4 className="font-medium text-sm">Living Plan Actions</h4>
+                      <h4 className="font-medium text-sm">Task Actions</h4>
                       <Badge variant="outline" className="text-xs bg-gradient-to-r from-primary/10 to-primary/20">
-                        Smart Scheduling
+                        Living Plan
                       </Badge>
                     </div>
                     
-                    <div className="grid grid-cols-2 gap-2">
-                      {!anchored && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setShowRescheduleModal(true)}
-                          className="flex items-center gap-2 text-xs"
-                        >
-                          <RotateCcwIcon className="w-3 h-3" />
-                          Reschedule
-                        </Button>
-                      )}
-                      
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShowDeleteModal(true)}
-                        className="flex items-center gap-2 text-xs text-red-600 hover:text-red-700 border-red-200 hover:border-red-300"
-                      >
-                        <TrashIcon className="w-3 h-3" />
-                        Delete
-                      </Button>
-                    </div>
-                    
-                    {anchored && (
-                      <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded-md">
-                        <p className="text-xs text-amber-700">
-                          📌 Anchored tasks can't be rescheduled automatically. 
-                          Change dates manually or remove the anchor first.
-                        </p>
-                      </div>
-                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowDeleteModal(true)}
+                      className="flex items-center gap-2 text-xs text-red-600 hover:text-red-700 border-red-200 hover:border-red-300"
+                    >
+                      <TrashIcon className="w-3 h-3" />
+                      Delete Task
+                    </Button>
                   </div>
                 )}
               </div>
