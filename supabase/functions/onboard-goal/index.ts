@@ -187,11 +187,10 @@ serve(async (req) => {
     const dynamicSystemPrompt = buildDynamicSystemPrompt(missingInfo);
     console.log("📄 System prompt length:", dynamicSystemPrompt.length);
 
-    // Keep only recent messages for speed (last 6 messages max)
-    const recentMessages = messages.slice(-6);
+    // Use full conversation history
     const finalMessages = [
       { role: "system", content: dynamicSystemPrompt },
-      ...recentMessages,
+      ...messages,
     ];
     console.log("💬 Final messages count:", finalMessages.length);
 
