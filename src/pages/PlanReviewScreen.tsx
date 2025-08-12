@@ -73,7 +73,7 @@ const PlanReviewScreen = () => {
         const { data, error } = await supabase.functions.invoke("generate-plan", {
           body: { intel, userConstraints },
         });
-        console.log("Generate-plan response:", { data, error });
+        if (import.meta.env.DEV) console.log("Generate-plan response:", { data, error });
         if (error) throw error;
         setBlueprint(data as Blueprint);
         setError(null);
@@ -233,7 +233,7 @@ const PlanReviewScreen = () => {
       const { data, error } = await supabase.rpc("save_goal_plan", {
         p_title: intel.title,
         p_modality: intel.modality,
-        p_target_date: null, // No deadline for checklists
+        p_target_date: '', // No deadline for checklists (DB treats empty as NULL)
         p_milestones: unifiedPlan.milestones,
         p_tasks: unifiedPlan.scheduledTasks,
       });
