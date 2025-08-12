@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import LoginScreen from "./pages/LoginScreen";
 import SignUpScreen from "./pages/SignUpScreen";
 import GoalsScreen from "./pages/GoalsScreen";
+import TodayScreen from "./pages/TodayScreen";
 import ProfileScreen from "./pages/ProfileScreen";
 import CreateManualGoalScreen from "./pages/CreateManualGoalScreen";
 import GoalDetailScreen from "./pages/GoalDetailScreen";
@@ -30,6 +31,7 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/login" element={<LoginScreen />} />
               <Route path="/signup" element={<SignUpScreen />} />
+              <Route path="/today" element={<TodayScreen />} />
               <Route path="/goals" element={<GoalsScreen />} />
               <Route path="/goals/new" element={<CreateManualGoalScreen />} />
               <Route path="/goals/ai" element={<AIOnboardingWizard />} />

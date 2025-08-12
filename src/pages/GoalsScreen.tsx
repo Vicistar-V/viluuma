@@ -15,6 +15,7 @@ import { BottomNav } from '@/components/BottomNav';
 const GoalsScreen = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  // BLAZING FAST: Direct table read - triggers handle all progress calculations
   const { data: goals, isLoading: goalsLoading } = useGoals();
   const updateGoalStatus = useUpdateGoalStatus();
   const deleteGoal = useDeleteGoal();
@@ -46,6 +47,7 @@ const GoalsScreen = () => {
     });
   }, [goals, filters]);
   
+  // BLAZING FAST: Client-side stats calculation (no database aggregation queries needed)
   const stats = useMemo(() => {
     if (!goals) return { total: 0, active: 0, completed: 0, archived: 0 };
     
