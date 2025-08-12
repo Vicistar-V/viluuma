@@ -198,8 +198,8 @@ serve(async (req) => {
     console.log("🌐 Making API call to OpenRouter...");
     const requestPayload = {
       model: "openai/gpt-oss-20b:free",
-      temperature: 0.1, // Reduced for speed and consistency
-      max_tokens: 150, // Limit response length for speed
+      temperature: 0.1,
+      max_tokens: 500, // Increased for reasoning model
       messages: finalMessages,
     };
     console.log("📤 API Request payload:", JSON.stringify(requestPayload, null, 2));
@@ -248,7 +248,7 @@ serve(async (req) => {
     const choice = data?.choices?.[0]?.message;
     console.log("🎯 Extracted choice object:", JSON.stringify(choice, null, 2));
     
-    if (typeof choice?.content === "string") {
+    if (typeof choice?.content === "string" && choice.content.trim()) {
       content = choice.content;
       console.log("✅ Content extracted as string:", content);
     } else if (Array.isArray(choice?.content)) {
@@ -256,8 +256,15 @@ serve(async (req) => {
         .map((c: any) => (typeof c === "string" ? c : c.text || ""))
         .join("\n");
       console.log("✅ Content extracted from array:", content);
+    } else if (typeof choice?.reasoning === "string" && choice.reasoning.trim()) {
+      // Fallback for reasoning models - extract from reasoning field
+      content = choice.reasoning;
+      console.log("✅ Content extracted from reasoning field:", content);
     } else {
       console.log("❌ No valid content found in choice:", choice);
+      // Return a helpful fallback message
+      content = "What goal would you like to work on?";
+      console.log("🔄 Using fallback content:", content);
     }
 
     console.log("📝 Final extracted content:", content);
