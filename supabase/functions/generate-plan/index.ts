@@ -861,3 +861,5 @@ const prompt = constructAIPrompt({
     });
   }
 });
+
+// Serve function properly closed
