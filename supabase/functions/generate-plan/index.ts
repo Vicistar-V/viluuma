@@ -376,10 +376,46 @@ serve(async (req) => {
     const raw = tryExtractJson(content);
     if (!raw || !Array.isArray(raw.milestones) || !Array.isArray(raw.tasks)) {
       console.log("❌ Invalid JSON structure - missing milestones or tasks arrays");
-      return new Response(JSON.stringify({ error: "Model did not return valid JSON structure" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      console.log("🔄 Attempting retry with different model...");
+      
+      // Retry with a more reliable model
+      const retryResponse = await fetch(OPENROUTER_URL, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "openai/gpt-4o-mini", // More reliable model
+          temperature: 0.1,
+          max_tokens: 2000,
+          messages: [
+            { role: "system", content: "You are a JSON generator. Return ONLY valid JSON. No prose, no backticks, no explanations." },
+            { role: "user", content: prompt },
+          ],
+        }),
       });
+      
+      if (retryResponse.ok) {
+        const retryText = await retryResponse.text();
+        console.log("📦 Retry API Response:", retryText);
+        const retryData = JSON.parse(retryText);
+        const retryChoice = retryData?.choices?.[0]?.message;
+        if (retryChoice?.content) {
+          const retryRaw = tryExtractJson(retryChoice.content);
+          if (retryRaw && Array.isArray(retryRaw.milestones) && Array.isArray(retryRaw.tasks)) {
+            console.log("✅ Retry succeeded with valid JSON");
+            raw = retryRaw;
+          }
+        }
+      }
+      
+      if (!raw || !Array.isArray(raw.milestones) || !Array.isArray(raw.tasks)) {
+        return new Response(JSON.stringify({ error: "Model did not return valid JSON structure after retry" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
     
     // Validate task structure to catch malformed content
