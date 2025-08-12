@@ -1,21 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
-import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { BottomNav } from "@/components/BottomNav";
-import ThemeToggle from "@/components/ThemeToggle";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Trash2, PencilLine, CheckCircle2, CalendarIcon, Ellipsis } from "lucide-react";
 
+// Import our new components
+import { GoalDetailHeader } from "@/components/goals/GoalDetailHeader";
+import { GoalOverviewCard } from "@/components/goals/GoalOverviewCard";
+import { ActiveProjectView } from "@/components/goals/ActiveProjectView";
+import { ActiveChecklistView } from "@/components/goals/ActiveChecklistView";
+import { CompletedGoalView } from "@/components/goals/CompletedGoalView";
+import { ArchivedGoalModal } from "@/components/goals/ArchivedGoalModal";
 import TaskDetailModal from "@/components/tasks/TaskDetailModal";
 
 interface Goal { id: string; title: string; modality: 'project'|'checklist'; status: string; total_tasks: number; completed_tasks: number; target_date?: string | null; }
@@ -31,12 +28,25 @@ const GoalDetailScreen = () => {
   const [goal, setGoal] = useState<Goal | null>(null);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [editingMilestoneId, setEditingMilestoneId] = useState<string | null>(null);
-  const [deleteMilestoneId, setDeleteMilestoneId] = useState<string | null>(null);
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
+  const [showArchivedModal, setShowArchivedModal] = useState(false);
 
-  useEffect(() => { document.title = "Goal"; }, []);
-  useEffect(() => { if (!loading && !user) navigate('/login'); }, [user, loading, navigate]);
+  useEffect(() => { 
+    if (goal) {
+      document.title = goal.title;
+    }
+  }, [goal]);
+  
+  useEffect(() => { 
+    if (!loading && !user) navigate('/login'); 
+  }, [user, loading, navigate]);
+
+  // Handle archived goals
+  useEffect(() => {
+    if (goal?.status === 'archived') {
+      setShowArchivedModal(true);
+    }
+  }, [goal?.status]);
 
   const refresh = async () => {
     if (!id) return;
@@ -62,26 +72,53 @@ const GoalDetailScreen = () => {
     return map;
   }, [tasks]);
 
+  // Enhanced handlers
+  const handleTitleUpdate = async (newTitle: string) => {
+    if (!goal) return;
+    const { error } = await supabase.from('goals').update({ title: newTitle }).eq('id', goal.id);
+    if (error) return toast({ title: 'Error', description: error.message });
+    setGoal({ ...goal, title: newTitle });
+  };
+
+  const handleStatusChange = async (status: 'active' | 'archived' | 'completed') => {
+    if (!goal) return;
+    const { error } = await supabase.from('goals').update({ 
+      status,
+      completed_at: status === 'completed' ? new Date().toISOString() : null
+    }).eq('id', goal.id);
+    if (error) return toast({ title: 'Error', description: error.message });
+    
+    setGoal({ ...goal, status, completed_at: status === 'completed' ? new Date().toISOString() : null });
+    
+    if (status === 'completed') {
+      toast({ title: "🎉 Goal Completed!", description: "Congratulations on your achievement!" });
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!goal) return;
+    const { error } = await supabase.from('goals').delete().eq('id', goal.id);
+    if (error) return toast({ title: 'Error', description: error.message });
+    navigate('/goals');
+  };
+
+  const handleMilestoneEdit = async (milestone: Milestone, newTitle: string) => {
+    const { error } = await supabase.rpc('update_milestone_title', { p_milestone_id: milestone.id, p_title: newTitle });
+    if (error) return toast({ title: 'Error', description: error.message });
+    refresh();
+  };
+
+  const handleMilestoneDelete = async (milestoneId: string) => {
+    const { error } = await supabase.rpc('delete_milestone_and_tasks', { p_milestone_id: milestoneId });
+    if (error) return toast({ title: 'Error', description: error.message });
+    refresh();
+  };
+
   const addMilestone = async () => {
     if (!id) return;
     const { data, error } = await supabase.rpc('create_milestone', { p_goal_id: id, p_title: 'New milestone' });
     if (error) return toast({ title: 'Error', description: error.message });
-    await refresh();
-    setEditingMilestoneId(data as string);
-  };
-
-  const saveMilestoneTitle = async (m: Milestone, title: string) => {
-    if (!title.trim() || title === m.title) { setEditingMilestoneId(null); return; }
-    const { error } = await supabase.rpc('update_milestone_title', { p_milestone_id: m.id, p_title: title.trim() });
-    if (error) return toast({ title: 'Error', description: error.message });
-    setEditingMilestoneId(null); refresh();
-  };
-
-  const deleteMilestone = async () => {
-    if (!deleteMilestoneId) return;
-    const { error } = await supabase.rpc('delete_milestone_and_tasks', { p_milestone_id: deleteMilestoneId });
-    if (error) return toast({ title: 'Error', description: error.message });
-    setDeleteMilestoneId(null); refresh();
+    refresh();
   };
 
   const addTask = async (milestoneId: string) => {
@@ -106,194 +143,76 @@ const GoalDetailScreen = () => {
 
   if (loading || !user) return null;
   if (!goal) return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b bg-card">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <CalendarIcon className="h-6 w-6 text-primary" />
-            <h1 className="text-xl font-semibold">Goal</h1>
-          </div>
-          <ThemeToggle />
-        </div>
-      </header>
-      <main className="container mx-auto px-4 py-6">Loading...</main>
-      <BottomNav />
+    <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="text-center">
+        <div className="text-lg text-muted-foreground">Loading goal...</div>
+      </div>
     </div>
   );
 
-  const progress = goal.total_tasks ? Math.round((goal.completed_tasks / goal.total_tasks) * 100) : 0;
-
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b bg-card">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <CheckCircle2 className="h-6 w-6 text-primary" />
-            <h1 className="text-xl font-semibold">{goal.title}</h1>
-          </div>
-          <ThemeToggle />
-        </div>
-      </header>
+      <GoalDetailHeader
+        goal={goal}
+        onTitleUpdate={handleTitleUpdate}
+        onStatusChange={handleStatusChange}
+        onDelete={handleDelete}
+      />
 
-      <main className="container mx-auto px-4 py-6 pb-28 space-y-4">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Progress</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between text-sm text-muted-foreground mb-2">
-              <span>{goal.completed_tasks} / {goal.total_tasks} tasks</span>
-              <span>{progress}%</span>
-            </div>
-            <Progress value={progress} />
-          </CardContent>
-        </Card>
+      <main className="container mx-auto px-4 py-6 pb-28 space-y-6">
+        <GoalOverviewCard goal={goal} />
 
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Outline</h2>
-          <Button size="sm" onClick={addMilestone}><Plus className="mr-1" /> Add Milestone</Button>
-        </div>
-
-        <Accordion type="multiple" className="space-y-2">
-          {milestones.map((m) => (
-            <AccordionItem key={m.id} value={m.id} className="border rounded-lg px-3">
-              <AccordionTrigger className="hover:no-underline">
-                <div className="w-full flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    {editingMilestoneId === m.id ? (
-                      <Input
-                        defaultValue={m.title}
-                        autoFocus
-                        onBlur={(e) => saveMilestoneTitle(m, e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-                          if (e.key === 'Escape') setEditingMilestoneId(null);
-                        }}
-                        className="h-8"
-                      />
-                    ) : (
-                      <div className="text-left">
-                        <div className="font-medium">{m.title}</div>
-                        <div className="text-xs text-muted-foreground">{m.completed_tasks} / {m.total_tasks} done</div>
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); setEditingMilestoneId(m.id); }} aria-label="Edit title">
-                      <PencilLine />
-                    </Button>
-                    <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); setDeleteMilestoneId(m.id); }} aria-label="Delete">
-                      <Trash2 />
-                    </Button>
-                  </div>
-                </div>
-              </AccordionTrigger>
-              <AccordionContent>
-                <div className="space-y-2">
-                   {(groupedTasks[m.id] || []).map((t) => (
-                     <div key={t.id} className="flex items-center justify-between rounded-md border p-3">
-                       <div className="flex items-center gap-3 flex-1">
-                         <input
-                           aria-label="Toggle"
-                           type="checkbox"
-                           checked={t.status === 'completed'}
-                           onChange={() => toggleTask(t)}
-                           className="h-5 w-5 shrink-0"
-                         />
-                         <button className="text-left flex-1 min-w-0" onClick={() => setActiveTaskId(t.id)}>
-                           <div className="flex items-center gap-2 mb-1">
-                             <div className="font-medium leading-tight truncate">{t.title}</div>
-                             {goal.modality === 'project' && (
-                               <>
-                                 {t.priority && (
-                                   <Badge 
-                                     variant={
-                                       t.priority === 'high' ? 'destructive' : 
-                                       t.priority === 'medium' ? 'secondary' : 
-                                       'outline'
-                                     }
-                                     className="text-xs px-1 py-0"
-                                   >
-                                     {t.priority}
-                                   </Badge>
-                                 )}
-                                 {t.is_anchored && (
-                                   <Badge variant="outline" className="text-xs px-1 py-0">
-                                     📌
-                                   </Badge>
-                                 )}
-                               </>
-                             )}
-                           </div>
-                           {goal.modality === 'project' && (
-                             <div className="space-y-1">
-                               {t.description && (
-                                 <div className="text-xs text-muted-foreground line-clamp-1">
-                                   {t.description.length > 50 ? `${t.description.slice(0, 50)}...` : t.description}
-                                 </div>
-                               )}
-                               <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                                 {t.duration_hours && (
-                                   <span>{t.duration_hours}h</span>
-                                 )}
-                                 {(t.start_date || t.end_date) && (
-                                   <span>
-                                     {t.start_date && new Date(t.start_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                                     {t.start_date && t.end_date && ' - '}
-                                     {t.end_date && new Date(t.end_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                                   </span>
-                                 )}
-                               </div>
-                             </div>
-                           )}
-                         </button>
-                       </div>
-
-                      <div className="flex items-center gap-1">
-                        <Button size="icon" variant="ghost" onClick={() => setActiveTaskId(t.id)} aria-label="Edit">
-                          <PencilLine />
-                        </Button>
-                        <Button size="icon" variant="ghost" onClick={() => removeTask(t)} aria-label="Delete">
-                          <Trash2 />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-
-                  <Button variant="secondary" size="sm" onClick={() => addTask(m.id)}>
-                    <Plus className="mr-1" /> Add Task
-                  </Button>
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-          ))}
-        </Accordion>
-
-        <Separator />
-
+        {goal.status === 'completed' ? (
+          <CompletedGoalView
+            goal={goal}
+            milestones={milestones}
+            groupedTasks={groupedTasks}
+          />
+        ) : goal.modality === 'project' ? (
+          <ActiveProjectView
+            milestones={milestones}
+            groupedTasks={groupedTasks}
+            onMilestoneEdit={handleMilestoneEdit}
+            onMilestoneDelete={handleMilestoneDelete}
+            onTaskToggle={toggleTask}
+            onTaskEdit={(taskId) => setActiveTaskId(taskId)}
+            onTaskDelete={removeTask}
+            onAddTask={addTask}
+            onAddMilestone={addMilestone}
+          />
+        ) : (
+          <ActiveChecklistView
+            milestones={milestones}
+            groupedTasks={groupedTasks}
+            onMilestoneEdit={handleMilestoneEdit}
+            onMilestoneDelete={handleMilestoneDelete}
+            onTaskToggle={toggleTask}
+            onTaskEdit={(taskId) => setActiveTaskId(taskId)}
+            onTaskDelete={removeTask}
+            onAddTask={addTask}
+            onAddMilestone={addMilestone}
+          />
+        )}
       </main>
 
       <TaskDetailModal
         taskId={activeTaskId}
         onOpenChange={(open) => !open && setActiveTaskId(null)}
         goalModality={goal.modality}
+        goalStatus={goal.status}
         onSaved={refresh}
       />
 
-      <AlertDialog open={!!deleteMilestoneId} onOpenChange={(o) => !o && setDeleteMilestoneId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete this milestone?</AlertDialogTitle>
-          </AlertDialogHeader>
-          <div className="text-sm text-muted-foreground">
-            This will also delete all tasks inside.
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={deleteMilestone} className="bg-destructive text-destructive-foreground">Delete</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ArchivedGoalModal
+        goal={showArchivedModal ? goal : null}
+        milestones={milestones}
+        groupedTasks={groupedTasks}
+        onClose={() => setShowArchivedModal(false)}
+        onReactivate={async () => {
+          await handleStatusChange('active');
+          setShowArchivedModal(false);
+        }}
+      />
 
       <BottomNav />
     </div>
