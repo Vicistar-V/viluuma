@@ -194,7 +194,7 @@ const PlanReviewScreen = () => {
       const { data, error } = await supabase.rpc("save_goal_plan", {
         p_title: intel.title,
         p_modality: intel.modality,
-        p_target_date: targetDate,
+        p_target_date: targetDate ?? null,
         p_milestones: unifiedPlan.milestones,
         p_tasks: unifiedPlan.scheduledTasks,
       });
