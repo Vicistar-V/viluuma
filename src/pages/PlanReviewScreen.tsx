@@ -64,11 +64,14 @@ const PlanReviewScreen = () => {
       try {
         setLoading(true);
         console.log("Calling generate-plan with intel:", intel);
-        const { data, error } = await supabase.functions.invoke("generate-plan", {
-          body: { intel },
+        const response = await fetch('https://your-worker.your-subdomain.workers.dev/generate-plan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ intel }),
         });
-        console.log("Generate-plan response:", { data, error });
-        if (error) throw error;
+        const data = await response.json();
+        console.log("Generate-plan response:", data);
+        if (!response.ok) throw new Error(data.error || 'API call failed');
         setBlueprint(data as Blueprint);
         setError(null);
       } catch (e: any) {
@@ -101,14 +104,17 @@ const PlanReviewScreen = () => {
     if (action.type === 'REGENERATE') {
       try {
         setRecomputing(true);
-        const { data, error } = await supabase.functions.invoke("generate-plan", {
-          body: { 
+        const response = await fetch('https://your-worker.your-subdomain.workers.dev/generate-plan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
             intel, 
             compression_requested: !!action.options?.compression_requested,
             extension_requested: !!action.options?.expansion_requested 
-          },
+          }),
         });
-        if (error) throw error;
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'API call failed');
         setBlueprint(data as Blueprint);
       } catch (e: any) {
         toast({ title: "Failed to regenerate", description: String(e?.message || e), variant: "destructive" });
@@ -132,10 +138,13 @@ const PlanReviewScreen = () => {
     if (action.type === 'REGENERATE') {
       try {
         setRecomputing(true);
-        const { data, error } = await supabase.functions.invoke("generate-plan", {
-          body: { intel },
+        const response = await fetch('https://your-worker.your-subdomain.workers.dev/generate-plan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ intel }),
         });
-        if (error) throw error;
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'API call failed');
         setBlueprint(data as Blueprint);
       } catch (e: any) {
         toast({ title: "Failed to regenerate", description: String(e?.message || e), variant: "destructive" });
