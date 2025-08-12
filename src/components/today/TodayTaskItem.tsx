@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Clock, Calendar, Target, Sparkles, Zap, Lightbulb } from 'lucide-react';
+import { Clock, Calendar, Target, Sparkles, Zap, Lightbulb, CheckCircle } from 'lucide-react';
 import { TodayTask, useCompleteTask, useUncompleteTask } from '@/hooks/useTodayData';
 import { format, isToday, isPast } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { toast } from '@/hooks/use-toast';
 
 interface TodayTaskItemProps {
   task: TodayTask;
@@ -19,9 +20,25 @@ const TodayTaskItem: React.FC<TodayTaskItemProps> = ({ task }) => {
   const handleCheckboxChange = async (checked: boolean) => {
     if (checked) {
       setIsCompleting(true);
-      await completeTaskMutation.mutateAsync(task.id);
-      // Animation will be handled by CSS
-      setTimeout(() => setIsCompleting(false), 600);
+      try {
+        await completeTaskMutation.mutateAsync(task.id);
+        // Show success feedback
+        toast({
+          title: "Task completed! 🎉",
+          description: `Great work on "${task.title}"`,
+          duration: 3000,
+        });
+        // Animation will be handled by CSS
+        setTimeout(() => setIsCompleting(false), 600);
+      } catch (error) {
+        setIsCompleting(false);
+        toast({
+          title: "Failed to complete task",
+          description: "Please try again",
+          variant: "destructive",
+          duration: 3000,
+        });
+      }
     } else {
       uncompleteTaskMutation.mutate(task.id);
     }
@@ -104,7 +121,7 @@ const TodayTaskItem: React.FC<TodayTaskItemProps> = ({ task }) => {
     }
     
     if (isCompleted) {
-      return cn(baseClasses, 'opacity-60');
+      return cn(baseClasses, 'opacity-60 bg-success/5 border-success/20');
     }
     
     if (isChecklist) {
@@ -123,12 +140,17 @@ const TodayTaskItem: React.FC<TodayTaskItemProps> = ({ task }) => {
     <Card className={getCardClassName()}>
       <CardContent className="p-4">
         <div className="flex items-start gap-3">
-          <Checkbox
-            checked={isCompleted}
-            onCheckedChange={handleCheckboxChange}
-            disabled={completeTaskMutation.isPending || uncompleteTaskMutation.isPending}
-            className="mt-1 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-          />
+          <div className="relative">
+            <Checkbox
+              checked={isCompleted}
+              onCheckedChange={handleCheckboxChange}
+              disabled={completeTaskMutation.isPending || uncompleteTaskMutation.isPending}
+              className="mt-1 data-[state=checked]:bg-success data-[state=checked]:border-success"
+            />
+            {isCompleted && (
+              <CheckCircle className="w-4 h-4 text-success absolute -top-0.5 -right-0.5 bg-background rounded-full p-0.5" />
+            )}
+          </div>
           
           <div className="flex-1 min-w-0">
             {/* Checklist Invitation Header */}
@@ -146,7 +168,7 @@ const TodayTaskItem: React.FC<TodayTaskItemProps> = ({ task }) => {
             <div className="flex items-center gap-2 mb-2">
               {/* Task Type Badge */}
               {isOverdue && (
-                <Badge variant="secondary" className="text-xs border-warning text-warning">
+                <Badge variant="secondary" className="text-xs border-warning text-warning bg-warning/10">
                   <Clock className="w-3 h-3 mr-1" />
                   Overdue
                 </Badge>
@@ -185,7 +207,7 @@ const TodayTaskItem: React.FC<TodayTaskItemProps> = ({ task }) => {
             
             {/* Task Title */}
             <h3 className={cn(
-              'font-medium mb-1',
+              'font-medium mb-1 transition-all duration-300',
               isCompleted ? 'line-through text-muted-foreground' : 'text-foreground',
               isChecklist && !isCompleted ? 'text-sm' : 'text-base'
             )}>
@@ -195,7 +217,7 @@ const TodayTaskItem: React.FC<TodayTaskItemProps> = ({ task }) => {
             {/* Task Description */}
             {task.description && (
               <p className={cn(
-                'text-sm mb-2',
+                'text-sm mb-2 transition-all duration-300',
                 isCompleted ? 'line-through text-muted-foreground' : 'text-muted-foreground'
               )}>
                 {task.description}

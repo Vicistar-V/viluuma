@@ -244,23 +244,7 @@ export type Database = {
       }
       get_all_overdue_tasks: {
         Args: Record<PropertyKey, never>
-        Returns: {
-          id: string
-          goal_id: string
-          milestone_id: string
-          user_id: string
-          title: string
-          description: string
-          status: string
-          priority: string
-          start_date: string
-          end_date: string
-          duration_hours: number
-          is_anchored: boolean
-          created_at: string
-          updated_at: string
-          goal_title: string
-        }[]
+        Returns: Json
       }
       get_today_page_payload: {
         Args: Record<PropertyKey, never>
