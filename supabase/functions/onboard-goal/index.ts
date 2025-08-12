@@ -37,7 +37,7 @@ NEEDED: ${missingInfo.join(', ')}
 RULES:
 - 1 short sentence max
 - Ask ONE question about missing info
-- When ready: {"status":"ready_to_generate","intel":{"title":"...","modality":"project|checklist","deadline":"YYYY-MM-DD|null","hoursPerWeek":8,"context":"..."}}`;
+- When ready, respond ONLY with: {"status":"ready_to_generate","intel":{"title":"...","modality":"project|checklist","deadline":"YYYY-MM-DD|null","hoursPerWeek":8,"context":"..."}}`;
   
   return basePrompt;
 }
@@ -248,8 +248,9 @@ serve(async (req) => {
       });
     }
 
-    // Fallback as plain assistant message
-    return new Response(JSON.stringify({ type: "message", role: "assistant", content }), {
+    // Return just the content for normal conversation
+    console.log("💬 Returning conversation message:", content);
+    return new Response(JSON.stringify({ content }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
