@@ -279,20 +279,13 @@ export type Database = {
         Returns: number
       }
       save_goal_plan: {
-        Args:
-          | {
-              p_title: string
-              p_modality: string
-              p_target_date: string
-              p_milestones: Json
-              p_tasks: Json
-            }
-          | {
-              p_title: string
-              p_modality: string
-              p_target_date: string
-              p_plan: Json
-            }
+        Args: {
+          p_title: string
+          p_modality: string
+          p_target_date: string
+          p_milestones: Json
+          p_tasks: Json
+        }
         Returns: string
       }
       task_belongs_to_current_user: {
