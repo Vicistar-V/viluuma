@@ -28,7 +28,7 @@ const TodayHeader: React.FC<TodayHeaderProps> = ({ overdueCount }) => {
   // Get context-aware message based on overdue count
   const getContextMessage = () => {
     if (overdueCount === 0) {
-      return "Your day is clear and ready to go!";
+      return "You're all caught up on overdue tasks";
     } else if (overdueCount <= 5) {
       return "A few things need attention, but you've got this";
     } else {
@@ -47,30 +47,7 @@ const TodayHeader: React.FC<TodayHeaderProps> = ({ overdueCount }) => {
     }
   };
 
-  // Get text color and background treatment
-  const getTextColor = () => {
-    if (overdueCount === 0) {
-      return "text-success";
-    } else if (overdueCount <= 5) {
-      return "text-muted-foreground";
-    } else {
-      return "text-warning-foreground";
-    }
-  };
-
-  const getBackgroundTreatment = () => {
-    if (overdueCount === 0) {
-      return "p-2 bg-success/5 border border-success/20 rounded-md";
-    } else if (overdueCount <= 5) {
-      return "";
-    } else {
-      return "p-2 bg-warning/5 border border-warning/20 rounded-md";
-    }
-  };
-
   const headerIcon = getHeaderIcon();
-  const textColor = getTextColor();
-  const backgroundTreatment = getBackgroundTreatment();
 
   return (
     <div className="mb-6 animate-fade-in">
@@ -83,13 +60,15 @@ const TodayHeader: React.FC<TodayHeaderProps> = ({ overdueCount }) => {
       </h1>
       
       {/* Context Message */}
-      <div className={`flex items-center gap-2 transition-colors duration-300 ${backgroundTreatment}`}>
+      <div className={`flex items-center gap-2 ${
+        overdueCount > 5 ? 'p-2 bg-warning/5 border border-warning/20 rounded-md' : ''
+      }`}>
         {headerIcon && (
           <span className="text-sm" role="img" aria-label="status-icon">
             {headerIcon}
           </span>
         )}
-        <p className={`text-sm transition-colors duration-300 ${textColor}`}>
+        <p className="text-sm text-muted-foreground">
           {getContextMessage()}
         </p>
       </div>
