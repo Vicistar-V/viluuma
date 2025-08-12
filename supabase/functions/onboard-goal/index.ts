@@ -53,7 +53,7 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "anthropic/claude-3.5-sonnet",
+        model: "deepseek/deepseek-chat-v3-0324:free",
         temperature: 0.4,
         messages: finalMessages,
       }),
