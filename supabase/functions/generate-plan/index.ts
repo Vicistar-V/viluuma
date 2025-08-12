@@ -378,7 +378,7 @@ serve(async (req) => {
       console.log("❌ Invalid JSON structure - missing milestones or tasks arrays");
       console.log("🔄 Attempting retry with different model...");
       
-      // Retry with a more reliable model
+      // Retry with the same model but different temperature
       const retryResponse = await fetch(OPENROUTER_URL, {
         method: "POST",
         headers: {
@@ -386,8 +386,8 @@ serve(async (req) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "openai/gpt-4o-mini", // More reliable model
-          temperature: 0.1,
+          model: "openai/gpt-oss-20b:free", // Same model
+          temperature: 0.05, // Lower temperature for more consistency
           max_tokens: 2000,
           messages: [
             { role: "system", content: "You are a JSON generator. Return ONLY valid JSON. No prose, no backticks, no explanations." },
