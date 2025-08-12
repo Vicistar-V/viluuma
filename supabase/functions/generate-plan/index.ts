@@ -426,6 +426,18 @@ function analyzePlanQuality(
   };
 }
 
+// Standard shipping box for Station 6: The Reporter
+interface PlanBlueprint {
+  status: 'success' | 'over_scoped' | 'under_scoped' | 'low_quality' | 'success_checklist' | 'error';
+  message: string;
+  plan?: {
+    milestones: any[];
+    scheduledTasks: ScheduledViluumaTask[];
+    totalProjectDays: number;
+  };
+  calculatedEndDate?: string;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   
@@ -542,19 +554,27 @@ serve(async (req) => {
 
     const finalCalculatedEndDate = analysis.calculatedEndDate ?? calculatedEndDate;
 
-    const payload = {
+    const blueprint: PlanBlueprint = {
       status: analysis.status,
-      message: analysis.message ?? "Plan generated successfully!",
-      calculatedEndDate: finalCalculatedEndDate,
+      message: analysis.message ?? '',
       plan: {
         milestones,
         scheduledTasks,
-        hoursPerWeek: userConstraints?.hoursPerWeek ?? 20,
-        dailyBudget: Math.max(1, (userConstraints?.hoursPerWeek ?? 20) / 5),
+        totalProjectDays,
       },
+      calculatedEndDate: finalCalculatedEndDate,
     };
-    
-    return new Response(JSON.stringify(payload), {
+
+    // Prune based on status for consistency & efficiency
+    if (blueprint.status === 'low_quality') {
+      delete blueprint.plan;
+    } else if (blueprint.status === 'success_checklist') {
+      delete blueprint.calculatedEndDate;
+    }
+
+    console.log(`✅ Station 6: Reporting final status '${blueprint.status}'. Shipping blueprint to client.`);
+
+    return new Response(JSON.stringify(blueprint), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
