@@ -54,16 +54,18 @@ const TodayScreen: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className={`container mx-auto p-4 pb-20 ${overdueCount > 10 ? 'space-y-2' : ''}`}>
+      <div className={`container mx-auto p-4 pb-20 ${overdueCount > 5 ? 'space-y-2' : ''}`}>
         <TodayHeader overdueCount={overdueCount} />
         
         {/* Pristine Today Tasks List */}
         <div className={`transition-opacity duration-300 ${
-          overdueCount > 10 ? 'opacity-60' : 'opacity-100'
+          overdueCount > 5 ? 'opacity-60' : 'opacity-100'
         }`}>
           {todayTasks.length > 0 ? (
             <div className="space-y-4 mb-6">
-              <h2 className="text-lg font-semibold text-foreground mb-3">Today's Focus</h2>
+              {overdueCount <= 5 && (
+                <h2 className="text-lg font-semibold text-foreground mb-3">Today's Focus</h2>
+              )}
               {todayTasks.map((task, index) => (
                 <div key={task.id} style={{ animationDelay: `${index * 100}ms` }}>
                   <TodayTaskItem task={task} />
@@ -100,9 +102,12 @@ const TodayScreen: React.FC = () => {
 
         {/* Enhanced Overdue Tasks Accordion */}
         <div className={`${
-          overdueCount > 3 ? 'animate-pulse' : ''
+          overdueCount > 3 ? 'animate-gentle-pulse' : ''
         }`}>
-          <OverdueTasksAccordion count={overdueCount} />
+          <OverdueTasksAccordion 
+            count={overdueCount} 
+            autoExpand={overdueCount > 5}
+          />
         </div>
 
         {/* Empty State for No Tasks or Overdue */}

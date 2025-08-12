@@ -14,10 +14,12 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 interface OverdueTasksAccordionProps {
   count: number;
+  autoExpand?: boolean;
 }
 
-const OverdueTasksAccordion: React.FC<OverdueTasksAccordionProps> = ({ count }) => {
+const OverdueTasksAccordion: React.FC<OverdueTasksAccordionProps> = ({ count, autoExpand = false }) => {
   const [hasOpened, setHasOpened] = useState(false);
+  const [value, setValue] = useState<string>(autoExpand ? 'overdue-tasks' : '');
   const {
     data: overdueTasks,
     isLoading,
@@ -25,12 +27,23 @@ const OverdueTasksAccordion: React.FC<OverdueTasksAccordionProps> = ({ count }) 
     refetch
   } = useOverdueTasks();
 
-  const handleOpenChange = (isOpen: boolean) => {
+  const handleOpenChange = (newValue: string) => {
+    setValue(newValue);
+    const isOpen = !!newValue;
     if (isOpen && !hasOpened) {
       setHasOpened(true);
       refetch();
     }
   };
+
+  // Auto-expand when in overwhelmed state
+  React.useEffect(() => {
+    if (autoExpand && !hasOpened) {
+      setValue('overdue-tasks');
+      setHasOpened(true);
+      refetch();
+    }
+  }, [autoExpand, hasOpened, refetch]);
 
   if (count === 0) return null;
 
@@ -39,8 +52,9 @@ const OverdueTasksAccordion: React.FC<OverdueTasksAccordionProps> = ({ count }) 
       <Accordion 
         type="single" 
         collapsible 
-        className="w-full animate-fade-in"
-        onValueChange={(value) => handleOpenChange(!!value)}
+        className={`w-full animate-fade-in ${autoExpand ? 'accordion-auto-expand' : ''}`}
+        value={value}
+        onValueChange={handleOpenChange}
       >
         <AccordionItem value="overdue-tasks" className="border border-warning/20 rounded-lg">
           <AccordionTrigger className="px-4 py-3 hover:no-underline bg-warning/5 rounded-lg hover:bg-warning/10 transition-colors">
@@ -92,7 +106,7 @@ const OverdueTasksAccordion: React.FC<OverdueTasksAccordionProps> = ({ count }) 
               <div className="space-y-3 mt-4">
                 {overdueTasks.map((task, index) => (
                   <div key={task.id} style={{ animationDelay: `${index * 100}ms` }}>
-                    <TodayTaskItem 
+                     <TodayTaskItem 
                       task={{
                         id: task.id,
                         goal_id: task.goal_id,
@@ -104,7 +118,8 @@ const OverdueTasksAccordion: React.FC<OverdueTasksAccordionProps> = ({ count }) 
                         priority: task.priority as 'high' | 'medium' | 'low' | null,
                         is_anchored: task.is_anchored,
                         goal_title: task.goal_title,
-                        task_type: 'overdue'
+                        task_type: 'overdue',
+                        display_status: 'overdue'
                       }} 
                     />
                   </div>

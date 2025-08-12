@@ -26,52 +26,70 @@ const TodayHeader: React.FC<TodayHeaderProps> = ({ overdueCount }) => {
 
   const firstName = user?.user_metadata?.full_name?.split(' ')[0] || 'there';
 
-  // Get context-aware message based on overdue count
+  // Get context-aware message and UI state based on overdue count
   const getContextMessage = () => {
     if (overdueCount === 0) {
-      // Perfect state - no overdue tasks
-      const dayOfWeek = today.getDay();
-      switch (dayOfWeek) {
-        case 1: return "Here's your plan for today. Let's start the week strong!";
-        case 2: return "Here's your plan for today. Keep building that momentum!";
-        case 3: return "Here's your plan for today. Hump day hustle!";
-        case 4: return "Here's your plan for today. Almost there!";
-        case 5: return "Here's your plan for today. Finish strong!";
-        case 6: return "Here's your plan for today. Weekend productivity!";
-        case 0: return "Here's your plan for today. Sunday self-care!";
-        default: return "Here's your plan for today. Let's make it count!";
-      }
-    } else if (overdueCount <= 3) {
-      // Gentle nudge state
-      return "You have a few things to catch up on, but today looks manageable.";
+      // Perfect state - no overdue tasks (Happy and positive)
+      return `Happy ${format(today, 'EEEE')}, ${firstName}! Here is your clear path for today.`;
+    } else if (overdueCount <= 5) {
+      // Gentle nudge state (Include subtle guidance)
+      return `Good ${getGreeting().split(' ')[1]}, ${firstName}! You have a few things to catch up on below, but first, here is today's plan.`;
     } else {
-      // Overwhelmed state - focus on overdue
-      return "It looks like you've fallen a bit behind. That's totally okay! Let's focus on catching up first.";
+      // Overwhelmed state - proactive coaching (Empathetic and directive)
+      return `Hey ${firstName}, it looks like things are piling up, and that's completely okay. Don't worry about the tasks below for a second. The most important thing is to just get started. Let's focus on clearing one or two things from your 'Overdue' list to get the momentum back.`;
     }
   };
 
+  // Get header visual treatment based on overdue count
+  const getHeaderIcon = () => {
+    if (overdueCount === 0) {
+      return null; // Clean and simple
+    } else if (overdueCount <= 5) {
+      return "💡"; // Gentle, friendly guidance
+    } else {
+      return "⚠️"; // More direct but still warm
+    }
+  };
+
+  // Get text color treatment
+  const getTextColor = () => {
+    if (overdueCount === 0) {
+      return "text-primary";
+    } else if (overdueCount <= 5) {
+      return "text-muted-foreground";
+    } else {
+      return "text-warning";
+    }
+  };
+
+  const headerIcon = getHeaderIcon();
+  const textColor = getTextColor();
+  const isOverwhelmed = overdueCount > 5;
+
   return (
-    <div className="mb-6 animate-fade-in">
-      <div className="flex items-center justify-between mb-2">
-        <h1 className="text-2xl font-bold text-foreground">
-          {getGreeting()}, {firstName}!
-        </h1>
-        <div className="text-right">
-          <p className="text-sm text-muted-foreground">{formattedDate}</p>
+    <div className={`mb-6 animate-fade-in ${isOverwhelmed ? 'coaching-card' : ''}`}>
+      {/* Main Header */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          {headerIcon && (
+            <span className="text-lg animate-gentle-pulse" role="img" aria-label="status-icon">
+              {headerIcon}
+            </span>
+          )}
+          <div>
+            <p className="text-sm text-muted-foreground">{formattedDate}</p>
+          </div>
         </div>
       </div>
       
-      {/* Context-aware coaching message */}
-      <div className="flex items-start gap-2">
-        {overdueCount > 10 && (
-          <AlertTriangle className="w-4 h-4 text-warning mt-0.5 flex-shrink-0" />
-        )}
-        <p className={`text-sm font-medium ${
-          overdueCount === 0 
-            ? 'text-primary' 
-            : overdueCount <= 3 
-              ? 'text-muted-foreground' 
-              : 'text-warning'
+      {/* Smart Coaching Message */}
+      <div className={`${
+        isOverwhelmed 
+          ? 'p-4 bg-warning/5 border border-warning/20 rounded-lg' 
+          : ''
+      }`}>
+        <p className={`text-sm font-medium leading-relaxed ${textColor} ${
+          isOverwhelmed ? 'text-warning-foreground' : ''
         }`}>
           {getContextMessage()}
         </p>
