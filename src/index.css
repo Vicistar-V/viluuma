@@ -170,7 +170,53 @@ All colors MUST be HSL.
     100% { transform: scale(0.98); opacity: 0.5; }
   }
   
+  @keyframes confetti-burst {
+    0% { transform: scale(0) rotate(0deg); opacity: 0; }
+    50% { transform: scale(1.2) rotate(180deg); opacity: 1; }
+    100% { transform: scale(1) rotate(360deg); opacity: 0.8; }
+  }
+  
+  @keyframes celebration-glow {
+    0%, 100% { box-shadow: 0 0 20px hsl(var(--success) / 0.3); }
+    50% { box-shadow: 0 0 40px hsl(var(--success) / 0.6); }
+  }
+  
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  
+  @keyframes slide-in-from-top {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  
+  @keyframes soft-glow {
+    0%, 100% { box-shadow: 0 0 10px hsl(var(--primary) / 0.1); }
+    50% { box-shadow: 0 0 20px hsl(var(--primary) / 0.2); }
+  }
+  
   .animate-task-complete {
     animation: task-complete 0.6s ease-out forwards;
+  }
+  
+  .animate-confetti-burst {
+    animation: confetti-burst 1s ease-out forwards;
+  }
+  
+  .animate-celebration-glow {
+    animation: celebration-glow 2s ease-in-out infinite;
+  }
+  
+  .animate-fade-in {
+    animation: fade-in 0.5s ease-out forwards;
+  }
+  
+  .animate-slide-in-from-top {
+    animation: slide-in-from-top 0.3s ease-out forwards;
+  }
+  
+  .animate-soft-glow {
+    animation: soft-glow 3s ease-in-out infinite;
   }
 }

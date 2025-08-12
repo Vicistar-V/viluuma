@@ -15,9 +15,42 @@ import { CompletedGoalView } from "@/components/goals/CompletedGoalView";
 import { ArchivedGoalModal } from "@/components/goals/ArchivedGoalModal";
 import TaskDetailModal from "@/components/tasks/TaskDetailModal";
 
-interface Goal { id: string; title: string; modality: 'project'|'checklist'; status: string; total_tasks: number; completed_tasks: number; target_date?: string | null; }
-interface Milestone { id: string; goal_id: string; title: string; status: string; order_index: number | null; total_tasks: number; completed_tasks: number; }
-interface Task { id: string; goal_id: string; milestone_id: string; user_id: string; title: string; description?: string | null; status: 'pending'|'completed'; priority?: string | null; start_date?: string | null; end_date?: string | null; duration_hours?: number | null; is_anchored: boolean; }
+interface Goal { 
+  id: string; 
+  title: string; 
+  modality: 'project'|'checklist'; 
+  status: 'active' | 'archived' | 'completed';
+  total_tasks: number; 
+  completed_tasks: number; 
+  target_date?: string | null; 
+  weekly_hours?: number | null;
+  created_at: string;
+  updated_at: string;
+  completed_at?: string | null;
+}
+interface Milestone { 
+  id: string; 
+  goal_id: string; 
+  title: string; 
+  status: string; 
+  order_index: number | null; 
+  total_tasks: number; 
+  completed_tasks: number; 
+}
+interface Task { 
+  id: string; 
+  goal_id: string; 
+  milestone_id: string; 
+  user_id: string; 
+  title: string; 
+  description?: string | null; 
+  status: 'pending'|'completed'; 
+  priority?: string | null; 
+  start_date?: string | null; 
+  end_date?: string | null; 
+  duration_hours?: number | null; 
+  is_anchored: boolean; 
+}
 
 const GoalDetailScreen = () => {
   const { id } = useParams();
@@ -73,71 +106,102 @@ const GoalDetailScreen = () => {
   }, [tasks]);
 
   // Enhanced handlers
-  const handleTitleUpdate = async (newTitle: string) => {
+  const handleTitleUpdate = async (newTitle: string): Promise<void> => {
     if (!goal) return;
     const { error } = await supabase.from('goals').update({ title: newTitle }).eq('id', goal.id);
-    if (error) return toast({ title: 'Error', description: error.message });
+    if (error) {
+      toast({ title: 'Error', description: error.message });
+      return;
+    }
     setGoal({ ...goal, title: newTitle });
   };
 
-  const handleStatusChange = async (status: 'active' | 'archived' | 'completed') => {
+  const handleStatusChange = async (status: 'active' | 'archived' | 'completed'): Promise<void> => {
     if (!goal) return;
     const { error } = await supabase.from('goals').update({ 
       status,
       completed_at: status === 'completed' ? new Date().toISOString() : null
     }).eq('id', goal.id);
-    if (error) return toast({ title: 'Error', description: error.message });
+    if (error) {
+      toast({ title: 'Error', description: error.message });
+      return;
+    }
     
-    setGoal({ ...goal, status, completed_at: status === 'completed' ? new Date().toISOString() : null });
+    setGoal({ 
+      ...goal, 
+      status, 
+      completed_at: status === 'completed' ? new Date().toISOString() : null 
+    });
     
     if (status === 'completed') {
       toast({ title: "🎉 Goal Completed!", description: "Congratulations on your achievement!" });
     }
   };
 
-  const handleDelete = async () => {
+  const handleDelete = async (): Promise<void> => {
     if (!goal) return;
     const { error } = await supabase.from('goals').delete().eq('id', goal.id);
-    if (error) return toast({ title: 'Error', description: error.message });
+    if (error) {
+      toast({ title: 'Error', description: error.message });
+      return;
+    }
     navigate('/goals');
   };
 
-  const handleMilestoneEdit = async (milestone: Milestone, newTitle: string) => {
+  const handleMilestoneEdit = async (milestone: Milestone, newTitle: string): Promise<void> => {
     const { error } = await supabase.rpc('update_milestone_title', { p_milestone_id: milestone.id, p_title: newTitle });
-    if (error) return toast({ title: 'Error', description: error.message });
+    if (error) {
+      toast({ title: 'Error', description: error.message });
+      return;
+    }
     refresh();
   };
 
-  const handleMilestoneDelete = async (milestoneId: string) => {
+  const handleMilestoneDelete = async (milestoneId: string): Promise<void> => {
     const { error } = await supabase.rpc('delete_milestone_and_tasks', { p_milestone_id: milestoneId });
-    if (error) return toast({ title: 'Error', description: error.message });
+    if (error) {
+      toast({ title: 'Error', description: error.message });
+      return;
+    }
     refresh();
   };
 
-  const addMilestone = async () => {
+  const addMilestone = async (): Promise<void> => {
     if (!id) return;
     const { data, error } = await supabase.rpc('create_milestone', { p_goal_id: id, p_title: 'New milestone' });
-    if (error) return toast({ title: 'Error', description: error.message });
+    if (error) {
+      toast({ title: 'Error', description: error.message });
+      return;
+    }
     refresh();
   };
 
-  const addTask = async (milestoneId: string) => {
+  const addTask = async (milestoneId: string): Promise<void> => {
     const { data, error } = await supabase.rpc('create_task', { p_milestone_id: milestoneId, p_title: 'New task' });
-    if (error) return toast({ title: 'Error', description: error.message });
+    if (error) {
+      toast({ title: 'Error', description: error.message });
+      return;
+    }
     await refresh();
     setActiveTaskId(data as string);
   };
 
-  const toggleTask = async (task: Task) => {
+  const toggleTask = async (task: Task): Promise<void> => {
     const next = task.status === 'pending' ? 'completed' : 'pending';
     const { error } = await supabase.from('tasks').update({ status: next }).eq('id', task.id);
-    if (error) return toast({ title: 'Error', description: error.message });
+    if (error) {
+      toast({ title: 'Error', description: error.message });
+      return;
+    }
     refresh();
   };
 
-  const removeTask = async (task: Task) => {
+  const removeTask = async (task: Task): Promise<void> => {
     const { error } = await supabase.rpc('delete_task', { p_task_id: task.id });
-    if (error) return toast({ title: 'Error', description: error.message });
+    if (error) {
+      toast({ title: 'Error', description: error.message });
+      return;
+    }
     refresh();
   };
 
