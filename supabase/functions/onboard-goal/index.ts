@@ -107,24 +107,39 @@ serve(async (req) => {
   }
 
   try {
+    console.log("🚀 onboard-goal function started");
+    console.log("📋 Request method:", req.method);
+    console.log("🔑 Checking API key availability...");
+    
     const apiKey = Deno.env.get("OPENROUTER_API_KEY");
     if (!apiKey) {
+      console.error("❌ Missing OPENROUTER_API_KEY environment variable");
       return new Response(JSON.stringify({ error: "Missing OPENROUTER_API_KEY" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    console.log("✅ API key found");
 
-    const { messages } = await req.json();
+    console.log("📨 Parsing request body...");
+    const requestBody = await req.json();
+    console.log("📊 Request body:", JSON.stringify(requestBody, null, 2));
+    
+    const { messages } = requestBody;
     if (!Array.isArray(messages)) {
+      console.error("❌ Invalid payload: messages should be an array");
       return new Response(JSON.stringify({ error: "Invalid payload: messages[] required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    console.log("✅ Messages validation passed, count:", messages.length);
 
     // Analyze conversation state to determine what info is still needed
+    console.log("🔍 Analyzing conversation state...");
     const state = analyzeConversationState(messages);
+    console.log("📊 Conversation state:", JSON.stringify(state, null, 2));
+    
     const missingInfo: string[] = [];
 
     if (!state.title) {
@@ -145,8 +160,11 @@ serve(async (req) => {
       missingInfo.push("Time Commitment: How many hours per week can they dedicate?");
     }
 
+    console.log("📝 Missing info:", missingInfo);
+
     // Check if we have everything we need for the handoff
     if (missingInfo.length === 0 && state.title && state.modality) {
+      console.log("✅ All information collected, generating intel object");
       // We have everything! Return the intel directly
       const intel = {
         title: state.title,
@@ -155,6 +173,8 @@ serve(async (req) => {
         hoursPerWeek: state.modality === "checklist" ? 0 : (state.hoursPerWeek || 8),
         context: state.context || ""
       };
+      
+      console.log("🎯 Generated intel:", JSON.stringify(intel, null, 2));
       
       return new Response(JSON.stringify({
         status: "ready_to_generate",
@@ -165,12 +185,23 @@ serve(async (req) => {
     }
 
     // Build dynamic system prompt based on missing information
+    console.log("🎯 Building dynamic system prompt for missing info");
     const dynamicSystemPrompt = buildDynamicSystemPrompt(missingInfo);
+    console.log("📄 System prompt length:", dynamicSystemPrompt.length);
 
     const finalMessages = [
       { role: "system", content: dynamicSystemPrompt },
       ...messages,
     ];
+    console.log("💬 Final messages count:", finalMessages.length);
+
+    console.log("🌐 Making API call to OpenRouter...");
+    const requestPayload = {
+      model: "deepseek/deepseek-chat-v3-0324:free",
+      temperature: 0.4,
+      messages: finalMessages,
+    };
+    console.log("📤 API Request payload:", JSON.stringify(requestPayload, null, 2));
 
     const response = await fetch(OPENROUTER_URL, {
       method: "POST",
@@ -178,12 +209,11 @@ serve(async (req) => {
         "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        model: "deepseek/deepseek-chat-v3-0324:free",
-        temperature: 0.4,
-        messages: finalMessages,
-      }),
+      body: JSON.stringify(requestPayload),
     });
+
+    console.log("📥 API Response status:", response.status);
+    console.log("📥 API Response headers:", Object.fromEntries(response.headers.entries()));
 
     if (!response.ok) {
       const errText = await response.text();

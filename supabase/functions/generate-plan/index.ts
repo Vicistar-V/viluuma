@@ -194,28 +194,59 @@ async function handleChecklistGeneration(intel: any, compression_requested: bool
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
+    console.log("🚀 generate-plan function started");
+    console.log("📋 Request method:", req.method);
+    console.log("🔑 Checking API key availability...");
+    
     const apiKey = Deno.env.get("OPENROUTER_API_KEY");
     if (!apiKey) {
+      console.error("❌ Missing OPENROUTER_API_KEY environment variable");
       return new Response(JSON.stringify({ error: "Missing OPENROUTER_API_KEY" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    console.log("✅ API key found");
 
-    const { intel, compression_requested = false, extension_requested = false } = await req.json();
+    console.log("📨 Parsing request body...");
+    const requestBody = await req.json();
+    console.log("📊 Request body:", JSON.stringify(requestBody, null, 2));
+    
+    const { intel, compression_requested = false, extension_requested = false } = requestBody;
+    
+    console.log("🔍 Validating intel data...");
+    console.log("📝 Intel title:", intel?.title);
+    console.log("🎯 Intel modality:", intel?.modality);
+    
     if (!intel?.title || !intel?.modality) {
+      console.error("❌ Missing required intel data - title or modality");
       return new Response(JSON.stringify({ error: "intel.title and intel.modality required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    console.log("✅ Intel validation passed");
 
     // Handle checklist modality with simplified logic
     if (intel.modality === 'checklist') {
+      console.log("📋 Processing checklist modality");
       return await handleChecklistGeneration(intel, compression_requested, apiKey);
     }
 
+    console.log("🏗️ Processing project modality - building prompt");
     const prompt = buildPrompt(intel, { compression: compression_requested, extension: extension_requested });
+    console.log("📄 Generated prompt length:", prompt.length);
+
+    console.log("🌐 Making API call to OpenRouter...");
+    const requestPayload = {
+      model: "deepseek/deepseek-chat-v3-0324:free",
+      temperature: 0.2,
+      messages: [
+        { role: "system", content: "Return only valid JSON." },
+        { role: "user", content: prompt },
+      ],
+    };
+    console.log("📤 API Request payload:", JSON.stringify(requestPayload, null, 2));
 
     const response = await fetch(OPENROUTER_URL, {
       method: "POST",
@@ -223,15 +254,11 @@ serve(async (req) => {
         "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        model: "deepseek/deepseek-chat-v3-0324:free",
-        temperature: 0.2,
-        messages: [
-          { role: "system", content: "Return only valid JSON." },
-          { role: "user", content: prompt },
-        ],
-      }),
+      body: JSON.stringify(requestPayload),
     });
+
+    console.log("📥 API Response status:", response.status);
+    console.log("📥 API Response headers:", Object.fromEntries(response.headers.entries()));
 
     if (!response.ok) {
       const errText = await response.text();
