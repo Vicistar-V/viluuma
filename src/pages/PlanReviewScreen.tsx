@@ -155,10 +155,12 @@ const PlanReviewScreen = () => {
 
       <ActionButtons
         status={blueprint.status}
+        message={blueprint.message}
         recomputing={recomputing}
         saving={saving}
         onCompress={() => handleRecompute({ compression: true })}
         onExtend={() => handleRecompute({ extension: true })}
+        onRegenerate={() => handleRecompute({})}
         onSave={handleSave}
       />
     </main>
