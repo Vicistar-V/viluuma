@@ -47,20 +47,56 @@ function buildPrompt(intel: any, opts: { compression?: boolean; extension?: bool
 
 function tryExtractJson(text: string): any | null {
   const trimmed = text.trim();
+  console.log("🔍 Attempting to extract JSON from:", trimmed.substring(0, 500));
+  
   // Remove code fences if present
   const fence = /```[a-zA-Z]*\n([\s\S]*?)```/m;
   const m = trimmed.match(fence);
   const candidate = m ? m[1] : trimmed;
+  
   try {
-    return JSON.parse(candidate);
-  } catch (_) {
+    const parsed = JSON.parse(candidate);
+    console.log("✅ JSON parsed successfully");
+    return parsed;
+  } catch (parseError) {
+    console.log("❌ Initial JSON parse failed:", parseError.message);
+    
     // Try to find first { ... } block
     const start = candidate.indexOf("{");
     const end = candidate.lastIndexOf("}");
     if (start >= 0 && end > start) {
       const slice = candidate.slice(start, end + 1);
-      try { return JSON.parse(slice); } catch (_) {}
+      console.log("🔄 Trying JSON slice:", slice.substring(0, 200) + "...");
+      try { 
+        const parsed = JSON.parse(slice);
+        console.log("✅ JSON slice parsed successfully");
+        return parsed;
+      } catch (sliceError) {
+        console.log("❌ JSON slice parse failed:", sliceError.message);
+      }
     }
+    
+    // Try to fix common JSON issues
+    try {
+      let fixed = candidate;
+      
+      // Fix incomplete descriptions (look for description followed by missing quote and field)
+      fixed = fixed.replace(/"description":\s*"([^"]*)"([^"]*)"([^"]*)":\s*/g, '"description": "$1", "$3": ');
+      
+      // Fix missing quotes around field names
+      fixed = fixed.replace(/(\w+):\s*"/g, '"$1": "');
+      
+      // Fix trailing commas
+      fixed = fixed.replace(/,(\s*[}\]])/g, '$1');
+      
+      console.log("🔧 Attempting to parse fixed JSON");
+      const parsed = JSON.parse(fixed);
+      console.log("✅ Fixed JSON parsed successfully");
+      return parsed;
+    } catch (fixError) {
+      console.log("❌ Fixed JSON parse failed:", fixError.message);
+    }
+    
     return null;
   }
 }
@@ -339,11 +375,41 @@ serve(async (req) => {
 
     const raw = tryExtractJson(content);
     if (!raw || !Array.isArray(raw.milestones) || !Array.isArray(raw.tasks)) {
-      return new Response(JSON.stringify({ error: "Model did not return valid JSON" }), {
+      console.log("❌ Invalid JSON structure - missing milestones or tasks arrays");
+      return new Response(JSON.stringify({ error: "Model did not return valid JSON structure" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    
+    // Validate task structure to catch malformed content
+    console.log("🔍 Validating task structure...");
+    for (let i = 0; i < raw.tasks.length; i++) {
+      const task = raw.tasks[i];
+      if (!task || typeof task !== 'object') {
+        console.log(`❌ Task ${i} is not a valid object:`, task);
+        return new Response(JSON.stringify({ error: `Task ${i + 1} is malformed` }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      
+      // Check for incomplete description field (common JSON malformation)
+      if (task.description && typeof task.description === 'string') {
+        if (task.description.includes('"milestone_index"') || task.description.includes('"duration_hours"')) {
+          console.log(`❌ Task ${i} has malformed description containing field names:`, task.description);
+          // Try to fix by truncating at the point where it gets malformed
+          const cutoff = task.description.search(/"[\w_]+"\s*:/);
+          if (cutoff > 0) {
+            task.description = task.description.substring(0, cutoff).trim();
+            console.log(`🔧 Fixed task ${i} description:`, task.description);
+          } else {
+            task.description = "Task description unavailable";
+          }
+        }
+      }
+    }
+    console.log("✅ Task structure validation completed");
 
     // Sanitize & enrich
     const milestones = raw.milestones.map((m: any, idx: number) => ({
