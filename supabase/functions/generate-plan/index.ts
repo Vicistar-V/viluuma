@@ -38,6 +38,121 @@ Rules:
 - Focus on REALISTIC time estimates, not fitting into any timeline
 `;
 
+// Station 1: The Prompter - constructAIPrompt
+function constructAIPrompt(intel: {
+  title: string;
+  modality: 'project' | 'checklist';
+  context?: string;
+  level_of_detail?: 'standard' | 'condensed' | 'comprehensive';
+  compression_requested?: boolean;
+  expansion_requested?: boolean;
+  // Allow legacy field names for compatibility
+  levelOfDetail?: 'standard' | 'condensed' | 'comprehensive';
+}) {
+  const title = String(intel.title || '').trim();
+  const modality = intel.modality;
+  const context = intel.context || 'No additional context provided.';
+  const level = (intel.level_of_detail ?? intel.levelOfDetail ?? 'standard') as 'standard' | 'condensed' | 'comprehensive';
+  const compressionRequested = Boolean(intel.compression_requested);
+  const expansionRequested = Boolean(intel.expansion_requested);
+
+  // Persona classifier
+  let persona = 'You are Viluuma, a world-class project planner and goal strategist.';
+  const titleLower = title.toLowerCase();
+  if (titleLower.includes('learn')) {
+    persona = 'You are an expert educator and curriculum designer specializing in self-study.';
+  } else if (titleLower.includes('run') || titleLower.includes('get fit') || titleLower.includes('gym')) {
+    persona = 'You are a certified personal trainer and fitness coach.';
+  } else if (titleLower.includes('write') || titleLower.includes('blog') || titleLower.includes('novel')) {
+    persona = 'You are a seasoned author and content strategist.';
+  } else if (titleLower.includes('launch') || titleLower.includes('build an app') || titleLower.includes('start a business')) {
+    persona = 'You are an experienced startup founder and project manager.';
+  }
+
+  const coreTask = `
+Your mission is to break down the user's ambitious goal into a clear, sequential, and actionable plan.
+
+GOAL DETAILS:
+- Title: "${title}"
+- User's Context: ${context}
+`;
+
+  const constraints: string[] = [
+    'The plan must be a logical, step-by-step sequence. The order of tasks matters.',
+    'Break down large, vague tasks into smaller, concrete actions.',
+    'Task durations should be realistic estimates of focused work, in hours, as integers.',
+    'Keep tasks atomic and actionable (typically 1–8 hours each).',
+    'Prefer 3–6 milestones; 5–20 total tasks for typical goals.',
+    'Do not include dates; return only relative effort (duration_hours).',
+    'Tasks must be returned in strict execution order (sequential).'
+  ];
+
+  if (modality === 'checklist') {
+    constraints.push('This is a flexible checklist; focus on organization rather than a strict timeline.');
+  }
+
+  switch (level) {
+    case 'condensed':
+      constraints.push("Create a highly-condensed, 'quick start' version of this plan.");
+      break;
+    case 'comprehensive':
+      constraints.push("Create a deeply comprehensive, 'masterclass' version of this plan with extra detail.");
+      break;
+    default:
+      constraints.push('Create a standard, well-balanced plan suitable for a dedicated learner.');
+  }
+
+  if (compressionRequested) {
+    constraints.push('CRITICAL INSTRUCTION: The previous plan was too long. Aggressively reduce scope and shorten or remove non-essential tasks.');
+  }
+  if (expansionRequested) {
+    constraints.push('CRITICAL INSTRUCTION: The previous plan was too short. Add depth, supplementary exercises, and advanced modules to make it more challenging.');
+  }
+
+  const constraintsSection = `
+CONSTRAINTS & RULES:
+- ${constraints.join('\n- ')}
+`;
+
+  const outputFormat = `
+OUTPUT FORMAT:
+You MUST return ONLY a valid JSON object. Do not include any introductory text, markdown, or explanations. The JSON object must conform to this exact structure:
+
+{
+  "milestones": [
+    { "title": "Phase 1: Foundation", "order_index": 1 }
+    // ... more milestones ...
+  ],
+  "tasks": [
+    {
+      "title": "Specific Actionable Task",
+      "description": "A brief, one-sentence description of the task.",
+      "milestone_index": 1,
+      "duration_hours": 6,
+      "priority": "low|medium|high"
+    }
+    // ... more tasks ...
+  ]
+}
+
+Rules:
+- "milestone_index" refers to the milestone's "order_index".
+- All tasks must be ordered in logical execution sequence.
+`;
+
+  const finalPrompt = `
+${persona}
+
+${coreTask}
+
+${constraintsSection}
+
+${outputFormat}
+Return ONLY JSON.`;
+
+  return finalPrompt;
+}
+
 function buildPrompt(intel: any, opts: { compression?: boolean; extension?: boolean }) {
   const { title, modality, context, levelOfDetail } = intel || {};
   
@@ -400,7 +515,14 @@ serve(async (req) => {
     }
 
     console.log("🏗️ Processing project modality - building prompt");
-    const prompt = buildPrompt(intel, { compression: compression_requested, extension: extension_requested });
+const prompt = constructAIPrompt({
+  title: intel.title,
+  modality: intel.modality,
+  context: intel.context,
+  level_of_detail: intel.level_of_detail ?? intel.levelOfDetail ?? 'standard',
+  compression_requested,
+  expansion_requested: extension_requested,
+});
     console.log("📄 Generated prompt length:", prompt.length);
 
     console.log("🌐 Making API call to OpenRouter...");
