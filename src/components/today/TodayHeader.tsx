@@ -1,6 +1,7 @@
 import React from 'react';
 import { format, getHours } from 'date-fns';
 import { useAuth } from '@/hooks/useAuth';
+import { useUserData } from '@/hooks/useUserData';
 import { AlertTriangle } from 'lucide-react';
 
 interface TodayHeaderProps {
@@ -9,11 +10,14 @@ interface TodayHeaderProps {
 
 const TodayHeader: React.FC<TodayHeaderProps> = ({ overdueCount }) => {
   const { user } = useAuth();
+  const { data: userData } = useUserData();
   const today = new Date();
   const formattedDate = format(today, 'EEEE, MMMM d');
   const currentHour = getHours(today);
   
-  const firstName = user?.user_metadata?.full_name?.split(' ')[0] || 'there';
+  const firstName = userData?.profile?.display_name?.split(' ')[0] || 
+                   user?.user_metadata?.display_name?.split(' ')[0] || 
+                   'there';
 
   // Get greeting with name
   const getGreeting = () => {
