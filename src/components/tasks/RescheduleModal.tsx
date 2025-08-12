@@ -149,10 +149,20 @@ export const RescheduleModal = ({ taskId, taskTitle, currentStartDate, onOpenCha
 
   // Smart Calendar: Calculate which dates should be disabled
   const isDateDisabled = (date: Date) => {
-    // Never allow past dates
-    if (date < minValidDate) return true;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Never allow dates in the past (before today)
+    if (date < today) return true;
 
-    // If this is an anchored task, only block past dates
+    // If we have a current start date, don't allow moving backwards from it
+    if (currentStartDate) {
+      const currentDate = new Date(currentStartDate);
+      currentDate.setHours(0, 0, 0, 0);
+      if (date < currentDate) return true;
+    }
+
+    // If this is an anchored task, only the above constraints apply
     if (taskInfo?.is_anchored) return false;
 
     // For floating tasks, check for conflicts with anchored tasks that come after
@@ -239,6 +249,11 @@ export const RescheduleModal = ({ taskId, taskTitle, currentStartDate, onOpenCha
                   ? 'This anchored task can be moved independently without affecting other tasks.'
                   : 'Moving this floating task will automatically reschedule all tasks that come after it, unless they are anchored with 📌.'}
               </p>
+              {currentStartDate && (
+                <p className="text-xs text-amber-600 mt-1">
+                  ⚠️ Cannot move earlier than current start date: {format(new Date(currentStartDate), 'PPP')}
+                </p>
+              )}
               {minValidDate > new Date() && (
                 <p className="text-xs text-amber-600 mt-1">
                   ⚠️ Earliest valid date: {format(minValidDate, 'PPP')}
