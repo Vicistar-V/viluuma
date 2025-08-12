@@ -52,20 +52,25 @@ const PlanReviewScreen = () => {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    console.log("PlanReviewScreen - Intel received:", intel);
     if (!intel) {
+      console.log("No intel found, redirecting to /goals/new");
       navigate("/goals/new");
       return;
     }
     const run = async () => {
       try {
         setLoading(true);
+        console.log("Calling generate-plan with intel:", intel);
         const { data, error } = await supabase.functions.invoke("generate-plan", {
           body: { intel },
         });
+        console.log("Generate-plan response:", { data, error });
         if (error) throw error;
         setBlueprint(data as Blueprint);
         setError(null);
       } catch (e: any) {
+        console.error("Generate-plan error:", e);
         setError(String(e?.message || e));
       } finally {
         setLoading(false);
