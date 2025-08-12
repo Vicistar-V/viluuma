@@ -242,6 +242,30 @@ export type Database = {
         Args: { p_task_id: string }
         Returns: undefined
       }
+      get_all_overdue_tasks: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: string
+          goal_id: string
+          milestone_id: string
+          user_id: string
+          title: string
+          description: string
+          status: string
+          priority: string
+          start_date: string
+          end_date: string
+          duration_hours: number
+          is_anchored: boolean
+          created_at: string
+          updated_at: string
+          goal_title: string
+        }[]
+      }
+      get_today_page_payload: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
       get_user_data: {
         Args: { user_uuid?: string }
         Returns: Json
@@ -254,14 +278,25 @@ export type Database = {
         Args: { p_milestone_id: string }
         Returns: boolean
       }
+      priority_order: {
+        Args: { p_priority: string }
+        Returns: number
+      }
       save_goal_plan: {
-        Args: {
-          p_title: string
-          p_modality: string
-          p_target_date: string
-          p_milestones: Json
-          p_tasks: Json
-        }
+        Args:
+          | {
+              p_title: string
+              p_modality: string
+              p_target_date: string
+              p_milestones: Json
+              p_tasks: Json
+            }
+          | {
+              p_title: string
+              p_modality: string
+              p_target_date: string
+              p_plan: Json
+            }
         Returns: string
       }
       task_belongs_to_current_user: {
