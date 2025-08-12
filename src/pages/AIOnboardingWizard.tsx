@@ -94,7 +94,7 @@ const AIOnboardingWizard = () => {
 
     try {
       // Call Cloudflare Worker instead of Supabase function
-      const response = await fetch('https://your-worker.your-subdomain.workers.dev/onboard-goal', {
+      const response = await fetch('https://openrouter-proxy.ogazievictorchi.workers.dev/onboard-goal', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: outbound }),

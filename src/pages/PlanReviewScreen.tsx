@@ -64,7 +64,7 @@ const PlanReviewScreen = () => {
       try {
         setLoading(true);
         console.log("Calling generate-plan with intel:", intel);
-        const response = await fetch('https://your-worker.your-subdomain.workers.dev/generate-plan', {
+        const response = await fetch('https://openrouter-proxy.ogazievictorchi.workers.dev/generate-plan', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ intel }),
@@ -104,7 +104,7 @@ const PlanReviewScreen = () => {
     if (action.type === 'REGENERATE') {
       try {
         setRecomputing(true);
-        const response = await fetch('https://your-worker.your-subdomain.workers.dev/generate-plan', {
+        const response = await fetch('https://openrouter-proxy.ogazievictorchi.workers.dev/generate-plan', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
@@ -138,7 +138,7 @@ const PlanReviewScreen = () => {
     if (action.type === 'REGENERATE') {
       try {
         setRecomputing(true);
-        const response = await fetch('https://your-worker.your-subdomain.workers.dev/generate-plan', {
+        const response = await fetch('https://openrouter-proxy.ogazievictorchi.workers.dev/generate-plan', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ intel }),
