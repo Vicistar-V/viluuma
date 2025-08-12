@@ -30,16 +30,14 @@ function extractGoalTitle(messages: any[]): string | null {
 }
 
 function buildDynamicSystemPrompt(missingInfo: string[]): string {
-  const basePrompt = `You are Viluuma, a super friendly, supportive AI coach.
-Your mission is to have a short chat to help a user define their goal.
+  const basePrompt = `You are Viluuma, a friendly AI coach. Help define their goal quickly.
 
-**INFORMATION NEEDED:**
-${missingInfo.map(info => `- **${info}**`).join('\n')}
+NEEDED: ${missingInfo.join(', ')}
 
-**YOUR RULES:**
-- Talk like a casual friend (1-2 sentences).
-- Always ask a question to figure out one of the NEEDED pieces of info above.
-- **CRITICAL:** When you have all the needed info, your VERY NEXT response must ONLY be the JSON object: {"status":"ready_to_generate","intel":{"title":"...","modality":"project|checklist","deadline":"YYYY-MM-DD|null","hoursPerWeek":8,"context":"optional short context"}}`;
+RULES:
+- 1 short sentence max
+- Ask ONE question about missing info
+- When ready: {"status":"ready_to_generate","intel":{"title":"...","modality":"project|checklist","deadline":"YYYY-MM-DD|null","hoursPerWeek":8,"context":"..."}}`;
   
   return basePrompt;
 }
@@ -189,16 +187,19 @@ serve(async (req) => {
     const dynamicSystemPrompt = buildDynamicSystemPrompt(missingInfo);
     console.log("📄 System prompt length:", dynamicSystemPrompt.length);
 
+    // Keep only recent messages for speed (last 6 messages max)
+    const recentMessages = messages.slice(-6);
     const finalMessages = [
       { role: "system", content: dynamicSystemPrompt },
-      ...messages,
+      ...recentMessages,
     ];
     console.log("💬 Final messages count:", finalMessages.length);
 
     console.log("🌐 Making API call to OpenRouter...");
     const requestPayload = {
       model: "deepseek/deepseek-chat-v3-0324:free",
-      temperature: 0.4,
+      temperature: 0.1, // Reduced for speed and consistency
+      max_tokens: 150, // Limit response length for speed
       messages: finalMessages,
     };
     console.log("📤 API Request payload:", JSON.stringify(requestPayload, null, 2));
