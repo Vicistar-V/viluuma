@@ -178,7 +178,7 @@ const PlanReviewScreen = () => {
           end_date: endDate.toISOString().slice(0, 10),
           milestone_index: t.milestone_index,
           priority: t.priority,
-          is_anchored: true,
+          is_anchored: false,
         };
       });
 
