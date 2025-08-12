@@ -24,6 +24,12 @@ interface TaskInfo {
   is_anchored: boolean;
   goal_id: string;
   milestone_id: string;
+  duration_hours: number;
+}
+
+interface TaskBoundaries {
+  earliestAllowedDate: Date;
+  latestAllowedDate: Date | null;
 }
 
 export const RescheduleModal = ({ taskId, taskTitle, currentStartDate, onOpenChange, onSuccess }: Props) => {
@@ -33,7 +39,7 @@ export const RescheduleModal = ({ taskId, taskTitle, currentStartDate, onOpenCha
   const [step, setStep] = useState<'select' | 'preview' | 'processing'>('select');
   const [taskInfo, setTaskInfo] = useState<TaskInfo | null>(null);
   const [goalTasks, setGoalTasks] = useState<TaskInfo[]>([]);
-  const [minValidDate, setMinValidDate] = useState<Date>(new Date());
+  const [taskBoundaries, setTaskBoundaries] = useState<TaskBoundaries | null>(null);
   
   const { isProcessing, rescheduleTask, commitPlanUpdate } = useLivingPlan();
 
@@ -46,7 +52,7 @@ export const RescheduleModal = ({ taskId, taskTitle, currentStartDate, onOpenCha
         // Get the specific task info
         const { data: task, error: taskError } = await supabase
           .from('tasks')
-          .select('id, title, start_date, end_date, is_anchored, goal_id, milestone_id')
+          .select('id, title, start_date, end_date, is_anchored, goal_id, milestone_id, duration_hours')
           .eq('id', taskId)
           .single();
 
@@ -56,54 +62,85 @@ export const RescheduleModal = ({ taskId, taskTitle, currentStartDate, onOpenCha
         // Get all tasks in the same goal to understand dependencies
         const { data: allTasks, error: tasksError } = await supabase
           .from('tasks')
-          .select('id, title, start_date, end_date, is_anchored, goal_id, milestone_id')
+          .select('id, title, start_date, end_date, is_anchored, goal_id, milestone_id, duration_hours')
           .eq('goal_id', task.goal_id)
           .order('start_date', { ascending: true });
 
         if (tasksError) return;
         setGoalTasks(allTasks || []);
 
-        // Calculate minimum valid date based on Smart Calendar logic
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
-        if (task.is_anchored) {
-          // Anchored tasks can be moved to today or later
-          setMinValidDate(today);
-        } else {
-          // Floating tasks need to consider dependencies
-          const precedingTasks = (allTasks || [])
-            .filter(t => t.id !== taskId && t.start_date && task.start_date && t.start_date < task.start_date)
-            .sort((a, b) => new Date(b.start_date!).getTime() - new Date(a.start_date!).getTime());
-
-          if (precedingTasks.length > 0) {
-            // Find the latest end date of preceding tasks
-            const latestPrecedingEndDate = precedingTasks.reduce((latest, t) => {
-              if (!t.end_date) return latest;
-              const endDate = new Date(t.end_date);
-              return endDate > latest ? endDate : latest;
-            }, today);
-
-            // Add one day after the latest preceding task ends
-            const minDate = new Date(latestPrecedingEndDate);
-            minDate.setDate(minDate.getDate() + 1);
-            setMinValidDate(minDate > today ? minDate : today);
-          } else {
-            // No preceding tasks, can start today
-            setMinValidDate(today);
-          }
-        }
+        // Calculate task boundaries using Smart Calendar logic
+        const boundaries = getTaskBoundaries(task, allTasks || []);
+        setTaskBoundaries(boundaries);
       } catch (error) {
         console.error('Error fetching task constraints:', error);
-        // Fallback to today
+        // Fallback to today only
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        setMinValidDate(today);
+        setTaskBoundaries({ earliestAllowedDate: today, latestAllowedDate: null });
       }
     };
 
     fetchTaskConstraints();
   }, [taskId, open]);
+
+  // Smart Calendar: Calculate task boundaries based on Tidal Wave logic
+  const getTaskBoundaries = (selectedTask: TaskInfo, allTasksInGoal: TaskInfo[]): TaskBoundaries => {
+    const sortedTasks = allTasksInGoal
+      .filter(t => t.start_date) // Only tasks with start dates
+      .sort((a, b) => new Date(a.start_date!).getTime() - new Date(b.start_date!).getTime());
+    
+    const currentIndex = sortedTasks.findIndex(t => t.id === selectedTask.id);
+    
+    // === 1. Calculate the EARLIEST allowed date (floor) ===
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    let earliestAllowedDate = today;
+    
+    if (currentIndex > 0) {
+      // Find the task that comes directly before this one
+      const previousTask = sortedTasks[currentIndex - 1];
+      if (previousTask.end_date) {
+        const canStartAfter = new Date(previousTask.end_date);
+        canStartAfter.setDate(canStartAfter.getDate() + 1);
+        earliestAllowedDate = canStartAfter > today ? canStartAfter : today;
+      }
+    }
+    
+    // === 2. Calculate the LATEST allowed date (ceiling) ===
+    let latestAllowedDate: Date | null = null;
+    
+    // Find the very next anchored task in the sequence
+    let nextAnchor: TaskInfo | null = null;
+    for (let i = currentIndex + 1; i < sortedTasks.length; i++) {
+      if (sortedTasks[i].is_anchored) {
+        nextAnchor = sortedTasks[i];
+        break;
+      }
+    }
+    
+    if (nextAnchor && nextAnchor.start_date) {
+      // Calculate total duration of all tasks between current task and anchor
+      const tasksInBetween = sortedTasks.slice(currentIndex, sortedTasks.findIndex(t => t.id === nextAnchor!.id));
+      const totalDurationDays = tasksInBetween.reduce((sum, task) => {
+        // Convert hours to days (assuming 8-hour work days)
+        const taskDays = Math.ceil((task.duration_hours || 8) / 8);
+        return sum + taskDays;
+      }, 0);
+      
+      // The latest this block can start is anchor_start_date - total_duration
+      const anchorStartDate = new Date(nextAnchor.start_date);
+      latestAllowedDate = new Date(anchorStartDate);
+      latestAllowedDate.setDate(anchorStartDate.getDate() - totalDurationDays);
+      
+      // Ensure latest date is not before earliest date
+      if (latestAllowedDate < earliestAllowedDate) {
+        latestAllowedDate = null; // No valid window exists
+      }
+    }
+    
+    return { earliestAllowedDate, latestAllowedDate };
+  };
 
   const handleDateSelect = async (date: Date | undefined) => {
     if (!date || !taskId) return;
@@ -137,9 +174,7 @@ export const RescheduleModal = ({ taskId, taskTitle, currentStartDate, onOpenCha
     setStep('select');
     setTaskInfo(null);
     setGoalTasks([]);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    setMinValidDate(today);
+    setTaskBoundaries(null);
   };
 
   const handleOpenChange = (open: boolean) => {
@@ -147,49 +182,16 @@ export const RescheduleModal = ({ taskId, taskTitle, currentStartDate, onOpenCha
     onOpenChange(open);
   };
 
-  // Smart Calendar: Calculate which dates should be disabled
+  // Smart Calendar: Simplified date validation using pre-computed boundaries
   const isDateDisabled = (date: Date) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    if (!taskBoundaries) return true; // Disable all dates if boundaries not calculated yet
     
-    // Never allow dates in the past (before today)
-    if (date < today) return true;
-
-    // If we have a current start date, don't allow moving backwards from it
-    if (currentStartDate) {
-      const currentDate = new Date(currentStartDate);
-      currentDate.setHours(0, 0, 0, 0);
-      if (date < currentDate) return true;
-    }
-
-    // If this is an anchored task, only the above constraints apply
-    if (taskInfo?.is_anchored) return false;
-
-    // For floating tasks, check for conflicts with anchored tasks that come after
-    const targetTaskIndex = goalTasks.findIndex(t => t.id === taskId);
-    if (targetTaskIndex === -1) return false;
-
-    // Find anchored tasks that come after this task in the sequence
-    const laterAnchoredTasks = goalTasks
-      .slice(targetTaskIndex + 1)
-      .filter(t => t.is_anchored && t.start_date);
-
-    // Check if moving to this date would conflict with any later anchored tasks
-    for (const anchoredTask of laterAnchoredTasks) {
-      const anchoredStartDate = new Date(anchoredTask.start_date!);
-      
-      // Calculate how long this task sequence would take if we start on the selected date
-      // This is a simplified calculation - in reality we'd need to calculate the full chain
-      const daysBetween = Math.ceil((anchoredStartDate.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-      
-      // If there's not enough time between the selected date and the anchored task, disable it
-      // This is a simplified heuristic - we're assuming each task takes at least 1 day
-      const tasksInBetween = goalTasks.slice(targetTaskIndex, goalTasks.findIndex(t => t.id === anchoredTask.id)).length;
-      if (daysBetween < tasksInBetween) {
-        return true;
-      }
-    }
-
+    // Disable dates before the earliest allowed date
+    if (date < taskBoundaries.earliestAllowedDate) return true;
+    
+    // Disable dates after the latest allowed date (if there is one)
+    if (taskBoundaries.latestAllowedDate && date > taskBoundaries.latestAllowedDate) return true;
+    
     return false;
   };
 
@@ -247,17 +249,20 @@ export const RescheduleModal = ({ taskId, taskTitle, currentStartDate, onOpenCha
               <p className="text-xs text-muted-foreground">
                 💡 {taskInfo?.is_anchored 
                   ? 'This anchored task can be moved independently without affecting other tasks.'
-                  : 'Moving this floating task will automatically reschedule all tasks that come after it, unless they are anchored with 📌.'}
+                  : 'Moving this floating task triggers the "Tidal Wave" - all tasks after it will shift forward to maintain the sequence.'}
               </p>
-              {currentStartDate && (
-                <p className="text-xs text-amber-600 mt-1">
-                  ⚠️ Cannot move earlier than current start date: {format(new Date(currentStartDate), 'PPP')}
-                </p>
-              )}
-              {minValidDate > new Date() && (
-                <p className="text-xs text-amber-600 mt-1">
-                  ⚠️ Earliest valid date: {format(minValidDate, 'PPP')}
-                </p>
+              {taskBoundaries && (
+                <div className="mt-2 space-y-1">
+                  <p className="text-xs text-blue-600">
+                    📅 Available window: {format(taskBoundaries.earliestAllowedDate, 'MMM d')}
+                    {taskBoundaries.latestAllowedDate && ` to ${format(taskBoundaries.latestAllowedDate, 'MMM d')}`}
+                  </p>
+                  {taskBoundaries.latestAllowedDate && (
+                    <p className="text-xs text-amber-600">
+                      ⚠️ Limited by next anchored task - moving later would cause conflicts
+                    </p>
+                  )}
+                </div>
               )}
             </div>
           </div>
