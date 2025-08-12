@@ -13,8 +13,8 @@ const Index = () => {
 
   useEffect(() => {
     if (!loading && user) {
-      // User is authenticated, redirect to Today screen (the main daily experience)
-      navigate('/today');
+      // User is authenticated, redirect to home (Today screen)
+      navigate('/');
     }
   }, [user, loading, navigate]);
 

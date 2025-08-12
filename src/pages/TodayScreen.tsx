@@ -15,9 +15,9 @@ const TodayScreen: React.FC = () => {
   const { user } = useAuth();
   const { data: todayData, isLoading, isError, error } = useTodayData();
 
-  // Redirect to login if not authenticated
+  // Redirect to welcome page if not authenticated
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/welcome" replace />;
   }
 
   if (isLoading) {
