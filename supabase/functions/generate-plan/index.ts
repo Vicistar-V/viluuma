@@ -353,42 +353,53 @@ function calculateRelativeSchedule(
   return { scheduledTasks, totalProjectDays };
 }
 
-// Utility functions for workday-aware calculations
+// Utility functions for workday-aware calculations (inclusive semantics)
 function isWeekend(date: Date): boolean {
   const day = date.getDay();
   return day === 0 || day === 6;
 }
 
-function addWorkdays(start: Date, workdays: number): Date {
-  const result = new Date(start);
-  result.setHours(0, 0, 0, 0);
-  let added = 0;
-  while (added < workdays) {
-    result.setDate(result.getDate() + 1);
-    if (!isWeekend(result)) {
-      added++;
-    }
-  }
-  return result;
+function isValidDate(date: Date): boolean {
+  return !isNaN(date.getTime());
 }
 
+// Inclusive: 1 workday from a workday returns the same day. If start is weekend, begin on next workday.
+function addWorkdays(start: Date, workdays: number): Date {
+  const d = new Date(start);
+  d.setHours(0, 0, 0, 0);
+
+  // Normalize to first workday (today if already a workday)
+  while (isWeekend(d)) {
+    d.setDate(d.getDate() + 1);
+  }
+
+  // If only 1 workday, it's the normalized start day
+  if (workdays <= 1) return d;
+
+  let remaining = workdays - 1;
+  while (remaining > 0) {
+    d.setDate(d.getDate() + 1);
+    if (!isWeekend(d)) remaining--;
+  }
+  return d;
+}
+
+// Inclusive: counts workdays including start and end if they are workdays
 function countWorkdaysBetween(start: Date, end: Date): number {
   const s = new Date(start);
   s.setHours(0, 0, 0, 0);
   const e = new Date(end);
   e.setHours(0, 0, 0, 0);
-  if (e <= s) return 0;
+  if (e < s) return 0;
+
   let count = 0;
   const d = new Date(s);
-  while (d < e) {
+  while (d <= e) {
+    if (!isWeekend(d)) count++;
     d.setDate(d.getDate() + 1);
-    if (!isWeekend(d)) {
-      count++;
-    }
   }
   return count;
 }
-
 // Station 5: The Analyst - analyzePlanQuality
 // Define the possible outcomes for clarity
 type PlanStatus = 'success' | 'over_scoped' | 'under_scoped' | 'low_quality' | 'success_checklist';
@@ -426,7 +437,12 @@ function analyzePlanQuality(
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+
   const deadlineDate = new Date(intel.deadline);
+  if (!isValidDate(deadlineDate)) {
+    console.warn('⚠️ Station 5: Invalid deadline provided. Treating as no deadline.');
+    return { status: 'success' };
+  }
 
   const workdaysAvailable = countWorkdaysBetween(today, deadlineDate);
   const totalProjectWorkdays = plan.totalProjectDays;
@@ -577,16 +593,19 @@ serve(async (req) => {
     const dailyBudget = Math.max(1, hoursPerWeek / 5);
 
     // Map scheduled tasks to response format with milestone_index
-    const scheduledTasks = scheduledViluuma.map((task) => ({
-      id: task.id,
-      title: task.name,
-      description: task.description,
-      milestone_index: milestones.findIndex(m => m.title === task.milestone_name) + 1,
-      duration_hours: task.duration_hours,
-      priority: task.priority,
-      start_day_offset: task.start_day_offset,
-      end_day_offset: task.end_day_offset,
-    }));
+    const scheduledTasks = scheduledViluuma.map((task) => {
+      const idx = milestones.findIndex(m => m.title === task.milestone_name);
+      return {
+        id: task.id,
+        title: task.name,
+        description: task.description,
+        milestone_index: idx >= 0 ? idx + 1 : 1,
+        duration_hours: task.duration_hours,
+        priority: task.priority,
+        start_day_offset: task.start_day_offset,
+        end_day_offset: task.end_day_offset,
+      };
+    });
 
     // Calculate project end date in workdays (skip weekends)
     const today = new Date();
