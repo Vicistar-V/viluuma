@@ -353,6 +353,42 @@ function calculateRelativeSchedule(
   return { scheduledTasks, totalProjectDays };
 }
 
+// Utility functions for workday-aware calculations
+function isWeekend(date: Date): boolean {
+  const day = date.getDay();
+  return day === 0 || day === 6;
+}
+
+function addWorkdays(start: Date, workdays: number): Date {
+  const result = new Date(start);
+  result.setHours(0, 0, 0, 0);
+  let added = 0;
+  while (added < workdays) {
+    result.setDate(result.getDate() + 1);
+    if (!isWeekend(result)) {
+      added++;
+    }
+  }
+  return result;
+}
+
+function countWorkdaysBetween(start: Date, end: Date): number {
+  const s = new Date(start);
+  s.setHours(0, 0, 0, 0);
+  const e = new Date(end);
+  e.setHours(0, 0, 0, 0);
+  if (e <= s) return 0;
+  let count = 0;
+  const d = new Date(s);
+  while (d < e) {
+    d.setDate(d.getDate() + 1);
+    if (!isWeekend(d)) {
+      count++;
+    }
+  }
+  return count;
+}
+
 // Station 5: The Analyst - analyzePlanQuality
 // Define the possible outcomes for clarity
 type PlanStatus = 'success' | 'over_scoped' | 'under_scoped' | 'low_quality' | 'success_checklist';
@@ -392,25 +428,24 @@ function analyzePlanQuality(
   today.setHours(0, 0, 0, 0);
   const deadlineDate = new Date(intel.deadline);
 
-  const daysAvailable = Math.ceil((deadlineDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-  const totalProjectDays = plan.totalProjectDays;
+  const workdaysAvailable = countWorkdaysBetween(today, deadlineDate);
+  const totalProjectWorkdays = plan.totalProjectDays;
 
-  const calculatedEndDate = new Date(today);
-  calculatedEndDate.setDate(today.getDate() + totalProjectDays);
+  const calculatedEndDate = addWorkdays(today, totalProjectWorkdays);
   const calculatedEndDateString = calculatedEndDate.toISOString().split('T')[0];
 
-  if (totalProjectDays > daysAvailable) {
-    console.log(`⚠️ Station 5: Over-scoped. Plan needs ${totalProjectDays} days, but only ${daysAvailable} are available.`);
+  if (totalProjectWorkdays > workdaysAvailable) {
+    console.log(`⚠️ Station 5: Over-scoped. Plan needs ${totalProjectWorkdays} workdays, but only ${workdaysAvailable} are available.`);
     return {
       status: 'over_scoped',
-      message: `Heads up! This plan is ambitious and needs about ${totalProjectDays} days, which goes past your deadline.`,
+      message: `Heads up! This plan is ambitious and needs about ${totalProjectWorkdays} workdays, which goes past your deadline.`,
       calculatedEndDate: calculatedEndDateString,
     };
   }
 
   const UNDER_SCOPED_THRESHOLD_DAYS = 14;
-  if (daysAvailable - totalProjectDays > UNDER_SCOPED_THRESHOLD_DAYS) {
-    console.log(`📈 Station 5: Under-scoped. Plan finishes ${daysAvailable - totalProjectDays} days early.`);
+  if (workdaysAvailable - totalProjectWorkdays > UNDER_SCOPED_THRESHOLD_DAYS) {
+    console.log(`📈 Station 5: Under-scoped. Plan finishes ${workdaysAvailable - totalProjectWorkdays} workdays early.`);
     return {
       status: 'under_scoped',
       message: `Great news! This plan should be done way ahead of schedule, around ${calculatedEndDateString}.`,
@@ -427,13 +462,27 @@ function analyzePlanQuality(
 }
 
 // Standard shipping box for Station 6: The Reporter
+// Client-facing scheduled task format
+interface ClientScheduledTask {
+  id: string;
+  title: string;
+  description: string;
+  milestone_index: number;
+  duration_hours: number;
+  priority: 'high' | 'medium' | 'low';
+  start_day_offset: number;
+  end_day_offset: number;
+}
+
 interface PlanBlueprint {
   status: 'success' | 'over_scoped' | 'under_scoped' | 'low_quality' | 'success_checklist' | 'error';
   message: string;
   plan?: {
     milestones: any[];
-    scheduledTasks: ScheduledViluumaTask[];
+    scheduledTasks: ClientScheduledTask[];
     totalProjectDays: number;
+    hoursPerWeek: number;
+    dailyBudget: number;
   };
   calculatedEndDate?: string;
 }
@@ -524,6 +573,9 @@ serve(async (req) => {
       { hoursPerWeek: userConstraints?.hoursPerWeek }
     );
 
+    const hoursPerWeek = userConstraints?.hoursPerWeek ?? 20;
+    const dailyBudget = Math.max(1, hoursPerWeek / 5);
+
     // Map scheduled tasks to response format with milestone_index
     const scheduledTasks = scheduledViluuma.map((task) => ({
       id: task.id,
@@ -536,10 +588,10 @@ serve(async (req) => {
       end_day_offset: task.end_day_offset,
     }));
 
-    // Calculate REALISTIC project timeline
+    // Calculate project end date in workdays (skip weekends)
     const today = new Date();
-    const projectedEndDate = new Date(today);
-    projectedEndDate.setUTCDate(projectedEndDate.getUTCDate() + totalProjectDays);
+    today.setHours(0, 0, 0, 0);
+    const projectedEndDate = addWorkdays(today, totalProjectDays);
     const calculatedEndDate = projectedEndDate.toISOString().split('T')[0];
     
     console.log("📊 REALISTIC TIMELINE CALCULATION:");
@@ -548,8 +600,8 @@ serve(async (req) => {
     console.log("  - Calculated end date:", calculatedEndDate);
 
     const analysis = analyzePlanQuality(
-      { scheduledTasks, totalProjectDays },
-      { modality: intel.modality, deadline: intel?.deadline }
+      { scheduledTasks: scheduledViluuma, totalProjectDays },
+      { modality: intel.modality, deadline: userConstraints?.deadline ?? intel?.deadline }
     );
 
     const finalCalculatedEndDate = analysis.calculatedEndDate ?? calculatedEndDate;
@@ -561,6 +613,8 @@ serve(async (req) => {
         milestones,
         scheduledTasks,
         totalProjectDays,
+        hoursPerWeek,
+        dailyBudget,
       },
       calculatedEndDate: finalCalculatedEndDate,
     };
