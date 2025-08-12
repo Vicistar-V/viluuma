@@ -6,7 +6,7 @@ const navItems = [
   {
     icon: Calendar,
     label: "Today",
-    path: "/today",
+    path: "/",
   },
   {
     icon: Target,
