@@ -14,6 +14,7 @@ import { ActiveChecklistView } from "@/components/goals/ActiveChecklistView";
 import { CompletedGoalView } from "@/components/goals/CompletedGoalView";
 import { ArchivedGoalModal } from "@/components/goals/ArchivedGoalModal";
 import TaskDetailModal from "@/components/tasks/TaskDetailModal";
+import { PlanUpdateOverlay } from "@/components/ui/plan-update-overlay";
 
 interface Goal { 
   id: string; 
@@ -63,6 +64,7 @@ const GoalDetailScreen = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [showArchivedModal, setShowArchivedModal] = useState(false);
+  const [showPlanUpdateOverlay, setShowPlanUpdateOverlay] = useState(false);
 
   useEffect(() => { 
     if (goal) {
@@ -81,17 +83,49 @@ const GoalDetailScreen = () => {
     }
   }, [goal?.status]);
 
-  const refresh = async () => {
+  const refresh = async (showOverlay = false) => {
     if (!id) return;
-    const [{ data: goalData, error: goalErr }, { data: msData }, { data: tData }] = await Promise.all([
-      supabase.from('goals').select('*').eq('id', id).maybeSingle(),
-      supabase.from('milestones').select('*').eq('goal_id', id).order('order_index', { ascending: true, nullsFirst: false }).order('created_at'),
-      supabase.from('tasks').select('*').eq('goal_id', id)
-    ]);
-    if (goalErr) { toast({ title: 'Error', description: goalErr.message }); return; }
-    setGoal(goalData as any);
-    setMilestones((msData || []) as any);
-    setTasks((tData || []) as any);
+    
+    if (showOverlay) {
+      setShowPlanUpdateOverlay(true);
+    }
+    
+    try {
+      const [{ data: goalData, error: goalErr }, { data: msData }, { data: tData }] = await Promise.all([
+        supabase.from('goals').select('*').eq('id', id).maybeSingle(),
+        supabase.from('milestones').select('*').eq('goal_id', id).order('order_index', { ascending: true, nullsFirst: false }).order('created_at'),
+        supabase.from('tasks').select('*').eq('goal_id', id).order('start_date', { ascending: true, nullsFirst: false }).order('created_at')
+      ]);
+      
+      if (goalErr) { 
+        toast({ title: 'Error', description: goalErr.message }); 
+        return; 
+      }
+      
+      setGoal(goalData as any);
+      setMilestones((msData || []) as any);
+      setTasks((tData || []) as any);
+      
+      if (showOverlay) {
+        // Show success briefly
+        setTimeout(() => {
+          setShowPlanUpdateOverlay(false);
+          toast({
+            title: "Plan Updated",
+            description: "Your schedule has been intelligently adjusted"
+          });
+        }, 1500);
+      }
+    } catch (error: any) {
+      toast({ 
+        title: 'Error', 
+        description: error.message || 'Failed to refresh data' 
+      });
+    } finally {
+      if (showOverlay) {
+        setShowPlanUpdateOverlay(false);
+      }
+    }
   };
 
   useEffect(() => { refresh(); }, [id]);
@@ -264,7 +298,7 @@ const GoalDetailScreen = () => {
         onOpenChange={(open) => !open && setActiveTaskId(null)}
         goalModality={goal.modality}
         goalStatus={goal.status}
-        onSaved={refresh}
+        onSaved={() => refresh(true)}
       />
 
       <ArchivedGoalModal
@@ -279,6 +313,13 @@ const GoalDetailScreen = () => {
       />
 
       <BottomNav />
+      
+      {/* Living Plan Update Overlay */}
+      <PlanUpdateOverlay 
+        show={showPlanUpdateOverlay}
+        title="Updating your plan..."
+        description="Calculating the ripple effects and adjusting your schedule"
+      />
     </div>
   );
 };

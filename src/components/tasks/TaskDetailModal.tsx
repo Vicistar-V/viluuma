@@ -8,11 +8,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
-import { CalendarIcon, CheckIcon, Loader2Icon, Anchor } from "lucide-react";
+import { CalendarIcon, CheckIcon, Loader2Icon, Anchor, RotateCcwIcon, TrashIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { RescheduleModal } from "./RescheduleModal";
+import { DeleteTaskModal } from "./DeleteTaskModal";
 
 interface Props {
   taskId: string | null;
@@ -38,6 +40,10 @@ const TaskDetailModal = ({ taskId, onOpenChange, goalModality, goalStatus = 'act
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [hasChanges, setHasChanges] = useState(false);
   const [originalData, setOriginalData] = useState<any>(null);
+  
+  // Living Plan state
+  const [showRescheduleModal, setShowRescheduleModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   useEffect(() => {
     let ignore = false;
@@ -293,6 +299,51 @@ const TaskDetailModal = ({ taskId, onOpenChange, goalModality, goalStatus = 'act
                     </p>
                   </div>
                 )}
+                
+                {/* Living Plan Actions for Project Tasks */}
+                {!isReadOnly && goalModality === 'project' && (
+                  <div className="mt-4 pt-4 border-t">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="font-medium text-sm">Living Plan Actions</h4>
+                      <Badge variant="outline" className="text-xs bg-gradient-to-r from-primary/10 to-primary/20">
+                        Smart Scheduling
+                      </Badge>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-2">
+                      {!anchored && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowRescheduleModal(true)}
+                          className="flex items-center gap-2 text-xs"
+                        >
+                          <RotateCcwIcon className="w-3 h-3" />
+                          Reschedule
+                        </Button>
+                      )}
+                      
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowDeleteModal(true)}
+                        className="flex items-center gap-2 text-xs text-red-600 hover:text-red-700 border-red-200 hover:border-red-300"
+                      >
+                        <TrashIcon className="w-3 h-3" />
+                        Delete
+                      </Button>
+                    </div>
+                    
+                    {anchored && (
+                      <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded-md">
+                        <p className="text-xs text-amber-700">
+                          📌 Anchored tasks can't be rescheduled automatically. 
+                          Change dates manually or remove the anchor first.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </>
           )}
@@ -320,6 +371,39 @@ const TaskDetailModal = ({ taskId, onOpenChange, goalModality, goalStatus = 'act
           )}
         </DialogFooter>
       </DialogContent>
+      
+      {/* Living Plan Modals */}
+      <RescheduleModal
+        taskId={showRescheduleModal ? taskId : null}
+        taskTitle={title}
+        currentStartDate={start ? format(start, 'yyyy-MM-dd') : null}
+        onOpenChange={setShowRescheduleModal}
+        onSuccess={() => {
+          onSaved();
+          // Refresh task data after successful reschedule
+          if (taskId) {
+            setTimeout(() => {
+              supabase.from('tasks').select('*').eq('id', taskId).maybeSingle()
+                .then(({ data }) => {
+                  if (data) {
+                    setStart(data.start_date ? new Date(data.start_date) : undefined);
+                    setEnd(data.end_date ? new Date(data.end_date) : undefined);
+                  }
+                });
+            }, 500);
+          }
+        }}
+      />
+      
+      <DeleteTaskModal
+        taskId={showDeleteModal ? taskId : null}
+        taskTitle={title}
+        onOpenChange={setShowDeleteModal}
+        onSuccess={() => {
+          onSaved();
+          onOpenChange(false); // Close the task modal since task is deleted
+        }}
+      />
     </Dialog>
   );
 };

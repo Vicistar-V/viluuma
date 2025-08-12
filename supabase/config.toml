@@ -1,1 +1,7 @@
 project_id = "ilemfubbtpmfzjtcniel"
+
+[functions.reschedule-task]
+verify_jwt = true
+
+[functions.delete-and-refactor-plan]
+verify_jwt = true
