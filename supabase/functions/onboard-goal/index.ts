@@ -102,101 +102,51 @@ function analyzeConversationState(messages: any[]): {
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 serve(async (req) => {
-  const requestId = crypto.randomUUID().substring(0, 8);
-  const startTime = Date.now();
-  
-  console.log(`🚀 [${requestId}] onboard-goal request started`);
-  console.log(`🚀 [${requestId}] Method: ${req.method}, URL: ${req.url}`);
-  console.log(`🚀 [${requestId}] Headers:`, Object.fromEntries(req.headers.entries()));
-
   if (req.method === "OPTIONS") {
-    console.log(`✅ [${requestId}] CORS preflight handled in ${Date.now() - startTime}ms`);
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    console.log(`🔑 [${requestId}] Checking API key...`);
     const apiKey = Deno.env.get("OPENROUTER_API_KEY");
     if (!apiKey) {
-      console.error(`❌ [${requestId}] Missing OPENROUTER_API_KEY environment variable`);
-      return new Response(JSON.stringify({ 
-        error: "Missing OPENROUTER_API_KEY",
-        requestId,
-        timestamp: new Date().toISOString()
-      }), {
+      return new Response(JSON.stringify({ error: "Missing OPENROUTER_API_KEY" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    console.log(`✅ [${requestId}] API key found (length: ${apiKey.length})`);
 
-    console.log(`📥 [${requestId}] Parsing request body...`);
-    const requestBody = await req.json();
-    const { messages } = requestBody;
-    
-    console.log(`📥 [${requestId}] Request payload:`, JSON.stringify(requestBody, null, 2));
-    
+    const { messages } = await req.json();
     if (!Array.isArray(messages)) {
-      console.error(`❌ [${requestId}] Invalid payload - messages is not an array:`, typeof messages);
-      return new Response(JSON.stringify({ 
-        error: "Invalid payload: messages[] required",
-        received: typeof messages,
-        requestId,
-        timestamp: new Date().toISOString()
-      }), {
+      return new Response(JSON.stringify({ error: "Invalid payload: messages[] required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    console.log(`🔍 [${requestId}] Messages count: ${messages.length}`);
-    messages.forEach((msg, idx) => {
-      console.log(`🔍 [${requestId}] Message ${idx}: role=${msg.role}, content_length=${msg.content?.length || 0}`);
-    });
-
-    console.log(`🧠 [${requestId}] Analyzing conversation state...`);
+    // Analyze conversation state to determine what info is still needed
     const state = analyzeConversationState(messages);
-    console.log(`🧠 [${requestId}] Conversation state:`, JSON.stringify(state, null, 2));
-    
     const missingInfo: string[] = [];
 
     if (!state.title) {
       missingInfo.push("Core Activity: What is the user's main goal?");
-      console.log(`❓ [${requestId}] Missing: title`);
-    } else {
-      console.log(`✅ [${requestId}] Has title: "${state.title}"`);
     }
     
     if (!state.modality) {
       missingInfo.push("Modality: Is this a Project (with deadline) or a Checklist (ongoing)?");
-      console.log(`❓ [${requestId}] Missing: modality`);
-    } else {
-      console.log(`✅ [${requestId}] Has modality: "${state.modality}"`);
     }
     
     // Only ask for deadline if it's a project
     if (state.modality === "project" && !state.deadline) {
       missingInfo.push("Deadline: Get a specific target date");
-      console.log(`❓ [${requestId}] Missing: deadline (project mode)`);
-    } else if (state.modality === "project") {
-      console.log(`✅ [${requestId}] Has deadline: "${state.deadline}"`);
     }
     
     // Only ask for hours per week if it's a project and we don't have it
     if (state.modality === "project" && !state.hoursPerWeek) {
       missingInfo.push("Time Commitment: How many hours per week can they dedicate?");
-      console.log(`❓ [${requestId}] Missing: hoursPerWeek (project mode)`);
-    } else if (state.modality === "project") {
-      console.log(`✅ [${requestId}] Has hoursPerWeek: ${state.hoursPerWeek}`);
     }
-
-    console.log(`📝 [${requestId}] Missing info count: ${missingInfo.length}`);
-    console.log(`📝 [${requestId}] Missing info:`, missingInfo);
 
     // Check if we have everything we need for the handoff
     if (missingInfo.length === 0 && state.title && state.modality) {
-      console.log(`🎯 [${requestId}] All info collected! Preparing intel handoff...`);
-      
       // We have everything! Return the intel directly
       const intel = {
         title: state.title,
@@ -206,157 +156,74 @@ serve(async (req) => {
         context: state.context || ""
       };
       
-      console.log(`🎯 [${requestId}] Final intel:`, JSON.stringify(intel, null, 2));
-      console.log(`✅ [${requestId}] Handoff complete in ${Date.now() - startTime}ms`);
-      
       return new Response(JSON.stringify({
         status: "ready_to_generate",
-        intel,
-        debug: {
-          requestId,
-          processingTime: Date.now() - startTime,
-          timestamp: new Date().toISOString()
-        }
+        intel
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    console.log(`🤖 [${requestId}] Building dynamic system prompt...`);
     // Build dynamic system prompt based on missing information
     const dynamicSystemPrompt = buildDynamicSystemPrompt(missingInfo);
-    console.log(`🤖 [${requestId}] System prompt length: ${dynamicSystemPrompt.length}`);
 
     const finalMessages = [
       { role: "system", content: dynamicSystemPrompt },
       ...messages,
     ];
 
-    console.log(`🌐 [${requestId}] Preparing OpenRouter API call...`);
-    console.log(`🌐 [${requestId}] Final messages count: ${finalMessages.length}`);
-    console.log(`🌐 [${requestId}] API URL: ${OPENROUTER_URL}`);
-
-    const apiPayload = {
-      model: "deepseek/deepseek-chat-v3-0324:free",
-      temperature: 0.4,
-      messages: finalMessages,
-    };
-
-    console.log(`🌐 [${requestId}] API payload:`, JSON.stringify(apiPayload, null, 2));
-
-    const apiStartTime = Date.now();
     const response = await fetch(OPENROUTER_URL, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${apiKey.substring(0, 10)}...`,
+        "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(apiPayload),
+      body: JSON.stringify({
+        model: "deepseek/deepseek-chat-v3-0324:free",
+        temperature: 0.4,
+        messages: finalMessages,
+      }),
     });
-
-    const apiDuration = Date.now() - apiStartTime;
-    console.log(`🌐 [${requestId}] OpenRouter API call completed in ${apiDuration}ms`);
-    console.log(`🌐 [${requestId}] Response status: ${response.status} ${response.statusText}`);
 
     if (!response.ok) {
       const errText = await response.text();
-      console.error(`❌ [${requestId}] OpenRouter API error:`, {
-        status: response.status,
-        statusText: response.statusText,
-        headers: Object.fromEntries(response.headers.entries()),
-        body: errText
-      });
-      return new Response(JSON.stringify({ 
-        error: "Upstream error", 
-        details: errText,
-        requestId,
-        status: response.status,
-        timestamp: new Date().toISOString()
-      }), {
+      console.error("onboard-goal upstream error:", errText);
+      return new Response(JSON.stringify({ error: "Upstream error", details: errText }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    console.log(`📥 [${requestId}] Parsing OpenRouter response...`);
     const data = await response.json();
-    console.log(`📥 [${requestId}] Raw API response:`, JSON.stringify(data, null, 2));
-
     let content: string = "";
     const choice = data?.choices?.[0]?.message;
     if (typeof choice?.content === "string") {
       content = choice.content;
-      console.log(`📝 [${requestId}] Content extracted as string (length: ${content.length})`);
     } else if (Array.isArray(choice?.content)) {
       content = choice.content
         .map((c: any) => (typeof c === "string" ? c : c.text || ""))
         .join("\n");
-      console.log(`📝 [${requestId}] Content extracted from array (length: ${content.length})`);
-    } else {
-      console.error(`❌ [${requestId}] Unexpected content format:`, typeof choice?.content);
     }
 
-    console.log(`📝 [${requestId}] Final content:`, content);
-
     // Try to detect special JSON handoff
-    console.log(`🔍 [${requestId}] Checking for JSON handoff pattern...`);
     let parsed: any = null;
     try {
       parsed = JSON.parse(content.trim());
-      console.log(`✅ [${requestId}] Content successfully parsed as JSON:`, parsed);
-    } catch (parseError) {
-      console.log(`ℹ️ [${requestId}] Content is not JSON, treating as plain message:`, parseError);
-    }
+    } catch (_) {}
 
     if (parsed && parsed.status === "ready_to_generate" && parsed.intel) {
-      console.log(`🎯 [${requestId}] JSON handoff detected! Intel:`, parsed.intel);
-      console.log(`✅ [${requestId}] JSON handoff complete in ${Date.now() - startTime}ms`);
-      
-      return new Response(JSON.stringify({
-        ...parsed,
-        debug: {
-          requestId,
-          processingTime: Date.now() - startTime,
-          apiDuration,
-          timestamp: new Date().toISOString()
-        }
-      }), {
+      return new Response(JSON.stringify(parsed), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    console.log(`💬 [${requestId}] Returning as assistant message`);
-    console.log(`✅ [${requestId}] Request complete in ${Date.now() - startTime}ms`);
-
     // Fallback as plain assistant message
-    return new Response(JSON.stringify({ 
-      type: "message", 
-      role: "assistant", 
-      content,
-      debug: {
-        requestId,
-        processingTime: Date.now() - startTime,
-        apiDuration,
-        timestamp: new Date().toISOString()
-      }
-    }), {
+    return new Response(JSON.stringify({ type: "message", role: "assistant", content }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
-    const duration = Date.now() - startTime;
-    console.error(`💥 [${requestId}] Fatal error after ${duration}ms:`, {
-      name: error.name,
-      message: error.message,
-      stack: error.stack,
-      timestamp: new Date().toISOString()
-    });
-    
-    return new Response(JSON.stringify({ 
-      error: String(error),
-      requestId,
-      processingTime: duration,
-      timestamp: new Date().toISOString()
-    }), {
+    console.error("onboard-goal error:", error);
+    return new Response(JSON.stringify({ error: String(error) }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
