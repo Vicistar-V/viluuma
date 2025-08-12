@@ -35,7 +35,7 @@ const TodayScreen: React.FC = () => {
     return (
       <div className="min-h-screen bg-background">
         <div className="container mx-auto p-4 pb-20">
-          <TodayHeader />
+          <TodayHeader overdueCount={0} />
           <Card className="border-destructive">
             <CardContent className="p-6 text-center">
               <p className="text-destructive mb-2">Failed to load today's tasks</p>
@@ -54,55 +54,56 @@ const TodayScreen: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto p-4 pb-20">
-        <TodayHeader />
+      <div className={`container mx-auto p-4 pb-20 ${overdueCount > 10 ? 'space-y-2' : ''}`}>
+        <TodayHeader overdueCount={overdueCount} />
         
-        {/* Main Today Tasks List */}
-        {todayTasks.length > 0 ? (
-          <div className="space-y-4 mb-6">
-            {todayTasks.map((task, index) => (
-              <div key={task.id} style={{ animationDelay: `${index * 100}ms` }}>
-                <TodayTaskItem task={task} />
-              </div>
-            ))}
-          </div>
-        ) : overdueCount > 0 ? (
-          <Card className="mb-6 animate-fade-in">
-            <CardContent className="p-8 text-center">
-              <div className="flex flex-col items-center gap-4">
-                <div className="p-3 bg-warning/10 rounded-full">
-                  <Clock className="w-8 h-8 text-warning" />
+        {/* Pristine Today Tasks List */}
+        <div className={`transition-opacity duration-300 ${
+          overdueCount > 10 ? 'opacity-60' : 'opacity-100'
+        }`}>
+          {todayTasks.length > 0 ? (
+            <div className="space-y-4 mb-6">
+              <h2 className="text-lg font-semibold text-foreground mb-3">Today's Focus</h2>
+              {todayTasks.map((task, index) => (
+                <div key={task.id} style={{ animationDelay: `${index * 100}ms` }}>
+                  <TodayTaskItem task={task} />
                 </div>
-                <div>
-                  <h3 className="font-semibold text-foreground mb-2">Let's catch up!</h3>
-                  <p className="text-muted-foreground text-sm">
-                    No new tasks for today, but you have {overdueCount} overdue {overdueCount === 1 ? 'task' : 'tasks'} that need attention.
-                    These are tasks where the deadline has actually passed.
-                  </p>
+              ))}
+            </div>
+          ) : overdueCount === 0 ? (
+            <Card className="mb-6 animate-fade-in">
+              <CardContent className="p-8 text-center">
+                <div className="flex flex-col items-center gap-4">
+                  <div className="p-3 bg-success/10 rounded-full">
+                    <CheckCircle className="w-8 h-8 text-success" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-foreground mb-2">All caught up!</h3>
+                    <p className="text-muted-foreground text-sm">
+                      No tasks scheduled for today. Great work staying on top of your goals!
+                    </p>
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-          <Card className="mb-6 animate-fade-in">
-            <CardContent className="p-8 text-center">
-              <div className="flex flex-col items-center gap-4">
-                <div className="p-3 bg-success/10 rounded-full">
-                  <CheckCircle className="w-8 h-8 text-success" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-foreground mb-2">All caught up!</h3>
-                  <p className="text-muted-foreground text-sm">
-                    No tasks scheduled for today. Great work staying on top of your goals!
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="mb-6 animate-fade-in border-muted">
+              <CardContent className="p-6 text-center">
+                <h3 className="font-medium text-muted-foreground mb-2">Today's Schedule</h3>
+                <p className="text-sm text-muted-foreground">
+                  No new tasks scheduled for today. Focus on catching up below.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
 
-        {/* Overdue Tasks Accordion */}
-        <OverdueTasksAccordion count={overdueCount} />
+        {/* Enhanced Overdue Tasks Accordion */}
+        <div className={`${
+          overdueCount > 3 ? 'animate-pulse' : ''
+        }`}>
+          <OverdueTasksAccordion count={overdueCount} />
+        </div>
 
         {/* Empty State for No Tasks or Overdue */}
         {todayTasks.length === 0 && overdueCount === 0 && (
