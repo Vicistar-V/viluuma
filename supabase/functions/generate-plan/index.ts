@@ -532,6 +532,127 @@ async function handleChecklistGeneration(intel: any, compression_requested: bool
   });
 }
 
+// Station 3: The Sanitizer & Enricher - processAIBlueprint
+interface ViluumaTask {
+  id: string;
+  name: string;
+  description: string;
+  duration_hours: number;
+  priority: 'high' | 'medium' | 'low';
+  milestone_name: string;
+  dependencies: string[];
+}
+
+function processAIBlueprint(rawJSONString: string): ViluumaTask[] {
+  let plan: any;
+  try {
+    plan = JSON.parse(rawJSONString);
+  } catch (e: any) {
+    console.error('❌ Station 3 ERROR: Failed to parse AI JSON.', e?.message || e);
+    throw new Error('AI_INVALID_JSON');
+  }
+
+  // Basic structural integrity: require milestones array
+  if (!plan?.milestones || !Array.isArray(plan.milestones) || plan.milestones.length === 0) {
+    console.error("❌ Station 3 ERROR: AI JSON is missing a valid 'milestones' array.", plan);
+    throw new Error('AI_INVALID_STRUCTURE');
+  }
+
+  // Build a lookup of milestone names by index/order for flat tasks
+  const milestoneTitleByOrderIndex = new Map<number, string>();
+  const milestoneTitleByPosition = new Map<number, string>();
+  plan.milestones.forEach((m: any, idx: number) => {
+    const name = String(m?.name ?? m?.title ?? `Milestone ${idx + 1}`).trim();
+    const orderIndex = Number(m?.order_index ?? idx + 1) || (idx + 1);
+    milestoneTitleByOrderIndex.set(orderIndex, name);
+    milestoneTitleByPosition.set(idx, name);
+  });
+
+  const allTasks: ViluumaTask[] = [];
+
+  // Case A: Flat tasks array referencing milestone_index
+  if (Array.isArray(plan?.tasks)) {
+    plan.tasks.forEach((rawTask: any, taskIndex: number) => {
+      const rawName = (rawTask?.name ?? rawTask?.title);
+      const name = typeof rawName === 'string' ? rawName.trim() : '';
+      if (!name) {
+        console.warn(`⚠️ Station 3 WARN: Skipping malformed task at flat index T${taskIndex}`);
+        return;
+      }
+
+      const rawDesc = typeof rawTask?.description === 'string' ? rawTask.description.trim() : '';
+      const parsedDuration = parseInt(String(rawTask?.duration_hours ?? 1), 10);
+      const duration = Math.max(1, Number.isFinite(parsedDuration) ? parsedDuration : 1);
+
+      let priority = String(rawTask?.priority ?? 'medium').toLowerCase();
+      if (!['high', 'medium', 'low'].includes(priority)) priority = 'medium';
+
+      const mi = Number(rawTask?.milestone_index ?? 1);
+      const milestoneName = milestoneTitleByOrderIndex.get(mi) || `Milestone ${mi || 1}`;
+
+      const task: ViluumaTask = {
+        id: crypto.randomUUID(),
+        name,
+        description: rawDesc,
+        duration_hours: duration,
+        priority: priority as 'high' | 'medium' | 'low',
+        milestone_name: milestoneName,
+        dependencies: [],
+      };
+      allTasks.push(task);
+    });
+  }
+
+  // Case B: Nested tasks inside milestones
+  if (!Array.isArray(plan?.tasks) && Array.isArray(plan?.milestones)) {
+    plan.milestones.forEach((milestone: any, milestoneIndex: number) => {
+      const mName = String(milestone?.name ?? milestone?.title ?? `Milestone ${milestoneIndex + 1}`).trim();
+      const tasks = Array.isArray(milestone?.tasks) ? milestone.tasks : [];
+      if (!mName || tasks.length === 0) {
+        if (!mName || typeof mName !== 'string') {
+          console.warn(`⚠️ Station 3 WARN: Skipping malformed milestone at index ${milestoneIndex}`);
+        }
+        return;
+      }
+
+      tasks.forEach((rawTask: any, taskIndex: number) => {
+        const rawName = (rawTask?.name ?? rawTask?.title);
+        const name = typeof rawName === 'string' ? rawName.trim() : '';
+        if (!name) {
+          console.warn(`⚠️ Station 3 WARN: Skipping malformed task at M${milestoneIndex}, T${taskIndex}`);
+          return;
+        }
+
+        const rawDesc = typeof rawTask?.description === 'string' ? rawTask.description.trim() : '';
+        const parsedDuration = parseInt(String(rawTask?.duration_hours ?? 1), 10);
+        const duration = Math.max(1, Number.isFinite(parsedDuration) ? parsedDuration : 1);
+
+        let priority = String(rawTask?.priority ?? 'medium').toLowerCase();
+        if (!['high', 'medium', 'low'].includes(priority)) priority = 'medium';
+
+        const task: ViluumaTask = {
+          id: crypto.randomUUID(),
+          name,
+          description: rawDesc,
+          duration_hours: duration,
+          priority: priority as 'high' | 'medium' | 'low',
+          milestone_name: mName,
+          dependencies: [],
+        };
+        allTasks.push(task);
+      });
+    });
+  }
+
+  if (allTasks.length === 0) {
+    console.error('❌ Station 3 ERROR: Processing resulted in zero valid tasks.', rawJSONString);
+    throw new Error('AI_NO_VALID_TASKS_PROCESSED');
+  }
+
+  console.log(`✅ Station 3: Successfully sanitized and enriched ${allTasks.length} tasks.`);
+  return allTasks;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
