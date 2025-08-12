@@ -32,6 +32,12 @@ All colors MUST be HSL.
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
+    --warning: 38 92% 50%;
+    --warning-foreground: 48 96% 89%;
+
+    --success: 142 76% 36%;
+    --success-foreground: 355 100% 97%;
+
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
     --ring: 222.2 84% 4.9%;
@@ -80,6 +86,12 @@ All colors MUST be HSL.
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
 
+    --warning: 32 95% 44%;
+    --warning-foreground: 48 100% 96%;
+
+    --success: 142 70% 45%;
+    --success-foreground: 355 100% 97%;
+
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 212.7 26.8% 83.9%;
@@ -101,5 +113,55 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@layer components {
+  .task-card-enter {
+    @apply animate-in fade-in-0 slide-in-from-top-2 duration-300;
+  }
+  
+  .task-card-complete {
+    @apply transition-all duration-300 ease-out;
+  }
+  
+  .task-card-complete-animation {
+    animation: task-complete 0.6s ease-out forwards;
+  }
+  
+  .checklist-card {
+    @apply border-dashed border-2 bg-gradient-to-br from-primary/5 via-background to-accent/5;
+  }
+  
+  .checklist-card:hover {
+    @apply from-primary/10 via-background to-accent/10;
+  }
+  
+  .overdue-glow {
+    @apply shadow-sm border-l-4 border-l-warning bg-gradient-to-r from-warning/5 to-transparent;
+  }
+  
+  .priority-indicator-high {
+    @apply bg-destructive;
+  }
+  
+  .priority-indicator-medium {
+    @apply bg-warning;
+  }
+  
+  .priority-indicator-low {
+    @apply bg-muted-foreground;
+  }
+}
+
+@layer utilities {
+  @keyframes task-complete {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.02); opacity: 0.7; }
+    100% { transform: scale(0.98); opacity: 0.5; }
+  }
+  
+  .animate-task-complete {
+    animation: task-complete 0.6s ease-out forwards;
   }
 }

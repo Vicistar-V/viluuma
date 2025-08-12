@@ -8,7 +8,7 @@ import TodayLoadingSkeleton from '@/components/today/TodayLoadingSkeleton';
 import { BottomNav } from '@/components/BottomNav';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent } from '@/components/ui/card';
-import { Target, CheckCircle } from 'lucide-react';
+import { Target, CheckCircle, Clock } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
 
 const TodayScreen: React.FC = () => {
@@ -60,16 +60,34 @@ const TodayScreen: React.FC = () => {
         {/* Main Today Tasks List */}
         {todayTasks.length > 0 ? (
           <div className="space-y-4 mb-6">
-            {todayTasks.map((task) => (
-              <TodayTaskItem key={task.id} task={task} />
+            {todayTasks.map((task, index) => (
+              <div key={task.id} style={{ animationDelay: `${index * 100}ms` }}>
+                <TodayTaskItem task={task} />
+              </div>
             ))}
           </div>
-        ) : (
-          <Card className="mb-6">
+        ) : overdueCount > 0 ? (
+          <Card className="mb-6 animate-fade-in">
             <CardContent className="p-8 text-center">
               <div className="flex flex-col items-center gap-4">
-                <div className="p-3 bg-primary/10 rounded-full">
-                  <CheckCircle className="w-8 h-8 text-primary" />
+                <div className="p-3 bg-warning/10 rounded-full">
+                  <Clock className="w-8 h-8 text-warning" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-foreground mb-2">Let's catch up!</h3>
+                  <p className="text-muted-foreground text-sm">
+                    No new tasks for today, but you have {overdueCount} overdue {overdueCount === 1 ? 'task' : 'tasks'} waiting below.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="mb-6 animate-fade-in">
+            <CardContent className="p-8 text-center">
+              <div className="flex flex-col items-center gap-4">
+                <div className="p-3 bg-success/10 rounded-full">
+                  <CheckCircle className="w-8 h-8 text-success" />
                 </div>
                 <div>
                   <h3 className="font-semibold text-foreground mb-2">All caught up!</h3>
@@ -87,17 +105,28 @@ const TodayScreen: React.FC = () => {
 
         {/* Empty State for No Tasks or Overdue */}
         {todayTasks.length === 0 && overdueCount === 0 && (
-          <Card className="mt-6">
+          <Card className="mt-6 animate-scale-in">
             <CardContent className="p-8 text-center">
               <div className="flex flex-col items-center gap-4">
-                <div className="p-3 bg-muted rounded-full">
-                  <Target className="w-8 h-8 text-muted-foreground" />
+                <div className="p-4 bg-gradient-to-br from-primary/10 to-accent/10 rounded-full">
+                  <Target className="w-8 h-8 text-primary" />
                 </div>
                 <div>
                   <h3 className="font-semibold text-foreground mb-2">Ready to get started?</h3>
                   <p className="text-muted-foreground text-sm mb-4">
                     Create your first goal and start building momentum towards your dreams.
                   </p>
+                  <div className="flex gap-2 justify-center">
+                    <div className="px-3 py-1 bg-primary/10 rounded-full text-xs text-primary font-medium">
+                      Set goals
+                    </div>
+                    <div className="px-3 py-1 bg-accent/10 rounded-full text-xs text-accent-foreground font-medium">
+                      Track progress
+                    </div>
+                    <div className="px-3 py-1 bg-success/10 rounded-full text-xs text-success font-medium">
+                      Achieve dreams
+                    </div>
+                  </div>
                 </div>
               </div>
             </CardContent>
