@@ -27,27 +27,32 @@ interface TaskInfo {
   duration_hours: number;
 }
 
-interface TaskBoundaries {
-  earliestAllowedDate: Date;
-  latestAllowedDate: Date | null;
+interface ConflictInfo {
+  hasConflict: boolean;
+  conflictingAnchor?: {
+    id: string;
+    title: string;
+    start_date: string;
+  };
+  message?: string;
 }
 
 export const RescheduleModal = ({ taskId, taskTitle, currentStartDate, onOpenChange, onSuccess }: Props) => {
   const open = !!taskId;
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
+  const [conflictInfo, setConflictInfo] = useState<ConflictInfo>({ hasConflict: false });
   const [rescheduleResult, setRescheduleResult] = useState<any>(null);
   const [step, setStep] = useState<'select' | 'preview' | 'processing'>('select');
   const [taskInfo, setTaskInfo] = useState<TaskInfo | null>(null);
   const [goalTasks, setGoalTasks] = useState<TaskInfo[]>([]);
-  const [taskBoundaries, setTaskBoundaries] = useState<TaskBoundaries | null>(null);
   
   const { isProcessing, rescheduleTask, commitPlanUpdate } = useLivingPlan();
 
-  // Fetch task info and calculate constraints when modal opens
+  // Fetch task info when modal opens
   useEffect(() => {
     if (!taskId || !open) return;
 
-    const fetchTaskConstraints = async () => {
+    const fetchTaskInfo = async () => {
       try {
         // Get the specific task info
         const { data: task, error: taskError } = await supabase
@@ -59,7 +64,7 @@ export const RescheduleModal = ({ taskId, taskTitle, currentStartDate, onOpenCha
         if (taskError || !task) return;
         setTaskInfo(task);
 
-        // Get all tasks in the same goal to understand dependencies
+        // Get all tasks in the same goal
         const { data: allTasks, error: tasksError } = await supabase
           .from('tasks')
           .select('id, title, start_date, end_date, is_anchored, goal_id, milestone_id, duration_hours')
@@ -68,49 +73,24 @@ export const RescheduleModal = ({ taskId, taskTitle, currentStartDate, onOpenCha
 
         if (tasksError) return;
         setGoalTasks(allTasks || []);
-
-        // Calculate task boundaries using Smart Calendar logic
-        const boundaries = getTaskBoundaries(task, allTasks || []);
-        setTaskBoundaries(boundaries);
       } catch (error) {
-        console.error('Error fetching task constraints:', error);
-        // Fallback to today only
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        setTaskBoundaries({ earliestAllowedDate: today, latestAllowedDate: null });
+        console.error('Error fetching task info:', error);
       }
     };
 
-    fetchTaskConstraints();
+    fetchTaskInfo();
   }, [taskId, open]);
-
-  // Smart Calendar: Calculate task boundaries based on Tidal Wave logic
-  const getTaskBoundaries = (selectedTask: TaskInfo, allTasksInGoal: TaskInfo[]): TaskBoundaries => {
-    const sortedTasks = allTasksInGoal
-      .filter(t => t.start_date) // Only tasks with start dates
+  // Smart conflict detection when user selects a date
+  const checkForConflicts = (selectedDate: Date, selectedTask: TaskInfo, allTasks: TaskInfo[]): ConflictInfo => {
+    // Sort tasks by start date to understand sequence
+    const sortedTasks = allTasks
+      .filter(t => t.start_date)
       .sort((a, b) => new Date(a.start_date!).getTime() - new Date(b.start_date!).getTime());
     
     const currentIndex = sortedTasks.findIndex(t => t.id === selectedTask.id);
+    if (currentIndex === -1) return { hasConflict: false };
     
-    // === 1. Calculate the EARLIEST allowed date (floor) ===
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    let earliestAllowedDate = today;
-    
-    if (currentIndex > 0) {
-      // Find the task that comes directly before this one
-      const previousTask = sortedTasks[currentIndex - 1];
-      if (previousTask.end_date) {
-        const canStartAfter = new Date(previousTask.end_date);
-        canStartAfter.setDate(canStartAfter.getDate() + 1);
-        earliestAllowedDate = canStartAfter > today ? canStartAfter : today;
-      }
-    }
-    
-    // === 2. Calculate the LATEST allowed date (ceiling) ===
-    let latestAllowedDate: Date | null = null;
-    
-    // Find the very next anchored task in the sequence
+    // Find the next anchored task in the sequence
     let nextAnchor: TaskInfo | null = null;
     for (let i = currentIndex + 1; i < sortedTasks.length; i++) {
       if (sortedTasks[i].is_anchored) {
@@ -119,36 +99,53 @@ export const RescheduleModal = ({ taskId, taskTitle, currentStartDate, onOpenCha
       }
     }
     
-    if (nextAnchor && nextAnchor.start_date) {
-      // Calculate total duration of all tasks between current task and anchor
-      const tasksInBetween = sortedTasks.slice(currentIndex, sortedTasks.findIndex(t => t.id === nextAnchor!.id));
-      const totalDurationDays = tasksInBetween.reduce((sum, task) => {
-        // Convert hours to days (assuming 8-hour work days)
-        const taskDays = Math.ceil((task.duration_hours || 8) / 8);
-        return sum + taskDays;
-      }, 0);
-      
-      // The latest this block can start is anchor_start_date - total_duration
-      const anchorStartDate = new Date(nextAnchor.start_date);
-      latestAllowedDate = new Date(anchorStartDate);
-      latestAllowedDate.setDate(anchorStartDate.getDate() - totalDurationDays);
-      
-      // Ensure latest date is not before earliest date
-      if (latestAllowedDate < earliestAllowedDate) {
-        latestAllowedDate = null; // No valid window exists
-      }
+    if (!nextAnchor || !nextAnchor.start_date) {
+      return { hasConflict: false };
     }
     
-    return { earliestAllowedDate, latestAllowedDate };
+    // Calculate total duration of tasks between current task and anchor
+    const tasksInBetween = sortedTasks.slice(currentIndex, sortedTasks.findIndex(t => t.id === nextAnchor!.id));
+    const totalDurationDays = tasksInBetween.reduce((sum, task) => {
+      const taskDays = Math.ceil((task.duration_hours || 8) / 8);
+      return sum + taskDays;
+    }, 0);
+    
+    // Check if selected date would cause collision
+    const anchorStartDate = new Date(nextAnchor.start_date);
+    const selectedEndDate = new Date(selectedDate);
+    selectedEndDate.setDate(selectedEndDate.getDate() + totalDurationDays - 1);
+    
+    if (selectedEndDate >= anchorStartDate) {
+      return {
+        hasConflict: true,
+        conflictingAnchor: {
+          id: nextAnchor.id,
+          title: nextAnchor.title,
+          start_date: nextAnchor.start_date
+        },
+        message: `Moving this task to ${format(selectedDate, 'MMM d')} would create a conflict with your anchored task "${nextAnchor.title}" on ${format(anchorStartDate, 'MMM d')}.`
+      };
+    }
+    
+    return { hasConflict: false };
   };
 
-  const handleDateSelect = async (date: Date | undefined) => {
-    if (!date || !taskId) return;
+  const handleDateSelect = (date: Date | undefined) => {
+    if (!date || !taskInfo) return;
     
     setSelectedDate(date);
+    
+    // Check for conflicts with this selection
+    const conflicts = checkForConflicts(date, taskInfo, goalTasks);
+    setConflictInfo(conflicts);
+  };
+
+  const handleProceedWithReschedule = async () => {
+    if (!selectedDate || !taskId) return;
+    
     setStep('processing');
     
-    const result = await rescheduleTask(taskId, format(date, 'yyyy-MM-dd'));
+    const result = await rescheduleTask(taskId, format(selectedDate, 'yyyy-MM-dd'));
     setRescheduleResult(result);
     setStep('preview');
   };
@@ -170,11 +167,11 @@ export const RescheduleModal = ({ taskId, taskTitle, currentStartDate, onOpenCha
 
   const resetModal = () => {
     setSelectedDate(undefined);
+    setConflictInfo({ hasConflict: false });
     setRescheduleResult(null);
     setStep('select');
     setTaskInfo(null);
     setGoalTasks([]);
-    setTaskBoundaries(null);
   };
 
   const handleOpenChange = (open: boolean) => {
@@ -182,17 +179,11 @@ export const RescheduleModal = ({ taskId, taskTitle, currentStartDate, onOpenCha
     onOpenChange(open);
   };
 
-  // Smart Calendar: Simplified date validation using pre-computed boundaries
+  // Simple Floor Calendar: Only disable past dates
   const isDateDisabled = (date: Date) => {
-    if (!taskBoundaries) return true; // Disable all dates if boundaries not calculated yet
-    
-    // Disable dates before the earliest allowed date
-    if (date < taskBoundaries.earliestAllowedDate) return true;
-    
-    // Disable dates after the latest allowed date (if there is one)
-    if (taskBoundaries.latestAllowedDate && date > taskBoundaries.latestAllowedDate) return true;
-    
-    return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return date < today;
   };
 
   return (
@@ -245,25 +236,53 @@ export const RescheduleModal = ({ taskId, taskTitle, currentStartDate, onOpenCha
               />
             </div>
             
+            
+            {/* Smart Interactive Warning System */}
+            {conflictInfo.hasConflict && (
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <div className="flex items-center gap-2 text-amber-800 mb-2">
+                  <AlertTriangleIcon className="w-4 h-4" />
+                  <span className="font-medium">Heads Up!</span>
+                </div>
+                <p className="text-sm text-amber-700 mb-3">
+                  {conflictInfo.message}
+                </p>
+                <p className="text-xs text-amber-600 mb-3">
+                  What would you like to do?
+                </p>
+                <div className="space-y-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full text-amber-700 border-amber-300 hover:bg-amber-100"
+                    onClick={() => {
+                      setSelectedDate(undefined);
+                      setConflictInfo({ hasConflict: false });
+                    }}
+                  >
+                    Pick a different date
+                  </Button>
+                  <Button
+                    variant="outline" 
+                    size="sm"
+                    className="w-full text-amber-700 border-amber-300 hover:bg-amber-100"
+                    onClick={() => {
+                      // TODO: Navigate to conflicting task to un-anchor it
+                      console.log('Navigate to unanchor:', conflictInfo.conflictingAnchor?.id);
+                    }}
+                  >
+                    Un-anchor "{conflictInfo.conflictingAnchor?.title}" first
+                  </Button>
+                </div>
+              </div>
+            )}
+            
             <div className="p-3 bg-muted/50 rounded-lg">
               <p className="text-xs text-muted-foreground">
                 💡 {taskInfo?.is_anchored 
                   ? 'This anchored task can be moved independently without affecting other tasks.'
                   : 'Moving this floating task triggers the "Tidal Wave" - all tasks after it will shift forward to maintain the sequence.'}
               </p>
-              {taskBoundaries && (
-                <div className="mt-2 space-y-1">
-                  <p className="text-xs text-blue-600">
-                    📅 Available window: {format(taskBoundaries.earliestAllowedDate, 'MMM d')}
-                    {taskBoundaries.latestAllowedDate && ` to ${format(taskBoundaries.latestAllowedDate, 'MMM d')}`}
-                  </p>
-                  {taskBoundaries.latestAllowedDate && (
-                    <p className="text-xs text-amber-600">
-                      ⚠️ Limited by next anchored task - moving later would cause conflicts
-                    </p>
-                  )}
-                </div>
-              )}
             </div>
           </div>
         )}
@@ -338,6 +357,12 @@ export const RescheduleModal = ({ taskId, taskTitle, currentStartDate, onOpenCha
           <Button variant="outline" onClick={() => handleOpenChange(false)}>
             Cancel
           </Button>
+          
+          {step === 'select' && selectedDate && !conflictInfo.hasConflict && (
+            <Button onClick={handleProceedWithReschedule}>
+              Reschedule to {format(selectedDate, 'MMM d')}
+            </Button>
+          )}
           
           {step === 'preview' && rescheduleResult?.status !== 'error' && (
             <Button
