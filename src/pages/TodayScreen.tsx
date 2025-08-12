@@ -76,7 +76,8 @@ const TodayScreen: React.FC = () => {
                 <div>
                   <h3 className="font-semibold text-foreground mb-2">Let's catch up!</h3>
                   <p className="text-muted-foreground text-sm">
-                    No new tasks for today, but you have {overdueCount} overdue {overdueCount === 1 ? 'task' : 'tasks'} waiting below.
+                    No new tasks for today, but you have {overdueCount} overdue {overdueCount === 1 ? 'task' : 'tasks'} that need attention.
+                    These are tasks where the deadline has actually passed.
                   </p>
                 </div>
               </div>

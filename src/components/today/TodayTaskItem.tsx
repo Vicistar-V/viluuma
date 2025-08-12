@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Clock, Calendar, Target, Sparkles, Zap, Lightbulb, CheckCircle } from 'lucide-react';
 import { TodayTask, useCompleteTask, useUncompleteTask } from '@/hooks/useTodayData';
-import { format, isToday, isPast } from 'date-fns';
+import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 
@@ -45,9 +45,14 @@ const TodayTaskItem: React.FC<TodayTaskItemProps> = ({ task }) => {
   };
 
   const isCompleted = task.status === 'completed';
-  const isOverdue = task.task_type === 'overdue';
-  const isChecklist = task.task_type === 'checklist';
-  const isScheduled = task.task_type === 'scheduled';
+  const displayStatus = task.display_status || task.task_type;
+  
+  // New empathetic status checks
+  const isOverdue = displayStatus === 'overdue';  // Deadline has actually passed
+  const isDueToday = displayStatus === 'due_today';  // Due to finish today
+  const isInProgress = displayStatus === 'in_progress';  // Working on it, still on schedule
+  const isStartingToday = displayStatus === 'starting_today';  // Starting work today
+  const isChecklist = displayStatus === 'checklist';  // Optional checklist task
 
   // Priority indicator component
   const PriorityIndicator = () => {
@@ -80,36 +85,96 @@ const TodayTaskItem: React.FC<TodayTaskItemProps> = ({ task }) => {
     return invitations[index];
   };
 
-  // Get date display for overdue tasks
-  const getOverdueDisplay = () => {
-    if (!isOverdue || !task.start_date) return null;
-    
-    const startDate = new Date(task.start_date);
-    if (isToday(startDate)) {
-      return 'Due today';
-    } else {
-      return `Was due ${format(startDate, 'MMM d')}`;
+  // Get the appropriate display for different task states
+  const getTaskTypeDisplay = () => {
+    if (isOverdue) {
+      return (
+        <Badge variant="secondary" className="text-xs border-destructive text-destructive bg-destructive/10">
+          <Clock className="w-3 h-3 mr-1" />
+          Overdue
+        </Badge>
+      );
     }
+    
+    if (isDueToday) {
+      return (
+        <Badge variant="secondary" className="text-xs border-warning text-warning bg-warning/10">
+          <Calendar className="w-3 h-3 mr-1" />
+          Due Today
+        </Badge>
+      );
+    }
+    
+    if (isInProgress) {
+      return (
+        <Badge variant="secondary" className="text-xs border-primary text-primary bg-primary/10">
+          <Target className="w-3 h-3 mr-1" />
+          In Progress
+        </Badge>
+      );
+    }
+    
+    if (isStartingToday) {
+      return (
+        <Badge variant="secondary" className="text-xs border-accent text-accent-foreground bg-accent/10">
+          <Calendar className="w-3 h-3 mr-1" />
+          Starting Today
+        </Badge>
+      );
+    }
+    
+    if (isChecklist) {
+      return (
+        <Badge variant="outline" className="text-xs border-dashed">
+          <Target className="w-3 h-3 mr-1" />
+          Optional
+        </Badge>
+      );
+    }
+    
+    return null;
   };
 
-  // Get duration or end date display for scheduled tasks
-  const getScheduledDisplay = () => {
-    if (!isScheduled || !task.end_date) return null;
+  // Get date display - only for actually overdue tasks
+  const getDateDisplay = () => {
+    if (!isOverdue || !task.end_date) return null;
     
     const endDate = new Date(task.end_date);
-    const startDate = task.start_date ? new Date(task.start_date) : new Date();
-    
-    // Calculate duration in days
-    const diffTime = endDate.getTime() - startDate.getTime();
+    const today = new Date();
+    const diffTime = today.getTime() - endDate.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
     if (diffDays === 1) {
-      return '1 day';
+      return 'Was due yesterday';
     } else if (diffDays > 1) {
-      return `${diffDays} days`;
+      return `Was due ${diffDays} days ago`;
     } else {
-      return format(endDate, 'MMM d');
+      return `Was due ${format(endDate, 'MMM d')}`;
     }
+  };
+
+  // Get progress display for in-progress tasks
+  const getProgressDisplay = () => {
+    if (!isInProgress && !isDueToday && !isStartingToday) return null;
+    
+    if (isDueToday && task.end_date) {
+      return `Due today`;
+    }
+    
+    if (isInProgress && task.end_date) {
+      const endDate = new Date(task.end_date);
+      const today = new Date();
+      const diffTime = endDate.getTime() - today.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      if (diffDays === 1) {
+        return `Due tomorrow`;
+      } else if (diffDays > 1) {
+        return `Due in ${diffDays} days`;
+      }
+    }
+    
+    return null;
   };
 
   // Card styling based on task type
@@ -129,11 +194,19 @@ const TodayTaskItem: React.FC<TodayTaskItemProps> = ({ task }) => {
     }
     
     if (isOverdue) {
-      return cn(baseClasses, 'overdue-glow');
+      return cn(baseClasses, 'border-l-4 border-l-destructive bg-destructive/5');
     }
     
-    // Scheduled tasks - clean standard design
-    return cn(baseClasses, 'border-l-4 border-l-primary/20 hover:border-l-primary/40');
+    if (isDueToday) {
+      return cn(baseClasses, 'border-l-4 border-l-warning bg-warning/5');
+    }
+    
+    if (isInProgress) {
+      return cn(baseClasses, 'border-l-4 border-l-primary bg-primary/5');
+    }
+    
+    // Starting today or other scheduled tasks
+    return cn(baseClasses, 'border-l-4 border-l-accent hover:border-l-primary/40');
   };
 
   return (
@@ -167,26 +240,7 @@ const TodayTaskItem: React.FC<TodayTaskItemProps> = ({ task }) => {
             {/* Task Type and Priority Badges */}
             <div className="flex items-center gap-2 mb-2">
               {/* Task Type Badge */}
-              {isOverdue && (
-                <Badge variant="secondary" className="text-xs border-warning text-warning bg-warning/10">
-                  <Clock className="w-3 h-3 mr-1" />
-                  Overdue
-                </Badge>
-              )}
-              
-              {isScheduled && (
-                <Badge variant="secondary" className="text-xs">
-                  <Calendar className="w-3 h-3 mr-1" />
-                  Today
-                </Badge>
-              )}
-              
-              {isChecklist && (
-                <Badge variant="outline" className="text-xs border-dashed">
-                  <Target className="w-3 h-3 mr-1" />
-                  Optional
-                </Badge>
-              )}
+              {getTaskTypeDisplay()}
               
               {/* Priority Badge (not for checklist) */}
               {!isChecklist && task.priority && (
@@ -240,15 +294,17 @@ const TodayTaskItem: React.FC<TodayTaskItemProps> = ({ task }) => {
               
               {/* Date Information */}
               <div className="flex items-center gap-2">
+                {/* Overdue date display */}
                 {isOverdue && (
-                  <span className="text-xs text-warning font-medium">
-                    {getOverdueDisplay()}
+                  <span className="text-xs text-destructive font-medium">
+                    {getDateDisplay()}
                   </span>
                 )}
                 
-                {isScheduled && (
+                {/* Progress display for in-progress and due today tasks */}
+                {(isInProgress || isDueToday || isStartingToday) && (
                   <span className="text-xs text-muted-foreground">
-                    {getScheduledDisplay()}
+                    {getProgressDisplay()}
                   </span>
                 )}
               </div>

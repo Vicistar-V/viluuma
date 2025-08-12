@@ -13,7 +13,8 @@ export interface TodayTask {
   priority: 'high' | 'medium' | 'low' | null;
   is_anchored: boolean;
   goal_title: string;
-  task_type: 'scheduled' | 'overdue' | 'checklist';
+  task_type: 'overdue' | 'due_today' | 'in_progress' | 'starting_today' | 'scheduled' | 'checklist';
+  display_status?: 'overdue' | 'due_today' | 'in_progress' | 'starting_today' | 'scheduled' | 'checklist';
 }
 
 export interface TodayPayload {
