@@ -44,7 +44,7 @@ const Index = () => {
               <Smartphone className="h-8 w-8 text-primary" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold mb-2">Welcome</h1>
+              <h1 className="text-3xl font-bold mb-2">Welcome Back</h1>
               <p className="text-lg text-muted-foreground">
                 Get started with your mobile app experience
               </p>
