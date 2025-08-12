@@ -120,7 +120,6 @@ async function handleChecklistGeneration(intel: any, compression_requested: bool
     body: JSON.stringify({
       model: "openai/gpt-oss-20b:free",
       temperature: 0.2,
-      max_tokens: 500,
       messages: [
         { role: "system", content: "Return only valid JSON." },
         { role: "user", content: prompt },
@@ -273,7 +272,6 @@ serve(async (req) => {
     const requestPayload = {
       model: "openai/gpt-oss-20b:free",
       temperature: 0.2,
-      max_tokens: 500,
       messages: [
         { role: "system", content: "Return only valid JSON." },
         { role: "user", content: prompt },
