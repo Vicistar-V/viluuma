@@ -6,16 +6,98 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const SYSTEM_PROMPT = `You are Viluuma, a super friendly, supportive AI coach.
-Goal: help the user clarify a goal with just the essentials, then STOP and emit a special JSON.
+// Helper functions for intelligent conversation management
+function detectModalityFromMessage(message: string): "project" | "checklist" | null {
+  const projectKeywords = /\b(project|deadline|by|before|due|timeline|schedule|finished|complete by|need by)\b/i;
+  const checklistKeywords = /\b(checklist|ongoing|over time|habit|routine|general|someday|eventually|no deadline|no rush)\b/i;
+  
+  if (projectKeywords.test(message)) return "project";
+  if (checklistKeywords.test(message)) return "checklist";
+  return null;
+}
 
-Conversation rules:
-- Keep messages short, positive, and helpful (mobile-first UX).
-- Ask only what is necessary to confidently create a plan: title, modality (project or checklist), deadline (YYYY-MM-DD or "none"), hoursPerWeek (integer), and any brief context.
-- After you have enough info, DO NOT continue chatting. Respond with ONLY this JSON (no extra text):
-{"status":"ready_to_generate","intel":{"title":"...","modality":"project|checklist","deadline":"YYYY-MM-DD|null","hoursPerWeek":8,"context":"optional short context"}}
-- Ensure the JSON is the only thing in your response when you are ready.
-`;
+function extractGoalTitle(messages: any[]): string | null {
+  for (const msg of messages) {
+    if (msg.role === "user" && msg.content && msg.content.length > 5) {
+      // Simple extraction - use first meaningful user message as potential title
+      const content = msg.content.trim();
+      if (content.length > 5 && content.length < 200) {
+        return content;
+      }
+    }
+  }
+  return null;
+}
+
+function buildDynamicSystemPrompt(missingInfo: string[]): string {
+  const basePrompt = `You are Viluuma, a super friendly, supportive AI coach.
+Your mission is to have a short chat to help a user define their goal.
+
+**INFORMATION NEEDED:**
+${missingInfo.map(info => `- **${info}**`).join('\n')}
+
+**YOUR RULES:**
+- Talk like a casual friend (1-2 sentences).
+- Always ask a question to figure out one of the NEEDED pieces of info above.
+- **CRITICAL:** When you have all the needed info, your VERY NEXT response must ONLY be the JSON object: {"status":"ready_to_generate","intel":{"title":"...","modality":"project|checklist","deadline":"YYYY-MM-DD|null","hoursPerWeek":8,"context":"optional short context"}}`;
+  
+  return basePrompt;
+}
+
+function analyzeConversationState(messages: any[]): {
+  title: string | null;
+  modality: "project" | "checklist" | null;
+  deadline: string | null;
+  hoursPerWeek: number | null;
+  context: string | null;
+} {
+  let title = null;
+  let modality = null;
+  let deadline = null;
+  let hoursPerWeek = null;
+  let context = null;
+
+  // Extract goal title from first meaningful user message
+  title = extractGoalTitle(messages);
+
+  // Detect modality from user messages
+  for (const msg of messages) {
+    if (msg.role === "user") {
+      const detectedModality = detectModalityFromMessage(msg.content);
+      if (detectedModality) {
+        modality = detectedModality;
+        break;
+      }
+    }
+  }
+
+  // Extract deadline if mentioned (simple regex for dates)
+  const deadlineRegex = /\b(\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2}\/\d{4}|january|february|march|april|may|june|july|august|september|october|november|december|\d{1,2}th|\d{1,2}st|\d{1,2}nd|\d{1,2}rd)\b/i;
+  for (const msg of messages) {
+    if (msg.role === "user" && deadlineRegex.test(msg.content)) {
+      // Simple extraction - in a real app, you'd use a proper date parser
+      const match = msg.content.match(deadlineRegex);
+      if (match) {
+        context = `Mentioned deadline context: ${match[0]}`;
+        // For now, we'll let the AI handle date parsing in its response
+      }
+    }
+  }
+
+  // Extract hours per week if mentioned
+  const hoursRegex = /\b(\d+)\s*(hours?|hrs?)\s*(per\s*week|weekly|each\s*week)\b/i;
+  for (const msg of messages) {
+    if (msg.role === "user" && hoursRegex.test(msg.content)) {
+      const match = msg.content.match(hoursRegex);
+      if (match) {
+        hoursPerWeek = parseInt(match[1]);
+        break;
+      }
+    }
+  }
+
+  return { title, modality, deadline, hoursPerWeek, context };
+}
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
@@ -41,8 +123,52 @@ serve(async (req) => {
       });
     }
 
+    // Analyze conversation state to determine what info is still needed
+    const state = analyzeConversationState(messages);
+    const missingInfo: string[] = [];
+
+    if (!state.title) {
+      missingInfo.push("Core Activity: What is the user's main goal?");
+    }
+    
+    if (!state.modality) {
+      missingInfo.push("Modality: Is this a Project (with deadline) or a Checklist (ongoing)?");
+    }
+    
+    // Only ask for deadline if it's a project
+    if (state.modality === "project" && !state.deadline) {
+      missingInfo.push("Deadline: Get a specific target date");
+    }
+    
+    // Only ask for hours per week if it's a project and we don't have it
+    if (state.modality === "project" && !state.hoursPerWeek) {
+      missingInfo.push("Time Commitment: How many hours per week can they dedicate?");
+    }
+
+    // Check if we have everything we need for the handoff
+    if (missingInfo.length === 0 && state.title && state.modality) {
+      // We have everything! Return the intel directly
+      const intel = {
+        title: state.title,
+        modality: state.modality,
+        deadline: state.modality === "checklist" ? null : (state.deadline || null),
+        hoursPerWeek: state.modality === "checklist" ? 0 : (state.hoursPerWeek || 8),
+        context: state.context || ""
+      };
+      
+      return new Response(JSON.stringify({
+        status: "ready_to_generate",
+        intel
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Build dynamic system prompt based on missing information
+    const dynamicSystemPrompt = buildDynamicSystemPrompt(missingInfo);
+
     const finalMessages = [
-      { role: "system", content: SYSTEM_PROMPT },
+      { role: "system", content: dynamicSystemPrompt },
       ...messages,
     ];
 

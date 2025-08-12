@@ -13,6 +13,13 @@ interface ChatMessageType {
   content: string;
 }
 
+interface ConversationState {
+  hasGoalMentioned: boolean;
+  hasModalityDetected: boolean;
+  detectedModality: "project" | "checklist" | null;
+  conversationStage: "gathering_goal" | "clarifying_modality" | "gathering_details" | "ready";
+}
+
 const AIOnboardingWizard = () => {
   const [messages, setMessages] = useState<ChatMessageType[]>([
     {
@@ -23,9 +30,50 @@ const AIOnboardingWizard = () => {
   ]);
   const [userInput, setUserInput] = useState("");
   const [isAITyping, setIsAITyping] = useState(false);
+  const [conversationState, setConversationState] = useState<ConversationState>({
+    hasGoalMentioned: false,
+    hasModalityDetected: false,
+    detectedModality: null,
+    conversationStage: "gathering_goal"
+  });
   const navigate = useNavigate();
   const { toast } = useToast();
   const inputRef = useRef<HTMLInputElement | null>(null);
+
+  // Helper function to detect modality from user message
+  const detectModality = (message: string): "project" | "checklist" | null => {
+    const projectKeywords = /\b(project|deadline|by|before|due|timeline|schedule|finished|complete by|need by)\b/i;
+    const checklistKeywords = /\b(checklist|ongoing|over time|habit|routine|general|someday|eventually|no deadline|no rush)\b/i;
+    
+    if (projectKeywords.test(message)) return "project";
+    if (checklistKeywords.test(message)) return "checklist";
+    return null;
+  };
+
+  // Update conversation state based on user input
+  const updateConversationState = (userMessage: string) => {
+    const detectedModality = detectModality(userMessage);
+    
+    setConversationState(prev => {
+      const hasGoal = prev.hasGoalMentioned || userMessage.length > 10;
+      const hasModality = prev.hasModalityDetected || detectedModality !== null;
+      
+      let stage: ConversationState["conversationStage"] = "gathering_goal";
+      
+      if (hasGoal && !hasModality) {
+        stage = "clarifying_modality";
+      } else if (hasGoal && hasModality) {
+        stage = detectedModality === "checklist" ? "ready" : "gathering_details";
+      }
+      
+      return {
+        hasGoalMentioned: hasGoal,
+        hasModalityDetected: hasModality,
+        detectedModality: detectedModality || prev.detectedModality,
+        conversationStage: stage
+      };
+    });
+  };
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -34,6 +82,9 @@ const AIOnboardingWizard = () => {
   const handleSend = async () => {
     const trimmed = userInput.trim();
     if (!trimmed) return;
+
+    // Update conversation state based on user input
+    updateConversationState(trimmed);
 
     const newUserMessage: ChatMessageType = { role: "user", content: trimmed };
     const outbound = [...messages, newUserMessage];
@@ -98,7 +149,13 @@ const AIOnboardingWizard = () => {
             ref={inputRef}
             value={userInput}
             onChange={(e) => setUserInput(e.target.value)}
-            placeholder="Type your reply..."
+            placeholder={
+              conversationState.conversationStage === "gathering_goal" 
+                ? "Tell me about your goal..." 
+                : conversationState.conversationStage === "clarifying_modality"
+                ? "Is this a project or ongoing checklist?"
+                : "Type your reply..."
+            }
             onKeyDown={(e) => {
               if (e.key === "Enter") handleSend();
             }}
@@ -107,6 +164,14 @@ const AIOnboardingWizard = () => {
             Send
           </Button>
         </CardContent>
+        
+        {/* Conversation progress indicator */}
+        {conversationState.detectedModality && (
+          <div className="px-3 pb-2 text-xs text-muted-foreground text-center">
+            Detected: {conversationState.detectedModality === "project" ? "Project with deadline" : "Ongoing checklist"}
+            {conversationState.detectedModality === "checklist" && " • Almost done!"}
+          </div>
+        )}
       </Card>
     </main>
   );

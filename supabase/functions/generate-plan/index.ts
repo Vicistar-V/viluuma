@@ -70,8 +70,45 @@ function daysBetweenUTC(a: Date, b: Date) {
   return Math.max(0, Math.floor(ms / (1000 * 60 * 60 * 24)));
 }
 
+function buildChecklistPrompt(intel: any, opts: { compression?: boolean }) {
+  const { title, context } = intel || {};
+  const compressionNote = opts.compression
+    ? "Keep the scope focused and manageable."
+    : "";
+
+  return `You are an elite checklist creator. Given a goal, create a structured checklist with milestones and tasks.
+Return ONLY JSON following exactly this schema (no prose, no backticks):
+{
+  "milestones": [
+    { "title": "", "order_index": 1 },
+    ...
+  ],
+  "tasks": [
+    {
+      "title": "",
+      "description": "",
+      "milestone_index": 1,
+      "duration_hours": 2,
+      "priority": "low|medium|high"
+    }
+  ]
+}
+Rules:
+- Focus on actionable tasks that can be completed independently
+- Tasks should be atomic and specific (1-4 hours typically)
+- Prefer 3-5 milestones; 8-15 total tasks for most goals
+- Duration is for estimation only, not scheduling
+- milestone_index refers to the milestone order_index
+- No timeline or scheduling references needed
+
+GOAL: ${title}
+CONTEXT: ${context || ""}
+${compressionNote}
+Return ONLY JSON.`;
+}
+
 async function handleChecklistGeneration(intel: any, compression_requested: boolean, apiKey: string) {
-  const prompt = buildPrompt(intel, { compression: compression_requested });
+  const prompt = buildChecklistPrompt(intel, { compression: compression_requested });
 
   const response = await fetch(OPENROUTER_URL, {
     method: "POST",
