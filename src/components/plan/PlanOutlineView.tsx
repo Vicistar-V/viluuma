@@ -43,7 +43,9 @@ const PlanOutlineView = ({ plan }: { plan: Plan }) => {
                   <li key={t.id} className="rounded-md border p-3">
                     <div className="flex items-center justify-between">
                       <p className="font-medium">{t.title}</p>
-                      <span className="text-xs text-muted-foreground">{t.duration_hours}h • D{t.start_day_offset}–D{t.end_day_offset}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {t.duration_hours}h • ({t.end_day_offset - t.start_day_offset + 1} days)
+                      </span>
                     </div>
                     {t.description && (
                       <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{t.description}</p>

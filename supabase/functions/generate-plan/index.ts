@@ -164,20 +164,29 @@ serve(async (req) => {
     const deadlineDate = intel?.deadline ? new Date(intel.deadline) : null;
     const totalProjectDays = scheduledTasks.length ? scheduledTasks[scheduledTasks.length - 1].end_day_offset + 1 : 0;
     const daysAvailable = deadlineDate ? daysBetweenUTC(today, deadlineDate) : null;
+    
+    // Calculate the projected end date
+    const projectedEndDate = new Date(today);
+    projectedEndDate.setUTCDate(projectedEndDate.getUTCDate() + totalProjectDays);
+    const calculatedEndDate = projectedEndDate.toISOString().split('T')[0];
 
     let status: "success" | "over_scoped" | "under_scoped" | "low_quality" = "success";
     let message = "Looks great! Ready when you are.";
 
+    // Quality check: too few tasks
     if (scheduledTasks.length < 3) {
       status = "low_quality";
       message = "This plan seems too light. Try extending the timeline or adding detail.";
     }
 
-    if (daysAvailable != null) {
-      if (totalProjectDays > daysAvailable) {
+    // Scope analysis against deadline
+    if (daysAvailable != null && status !== "low_quality") {
+      const scopeRatio = totalProjectDays / daysAvailable;
+      
+      if (scopeRatio > 1.1) { // More than 10% over deadline
         status = "over_scoped";
         message = "Ambitious timeline. Consider compressing or extending the deadline.";
-      } else if (totalProjectDays < Math.floor(daysAvailable * 0.4)) {
+      } else if (scopeRatio < 0.6) { // Less than 60% of available time
         status = "under_scoped";
         message = "This might be too lax for your deadline. Want to expand it?";
       }
@@ -186,6 +195,7 @@ serve(async (req) => {
     const payload = {
       status,
       message,
+      calculatedEndDate,
       plan: {
         milestones,
         scheduledTasks,

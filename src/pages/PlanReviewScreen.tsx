@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import LoadingAnimation from "@/components/plan/LoadingAnimation";
 import ErrorMessage from "@/components/plan/ErrorMessage";
 import PlanOutlineView from "@/components/plan/PlanOutlineView";
-import ActionButtons from "@/components/plan/ActionButtons";
+import ActionFooter from "@/components/plan/ActionFooter";
 
 interface Intel {
   title: string;
@@ -30,6 +30,7 @@ interface ScheduledTask {
 interface Blueprint {
   status: "success" | "under_scoped" | "over_scoped" | "low_quality";
   message: string;
+  calculatedEndDate?: string;
   plan: {
     milestones: { title: string; order_index: number }[];
     scheduledTasks: ScheduledTask[];
@@ -79,24 +80,46 @@ const PlanReviewScreen = () => {
     run();
   }, [intel, navigate]);
 
-  const handleRecompute = async (opts: { compression?: boolean; extension?: boolean }) => {
+  const handleAction = async (action: {
+    type: 'SAVE' | 'REGENERATE' | 'ACCEPT_AND_SAVE';
+    plan?: any;
+    newDeadline?: string;
+    options?: { compression_requested?: boolean; expansion_requested?: boolean };
+  }) => {
     if (!intel) return;
-    try {
-      setRecomputing(true);
-      const { data, error } = await supabase.functions.invoke("generate-plan", {
-        body: { intel, compression_requested: !!opts.compression, extension_requested: !!opts.extension },
-      });
-      if (error) throw error;
-      setBlueprint(data as Blueprint);
-    } catch (e: any) {
-      toast({ title: "Failed to regenerate", description: String(e?.message || e), variant: "destructive" });
-    } finally {
-      setRecomputing(false);
+
+    if (action.type === 'SAVE') {
+      return handleSave(action.plan);
+    }
+
+    if (action.type === 'ACCEPT_AND_SAVE') {
+      return handleSave(action.plan, action.newDeadline);
+    }
+
+    if (action.type === 'REGENERATE') {
+      try {
+        setRecomputing(true);
+        const { data, error } = await supabase.functions.invoke("generate-plan", {
+          body: { 
+            intel, 
+            compression_requested: !!action.options?.compression_requested,
+            extension_requested: !!action.options?.expansion_requested 
+          },
+        });
+        if (error) throw error;
+        setBlueprint(data as Blueprint);
+      } catch (e: any) {
+        toast({ title: "Failed to regenerate", description: String(e?.message || e), variant: "destructive" });
+      } finally {
+        setRecomputing(false);
+      }
     }
   };
 
-  const handleSave = async () => {
-    if (!intel || !blueprint) return;
+  const handleSave = async (plan?: any, newDeadline?: string) => {
+    const planToSave = plan || blueprint?.plan;
+    if (!intel || !planToSave) return;
+    
     try {
       setSaving(true);
       const start = new Date();
@@ -106,7 +129,7 @@ const PlanReviewScreen = () => {
         return d;
       };
 
-      const tasksPayload = blueprint.plan.scheduledTasks.map((t) => {
+      const tasksPayload = planToSave.scheduledTasks.map((t: any) => {
         const startDate = addDays(start, t.start_day_offset);
         const endDate = addDays(start, t.end_day_offset);
         return {
@@ -121,11 +144,14 @@ const PlanReviewScreen = () => {
         };
       });
 
+      // Use the new deadline if provided (for extended deadline scenarios)
+      const targetDate = newDeadline || intel.deadline;
+
       const { data, error } = await supabase.rpc("save_goal_plan", {
         p_title: intel.title,
         p_modality: intel.modality,
-        p_target_date: intel.deadline,
-        p_milestones: blueprint.plan.milestones,
+        p_target_date: targetDate,
+        p_milestones: planToSave.milestones,
         p_tasks: tasksPayload,
       });
 
@@ -144,24 +170,17 @@ const PlanReviewScreen = () => {
   if (error || !blueprint) return <ErrorMessage message={error || "Unknown error"} />;
 
   return (
-    <main className="mx-auto max-w-screen-md p-4 pb-28">
+    <main className="mx-auto max-w-screen-md p-4 pb-40">
       <h1 className="sr-only">Plan Review</h1>
-
-      <section className="mb-4">
-        <p className="text-sm text-muted-foreground">{blueprint.message}</p>
-      </section>
 
       <PlanOutlineView plan={blueprint.plan} />
 
-      <ActionButtons
-        status={blueprint.status}
-        message={blueprint.message}
+      <ActionFooter
+        blueprint={blueprint}
+        intel={intel}
         recomputing={recomputing}
         saving={saving}
-        onCompress={() => handleRecompute({ compression: true })}
-        onExtend={() => handleRecompute({ extension: true })}
-        onRegenerate={() => handleRecompute({})}
-        onSave={handleSave}
+        onAction={handleAction}
       />
     </main>
   );
