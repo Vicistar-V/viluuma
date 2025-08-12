@@ -24,128 +24,94 @@ interface TaskInfo {
   is_anchored: boolean;
   goal_id: string;
   milestone_id: string;
-  duration_hours: number;
-}
-
-interface ConflictInfo {
-  hasConflict: boolean;
-  conflictingAnchor?: {
-    id: string;
-    title: string;
-    start_date: string;
-  };
-  message?: string;
 }
 
 export const RescheduleModal = ({ taskId, taskTitle, currentStartDate, onOpenChange, onSuccess }: Props) => {
   const open = !!taskId;
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
-  const [conflictInfo, setConflictInfo] = useState<ConflictInfo>({ hasConflict: false });
   const [rescheduleResult, setRescheduleResult] = useState<any>(null);
   const [step, setStep] = useState<'select' | 'preview' | 'processing'>('select');
   const [taskInfo, setTaskInfo] = useState<TaskInfo | null>(null);
   const [goalTasks, setGoalTasks] = useState<TaskInfo[]>([]);
+  const [minValidDate, setMinValidDate] = useState<Date>(new Date());
   
   const { isProcessing, rescheduleTask, commitPlanUpdate } = useLivingPlan();
 
-  // Fetch task info when modal opens
+  // Fetch task info and calculate constraints when modal opens
   useEffect(() => {
     if (!taskId || !open) return;
 
-    const fetchTaskInfo = async () => {
+    const fetchTaskConstraints = async () => {
       try {
         // Get the specific task info
         const { data: task, error: taskError } = await supabase
           .from('tasks')
-          .select('id, title, start_date, end_date, is_anchored, goal_id, milestone_id, duration_hours')
+          .select('id, title, start_date, end_date, is_anchored, goal_id, milestone_id')
           .eq('id', taskId)
           .single();
 
         if (taskError || !task) return;
         setTaskInfo(task);
 
-        // Get all tasks in the same goal
+        // Get all tasks in the same goal to understand dependencies
         const { data: allTasks, error: tasksError } = await supabase
           .from('tasks')
-          .select('id, title, start_date, end_date, is_anchored, goal_id, milestone_id, duration_hours')
+          .select('id, title, start_date, end_date, is_anchored, goal_id, milestone_id')
           .eq('goal_id', task.goal_id)
           .order('start_date', { ascending: true });
 
         if (tasksError) return;
         setGoalTasks(allTasks || []);
+
+        // Calculate minimum valid date based on Smart Calendar logic
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        if (task.is_anchored) {
+          // Anchored tasks can be moved to today or later
+          setMinValidDate(today);
+        } else {
+          // Floating tasks need to consider dependencies
+          const precedingTasks = (allTasks || [])
+            .filter(t => t.id !== taskId && t.start_date && task.start_date && t.start_date < task.start_date)
+            .sort((a, b) => new Date(b.start_date!).getTime() - new Date(a.start_date!).getTime());
+
+          if (precedingTasks.length > 0) {
+            // Find the latest end date of preceding tasks
+            const latestPrecedingEndDate = precedingTasks.reduce((latest, t) => {
+              if (!t.end_date) return latest;
+              const endDate = new Date(t.end_date);
+              return endDate > latest ? endDate : latest;
+            }, today);
+
+            // Add one day after the latest preceding task ends
+            const minDate = new Date(latestPrecedingEndDate);
+            minDate.setDate(minDate.getDate() + 1);
+            setMinValidDate(minDate > today ? minDate : today);
+          } else {
+            // No preceding tasks, can start today
+            setMinValidDate(today);
+          }
+        }
       } catch (error) {
-        console.error('Error fetching task info:', error);
+        console.error('Error fetching task constraints:', error);
+        // Fallback to today
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        setMinValidDate(today);
       }
     };
 
-    fetchTaskInfo();
+    fetchTaskConstraints();
   }, [taskId, open]);
-  // Smart conflict detection when user selects a date
-  const checkForConflicts = (selectedDate: Date, selectedTask: TaskInfo, allTasks: TaskInfo[]): ConflictInfo => {
-    // Sort tasks by start date to understand sequence
-    const sortedTasks = allTasks
-      .filter(t => t.start_date)
-      .sort((a, b) => new Date(a.start_date!).getTime() - new Date(b.start_date!).getTime());
-    
-    const currentIndex = sortedTasks.findIndex(t => t.id === selectedTask.id);
-    if (currentIndex === -1) return { hasConflict: false };
-    
-    // Find the next anchored task in the sequence
-    let nextAnchor: TaskInfo | null = null;
-    for (let i = currentIndex + 1; i < sortedTasks.length; i++) {
-      if (sortedTasks[i].is_anchored) {
-        nextAnchor = sortedTasks[i];
-        break;
-      }
-    }
-    
-    if (!nextAnchor || !nextAnchor.start_date) {
-      return { hasConflict: false };
-    }
-    
-    // Calculate total duration of tasks between current task and anchor
-    const tasksInBetween = sortedTasks.slice(currentIndex, sortedTasks.findIndex(t => t.id === nextAnchor!.id));
-    const totalDurationDays = tasksInBetween.reduce((sum, task) => {
-      const taskDays = Math.ceil((task.duration_hours || 8) / 8);
-      return sum + taskDays;
-    }, 0);
-    
-    // Check if selected date would cause collision
-    const anchorStartDate = new Date(nextAnchor.start_date);
-    const selectedEndDate = new Date(selectedDate);
-    selectedEndDate.setDate(selectedEndDate.getDate() + totalDurationDays - 1);
-    
-    if (selectedEndDate >= anchorStartDate) {
-      return {
-        hasConflict: true,
-        conflictingAnchor: {
-          id: nextAnchor.id,
-          title: nextAnchor.title,
-          start_date: nextAnchor.start_date
-        },
-        message: `Moving this task to ${format(selectedDate, 'MMM d')} would create a conflict with your anchored task "${nextAnchor.title}" on ${format(anchorStartDate, 'MMM d')}.`
-      };
-    }
-    
-    return { hasConflict: false };
-  };
 
-  const handleDateSelect = (date: Date | undefined) => {
-    if (!date || !taskInfo) return;
+  const handleDateSelect = async (date: Date | undefined) => {
+    if (!date || !taskId) return;
     
     setSelectedDate(date);
-    
-    // Check for conflicts with this selection
-    const conflicts = checkForConflicts(date, taskInfo, goalTasks);
-    setConflictInfo(conflicts);
-  };
-
-  const handleProceedWithReschedule = async () => {
-    if (!selectedDate || !taskId) return;
-    
     setStep('processing');
     
-    const result = await rescheduleTask(taskId, format(selectedDate, 'yyyy-MM-dd'));
+    const result = await rescheduleTask(taskId, format(date, 'yyyy-MM-dd'));
     setRescheduleResult(result);
     setStep('preview');
   };
@@ -167,11 +133,13 @@ export const RescheduleModal = ({ taskId, taskTitle, currentStartDate, onOpenCha
 
   const resetModal = () => {
     setSelectedDate(undefined);
-    setConflictInfo({ hasConflict: false });
     setRescheduleResult(null);
     setStep('select');
     setTaskInfo(null);
     setGoalTasks([]);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    setMinValidDate(today);
   };
 
   const handleOpenChange = (open: boolean) => {
@@ -179,11 +147,50 @@ export const RescheduleModal = ({ taskId, taskTitle, currentStartDate, onOpenCha
     onOpenChange(open);
   };
 
-  // Simple Floor Calendar: Only disable past dates
+  // Smart Calendar: Calculate which dates should be disabled
   const isDateDisabled = (date: Date) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    return date < today;
+    
+    // Never allow dates in the past (before today)
+    if (date < today) return true;
+
+    // If we have a current start date, don't allow moving backwards from it
+    if (currentStartDate) {
+      const currentDate = new Date(currentStartDate);
+      currentDate.setHours(0, 0, 0, 0);
+      if (date < currentDate) return true;
+    }
+
+    // If this is an anchored task, only the above constraints apply
+    if (taskInfo?.is_anchored) return false;
+
+    // For floating tasks, check for conflicts with anchored tasks that come after
+    const targetTaskIndex = goalTasks.findIndex(t => t.id === taskId);
+    if (targetTaskIndex === -1) return false;
+
+    // Find anchored tasks that come after this task in the sequence
+    const laterAnchoredTasks = goalTasks
+      .slice(targetTaskIndex + 1)
+      .filter(t => t.is_anchored && t.start_date);
+
+    // Check if moving to this date would conflict with any later anchored tasks
+    for (const anchoredTask of laterAnchoredTasks) {
+      const anchoredStartDate = new Date(anchoredTask.start_date!);
+      
+      // Calculate how long this task sequence would take if we start on the selected date
+      // This is a simplified calculation - in reality we'd need to calculate the full chain
+      const daysBetween = Math.ceil((anchoredStartDate.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+      
+      // If there's not enough time between the selected date and the anchored task, disable it
+      // This is a simplified heuristic - we're assuming each task takes at least 1 day
+      const tasksInBetween = goalTasks.slice(targetTaskIndex, goalTasks.findIndex(t => t.id === anchoredTask.id)).length;
+      if (daysBetween < tasksInBetween) {
+        return true;
+      }
+    }
+
+    return false;
   };
 
   return (
@@ -236,53 +243,22 @@ export const RescheduleModal = ({ taskId, taskTitle, currentStartDate, onOpenCha
               />
             </div>
             
-            
-            {/* Smart Interactive Warning System */}
-            {conflictInfo.hasConflict && (
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                <div className="flex items-center gap-2 text-amber-800 mb-2">
-                  <AlertTriangleIcon className="w-4 h-4" />
-                  <span className="font-medium">Heads Up!</span>
-                </div>
-                <p className="text-sm text-amber-700 mb-3">
-                  {conflictInfo.message}
-                </p>
-                <p className="text-xs text-amber-600 mb-3">
-                  What would you like to do?
-                </p>
-                <div className="space-y-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full text-amber-700 border-amber-300 hover:bg-amber-100"
-                    onClick={() => {
-                      setSelectedDate(undefined);
-                      setConflictInfo({ hasConflict: false });
-                    }}
-                  >
-                    Pick a different date
-                  </Button>
-                  <Button
-                    variant="outline" 
-                    size="sm"
-                    className="w-full text-amber-700 border-amber-300 hover:bg-amber-100"
-                    onClick={() => {
-                      // TODO: Navigate to conflicting task to un-anchor it
-                      console.log('Navigate to unanchor:', conflictInfo.conflictingAnchor?.id);
-                    }}
-                  >
-                    Un-anchor "{conflictInfo.conflictingAnchor?.title}" first
-                  </Button>
-                </div>
-              </div>
-            )}
-            
             <div className="p-3 bg-muted/50 rounded-lg">
               <p className="text-xs text-muted-foreground">
                 💡 {taskInfo?.is_anchored 
                   ? 'This anchored task can be moved independently without affecting other tasks.'
-                  : 'Moving this floating task triggers the "Tidal Wave" - all tasks after it will shift forward to maintain the sequence.'}
+                  : 'Moving this floating task will automatically reschedule all tasks that come after it, unless they are anchored with 📌.'}
               </p>
+              {currentStartDate && (
+                <p className="text-xs text-amber-600 mt-1">
+                  ⚠️ Cannot move earlier than current start date: {format(new Date(currentStartDate), 'PPP')}
+                </p>
+              )}
+              {minValidDate > new Date() && (
+                <p className="text-xs text-amber-600 mt-1">
+                  ⚠️ Earliest valid date: {format(minValidDate, 'PPP')}
+                </p>
+              )}
             </div>
           </div>
         )}
@@ -357,12 +333,6 @@ export const RescheduleModal = ({ taskId, taskTitle, currentStartDate, onOpenCha
           <Button variant="outline" onClick={() => handleOpenChange(false)}>
             Cancel
           </Button>
-          
-          {step === 'select' && selectedDate && !conflictInfo.hasConflict && (
-            <Button onClick={handleProceedWithReschedule}>
-              Reschedule to {format(selectedDate, 'MMM d')}
-            </Button>
-          )}
           
           {step === 'preview' && rescheduleResult?.status !== 'error' && (
             <Button
