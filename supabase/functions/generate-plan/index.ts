@@ -118,8 +118,9 @@ async function handleChecklistGeneration(intel: any, compression_requested: bool
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "deepseek/deepseek-chat-v3-0324:free",
+      model: "openai/gpt-oss-20b:free",
       temperature: 0.2,
+      max_tokens: 500,
       messages: [
         { role: "system", content: "Return only valid JSON." },
         { role: "user", content: prompt },
@@ -136,11 +137,42 @@ async function handleChecklistGeneration(intel: any, compression_requested: bool
     });
   }
 
-  const data = await response.json();
+  // Parse response with comprehensive logging and fallback handling
+  const rawResponseText = await response.text();
+  console.log("📦 Raw checklist API Response Body:", rawResponseText);
+
+  let data: any;
+  try {
+    data = JSON.parse(rawResponseText);
+    console.log("🔍 Parsed checklist API Response Data:", JSON.stringify(data, null, 2));
+  } catch (parseError) {
+    console.error("❌ Failed to parse checklist API response as JSON:", parseError);
+    return new Response(JSON.stringify({ error: "Invalid JSON response from OpenRouter" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   let content: string = "";
   const choice = data?.choices?.[0]?.message;
-  if (typeof choice?.content === "string") content = choice.content;
-  else if (Array.isArray(choice?.content)) content = choice.content.map((c: any) => c?.text || "").join("\n");
+  console.log("🎯 Extracted checklist choice object:", JSON.stringify(choice, null, 2));
+  
+  if (typeof choice?.content === "string" && choice.content.trim()) {
+    content = choice.content;
+    console.log("✅ Checklist content extracted as string:", content);
+  } else if (Array.isArray(choice?.content)) {
+    content = choice.content.map((c: any) => c?.text || "").join("\n");
+    console.log("✅ Checklist content extracted from array:", content);
+  } else if (typeof choice?.reasoning === "string" && choice.reasoning.trim()) {
+    content = choice.reasoning;
+    console.log("✅ Checklist content extracted from reasoning field:", content);
+  } else {
+    console.log("❌ No valid checklist content found in choice:", choice);
+    return new Response(JSON.stringify({ error: "No valid content in API response" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
 
   const raw = tryExtractJson(content);
   if (!raw || !Array.isArray(raw.milestones) || !Array.isArray(raw.tasks)) {
@@ -239,8 +271,9 @@ serve(async (req) => {
 
     console.log("🌐 Making API call to OpenRouter...");
     const requestPayload = {
-      model: "deepseek/deepseek-chat-v3-0324:free",
+      model: "openai/gpt-oss-20b:free",
       temperature: 0.2,
+      max_tokens: 500,
       messages: [
         { role: "system", content: "Return only valid JSON." },
         { role: "user", content: prompt },
@@ -269,11 +302,42 @@ serve(async (req) => {
       });
     }
 
-    const data = await response.json();
+    // Parse response with comprehensive logging and fallback handling
+    const rawResponseText = await response.text();
+    console.log("📦 Raw project API Response Body:", rawResponseText);
+
+    let data: any;
+    try {
+      data = JSON.parse(rawResponseText);
+      console.log("🔍 Parsed project API Response Data:", JSON.stringify(data, null, 2));
+    } catch (parseError) {
+      console.error("❌ Failed to parse project API response as JSON:", parseError);
+      return new Response(JSON.stringify({ error: "Invalid JSON response from OpenRouter" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     let content: string = "";
     const choice = data?.choices?.[0]?.message;
-    if (typeof choice?.content === "string") content = choice.content;
-    else if (Array.isArray(choice?.content)) content = choice.content.map((c: any) => c?.text || "").join("\n");
+    console.log("🎯 Extracted project choice object:", JSON.stringify(choice, null, 2));
+    
+    if (typeof choice?.content === "string" && choice.content.trim()) {
+      content = choice.content;
+      console.log("✅ Project content extracted as string:", content);
+    } else if (Array.isArray(choice?.content)) {
+      content = choice.content.map((c: any) => c?.text || "").join("\n");
+      console.log("✅ Project content extracted from array:", content);
+    } else if (typeof choice?.reasoning === "string" && choice.reasoning.trim()) {
+      content = choice.reasoning;
+      console.log("✅ Project content extracted from reasoning field:", content);
+    } else {
+      console.log("❌ No valid project content found in choice:", choice);
+      return new Response(JSON.stringify({ error: "No valid content in API response" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const raw = tryExtractJson(content);
     if (!raw || !Array.isArray(raw.milestones) || !Array.isArray(raw.tasks)) {
