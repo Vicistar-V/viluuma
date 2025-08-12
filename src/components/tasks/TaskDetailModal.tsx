@@ -271,8 +271,15 @@ const TaskDetailModal = ({ taskId, onOpenChange, goalModality, goalStatus = 'act
                                 endDate.setDate(endDate.getDate() + Math.ceil(duration / 8)); // Assuming 8 hours per day
                                 setEnd(endDate);
                               }
-                            }} 
-                            className={cn("p-3 pointer-events-auto")} 
+                            }}
+                            disabled={(date) => {
+                              // Don't allow dates in the past
+                              const today = new Date();
+                              today.setHours(0, 0, 0, 0);
+                              return date < today;
+                            }}
+                            initialFocus
+                            className="p-3 pointer-events-auto"
                           />
                         </PopoverContent>
                       </Popover>
