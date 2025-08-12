@@ -5,38 +5,10 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-
-const BASE_INSTRUCTIONS = `You are an elite subject-matter expert and plan architect. Given a goal and context, create a realistic, sequential plan with milestones and tasks.
-
-Your job is NOT to be a project manager or worry about deadlines. Your job is to be an expert in the subject matter and provide realistic estimates.
-
-Return ONLY JSON following exactly this schema (no prose, no backticks):
-{
-  "milestones": [
-    { "title": "", "order_index": 1 },
-    ...
-  ],
-  "tasks": [
-    {
-      "title": "",
-      "description": "",
-      "milestone_index": 1,
-      "duration_hours": 6,
-      "priority": "low|medium|high"
-    }
-  ]
-}
-Rules:
-- Tasks must be ordered in logical execution sequence
-- Keep tasks atomic and actionable (1–8 hours typically)
-- Prefer 3–6 milestones; 5–20 total tasks for typical goals
-- duration_hours should be your honest estimate of effort required
-- milestone_index refers to the milestone order_index
-- Focus on REALISTIC time estimates, not fitting into any timeline
-`;
 
 // Station 1: The Prompter - constructAIPrompt
 function constructAIPrompt(intel: {
@@ -115,30 +87,28 @@ CONSTRAINTS & RULES:
 `;
 
   const outputFormat = `
-OUTPUT FORMAT:
-You MUST return ONLY a valid JSON object. Do not include any introductory text, markdown, or explanations. The JSON object must conform to this exact structure:
-
-{
-  "milestones": [
-    { "title": "Phase 1: Foundation", "order_index": 1 }
-    // ... more milestones ...
-  ],
-  "tasks": [
-    {
-      "title": "Specific Actionable Task",
-      "description": "A brief, one-sentence description of the task.",
-      "milestone_index": 1,
-      "duration_hours": 6,
-      "priority": "low|medium|high"
-    }
-    // ... more tasks ...
-  ]
-}
-
-Rules:
-- "milestone_index" refers to the milestone's "order_index".
-- All tasks must be ordered in logical execution sequence.
-`;
+  OUTPUT FORMAT:
+  You MUST return ONLY a valid JSON object. Do not include any introductory text, markdown, or explanations. The JSON object must conform to this exact structure:
+  
+  {
+    "milestones": [
+      { "title": "Phase 1: Foundation", "order_index": 1 }
+    ],
+    "tasks": [
+      {
+        "title": "Specific Actionable Task",
+        "description": "A brief, one-sentence description of the task.",
+        "milestone_index": 1,
+        "duration_hours": 6,
+        "priority": "low|medium|high"
+      }
+    ]
+  }
+  
+  Rules:
+  - "milestone_index" refers to the milestone's "order_index".
+  - All tasks must be ordered in logical execution sequence.
+  `;
 
   const finalPrompt = `
 ${persona}
@@ -523,8 +493,7 @@ serve(async (req) => {
 
     console.log("📨 Parsing request body...");
     const requestBody = await req.json();
-    console.log("📊 Request body:", JSON.stringify(requestBody, null, 2));
-    
+    console.log("📊 Request received (keys):", Object.keys(requestBody));
     const { intel, userConstraints, compression_requested = false, extension_requested = false } = requestBody;
     
     console.log("🔍 Validating intel data...");
@@ -638,10 +607,8 @@ serve(async (req) => {
       calculatedEndDate: finalCalculatedEndDate,
     };
 
-    // Prune based on status for consistency & efficiency
-    if (blueprint.status === 'low_quality') {
-      delete blueprint.plan;
-    } else if (blueprint.status === 'success_checklist') {
+    // Keep plan even for low_quality to allow UI display; only omit calculatedEndDate for checklists
+    if (blueprint.status === 'success_checklist') {
       delete blueprint.calculatedEndDate;
     }
 

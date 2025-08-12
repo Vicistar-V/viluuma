@@ -8,7 +8,7 @@ import ErrorMessage from "@/components/plan/ErrorMessage";
 import PlanOutlineView from "@/components/plan/PlanOutlineView";
 import ProjectActionFooter from "@/components/plan/ProjectActionFooter";
 import ChecklistActionFooter from "@/components/plan/ChecklistActionFooter";
-
+import { addWorkdaysInclusiveUTC } from "@/lib/date";
 interface Intel {
   title: string;
   modality: "project" | "checklist";
@@ -160,16 +160,10 @@ const PlanReviewScreen = () => {
     try {
       setSaving(true);
       const start = new Date();
-      const addDays = (date: Date, days: number) => {
-        const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
-        d.setUTCDate(d.getUTCDate() + days);
-        return d;
-      };
-
-      // Prepare tasks with anchored dates
+      // Prepare tasks with anchored dates on workdays
       const tasksWithDates = planToSave.scheduledTasks.map((t: any) => {
-        const startDate = addDays(start, t.start_day_offset);
-        const endDate = addDays(start, t.end_day_offset);
+        const startDate = addWorkdaysInclusiveUTC(start, t.start_day_offset + 1);
+        const endDate = addWorkdaysInclusiveUTC(start, t.end_day_offset + 1);
         return {
           title: t.title,
           description: t.description,
