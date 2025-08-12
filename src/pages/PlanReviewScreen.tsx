@@ -195,8 +195,9 @@ const PlanReviewScreen = () => {
         p_title: intel.title,
         p_modality: intel.modality,
         p_target_date: targetDate,
-        p_plan: unifiedPlan,
-      } as any); // Bypass type check for new function signature
+        p_milestones: unifiedPlan.milestones,
+        p_tasks: unifiedPlan.scheduledTasks,
+      });
 
       if (error) throw error;
       const goalId = data as string;
@@ -239,8 +240,9 @@ const PlanReviewScreen = () => {
         p_title: intel.title,
         p_modality: intel.modality,
         p_target_date: null, // No deadline for checklists
-        p_plan: unifiedPlan,
-      } as any); // Bypass type check for new function signature
+        p_milestones: unifiedPlan.milestones,
+        p_tasks: unifiedPlan.scheduledTasks,
+      });
 
       if (error) throw error;
       const goalId = data as string;
