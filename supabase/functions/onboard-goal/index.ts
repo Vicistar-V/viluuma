@@ -218,38 +218,71 @@ serve(async (req) => {
 
     if (!response.ok) {
       const errText = await response.text();
-      console.error("onboard-goal upstream error:", errText);
+      console.error("❌ onboard-goal upstream error:", errText);
       return new Response(JSON.stringify({ error: "Upstream error", details: errText }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const data = await response.json();
+    // 1. Log the raw API response body
+    const rawResponseText = await response.text();
+    console.log("📦 Raw API Response Body:", rawResponseText);
+
+    // 2. Parse and log the structured data
+    let data: any;
+    try {
+      data = JSON.parse(rawResponseText);
+      console.log("🔍 Parsed API Response Data:", JSON.stringify(data, null, 2));
+    } catch (parseError) {
+      console.error("❌ Failed to parse API response as JSON:", parseError);
+      console.log("📝 Raw response text was:", rawResponseText);
+      return new Response(JSON.stringify({ error: "Invalid JSON response from OpenRouter" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // 3. Extract content and log each step
     let content: string = "";
     const choice = data?.choices?.[0]?.message;
+    console.log("🎯 Extracted choice object:", JSON.stringify(choice, null, 2));
+    
     if (typeof choice?.content === "string") {
       content = choice.content;
+      console.log("✅ Content extracted as string:", content);
     } else if (Array.isArray(choice?.content)) {
       content = choice.content
         .map((c: any) => (typeof c === "string" ? c : c.text || ""))
         .join("\n");
+      console.log("✅ Content extracted from array:", content);
+    } else {
+      console.log("❌ No valid content found in choice:", choice);
     }
 
-    // Try to detect special JSON handoff
+    console.log("📝 Final extracted content:", content);
+
+    // 4. Try to detect special JSON handoff and log the process
     let parsed: any = null;
+    console.log("🔍 Attempting JSON handoff detection...");
     try {
       parsed = JSON.parse(content.trim());
-    } catch (_) {}
+      console.log("✅ Content parsed as JSON:", JSON.stringify(parsed, null, 2));
+    } catch (jsonError) {
+      console.log("❌ Content is not JSON, treating as conversation:", jsonError.message);
+    }
 
     if (parsed && parsed.status === "ready_to_generate" && parsed.intel) {
+      console.log("🎯 JSON handoff detected, returning intel payload");
       return new Response(JSON.stringify(parsed), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Return just the content for normal conversation
-    console.log("💬 Returning conversation message:", content);
+    // 5. Log the final conversation response
+    console.log("💬 Returning conversation message content:", content);
+    const finalResponse = { content };
+    console.log("📤 Final response object:", JSON.stringify(finalResponse, null, 2));
     return new Response(JSON.stringify({ content }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
