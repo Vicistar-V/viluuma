@@ -233,10 +233,71 @@ function tryExtractJson(text: string): any | null {
       return parsed;
     } catch (fixError) {
       console.log("❌ Fixed JSON parse failed:", fixError.message);
-    }
-    
-    return null;
+}
+
+// Station 2: The Creative AI - fetchAIBlueprint
+async function fetchAIBlueprint(prompt: string): Promise<string> {
+  console.log('🤖 Station 2: Calling OpenRouter...');
+
+  const openRouterApiKey = Deno.env.get('OPENROUTER_API_KEY');
+  if (!openRouterApiKey) {
+    // This is a server configuration error, not a user error.
+    throw new Error('SERVER ERROR: OpenRouter API key not configured.');
   }
+
+  const modelToUse = 'openai/gpt-oss-20b:free'; // Production default; can be tuned per org
+
+  const body: Record<string, unknown> = {
+    model: modelToUse,
+    messages: [
+      { role: 'system', content: 'Return only valid JSON.' },
+      { role: 'user', content: prompt }
+    ],
+    // --- PRODUCTION-READY PARAMETERS ---
+    temperature: 0.5, // Lower temp for more predictable, structured output
+    max_tokens: 4096, // Room to generate a full plan
+    response_format: { type: 'json_object' }, // Strongly bias valid JSON output
+  };
+
+  const headers: Record<string, string> = {
+    'Authorization': `Bearer ${openRouterApiKey}`,
+    'Content-Type': 'application/json',
+    'HTTP-Referer': Deno.env.get('SUPABASE_URL') || 'https://supabase.com',
+    'X-Title': 'Viluuma Mobile App',
+  };
+
+  const response = await fetch(OPENROUTER_URL, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+  });
+
+  // 1) Network/server errors
+  if (!response.ok) {
+    const errorBody = await response.text();
+    console.error(`❌ Station 2 ERROR: OpenRouter API responded with status ${response.status}`, errorBody);
+    throw new Error(`AI_API_ERROR: ${response.statusText}`);
+  }
+
+  // 2) Parse response
+  const aiData = await response.json();
+
+  // 3) Logical validation
+  if (!aiData.choices || aiData.choices.length === 0 || !aiData.choices[0]?.message?.content) {
+    console.error('❌ Station 2 ERROR: AI response was malformed (no content)', aiData);
+    throw new Error('AI_EMPTY_RESPONSE');
+  }
+
+  const rawJSONString = String(aiData.choices[0].message.content).trim();
+
+  // 4) Final sanity
+  if (!rawJSONString || rawJSONString === '{}') {
+    console.error('❌ Station 2 ERROR: AI returned an empty plan', rawJSONString);
+    throw new Error('AI_EMPTY_RESPONSE');
+  }
+
+  console.log(`✅ Station 2: Successfully received raw plan (${rawJSONString.length} characters)`);
+  return rawJSONString;
 }
 
 function daysBetweenUTC(a: Date, b: Date) {
@@ -525,72 +586,15 @@ const prompt = constructAIPrompt({
 });
     console.log("📄 Generated prompt length:", prompt.length);
 
-    console.log("🌐 Making API call to OpenRouter...");
-    const requestPayload = {
-      model: "openai/gpt-oss-20b:free",
-      temperature: 0.2,
-      messages: [
-        { role: "system", content: "Return only valid JSON." },
-        { role: "user", content: prompt },
-      ],
-    };
-    console.log("📤 API Request payload:", JSON.stringify(requestPayload, null, 2));
-
-    const response = await fetch(OPENROUTER_URL, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(requestPayload),
-    });
-
-    console.log("📥 API Response status:", response.status);
-    console.log("📥 API Response headers:", Object.fromEntries(response.headers.entries()));
-
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error("generate-plan upstream error:", errText);
-      return new Response(JSON.stringify({ error: "Upstream error", details: errText }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Parse response with comprehensive logging and fallback handling
-    const rawResponseText = await response.text();
-    console.log("📦 Raw project API Response Body:", rawResponseText);
-
-    let data: any;
+    console.log("🌐 Making API call to OpenRouter via Station 2 helper...");
+    let content: string = '';
     try {
-      data = JSON.parse(rawResponseText);
-      console.log("🔍 Parsed project API Response Data:", JSON.stringify(data, null, 2));
-    } catch (parseError) {
-      console.error("❌ Failed to parse project API response as JSON:", parseError);
-      return new Response(JSON.stringify({ error: "Invalid JSON response from OpenRouter" }), {
+      content = await fetchAIBlueprint(prompt);
+    } catch (err) {
+      console.error('❌ Station 2 failed:', err);
+      return new Response(JSON.stringify({ error: String(err) }), {
         status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    let content: string = "";
-    const choice = data?.choices?.[0]?.message;
-    console.log("🎯 Extracted project choice object:", JSON.stringify(choice, null, 2));
-    
-    if (typeof choice?.content === "string" && choice.content.trim()) {
-      content = choice.content;
-      console.log("✅ Project content extracted as string:", content);
-    } else if (Array.isArray(choice?.content)) {
-      content = choice.content.map((c: any) => c?.text || "").join("\n");
-      console.log("✅ Project content extracted from array:", content);
-    } else if (typeof choice?.reasoning === "string" && choice.reasoning.trim()) {
-      content = choice.reasoning;
-      console.log("✅ Project content extracted from reasoning field:", content);
-    } else {
-      console.log("❌ No valid project content found in choice:", choice);
-      return new Response(JSON.stringify({ error: "No valid content in API response" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
