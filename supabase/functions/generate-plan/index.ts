@@ -353,6 +353,79 @@ function calculateRelativeSchedule(
   return { scheduledTasks, totalProjectDays };
 }
 
+// Station 5: The Analyst - analyzePlanQuality
+// Define the possible outcomes for clarity
+type PlanStatus = 'success' | 'over_scoped' | 'under_scoped' | 'low_quality' | 'success_checklist';
+
+function analyzePlanQuality(
+  plan: { scheduledTasks: ScheduledViluumaTask[]; totalProjectDays: number },
+  intel: {
+    modality: 'project' | 'checklist';
+    deadline?: string;
+  }
+): { status: PlanStatus; message?: string; calculatedEndDate?: string } {
+  // Step 5.1: Checklist fast lane
+  if (intel.modality === 'checklist') {
+    if (plan.scheduledTasks.length < 3) {
+      console.warn('⚠️ Station 5: Checklist plan is too short. Flagging as low_quality.');
+      return { status: 'low_quality', message: 'This checklist seems a bit too simple.' };
+    } else {
+      console.log('✅ Station 5: Checklist plan passed quality check.');
+      return { status: 'success_checklist' };
+    }
+  }
+
+  // Step 5.2: Low quality gatekeeper for projects
+  const MIN_TASKS = 4;
+  if (plan.scheduledTasks.length < MIN_TASKS) {
+    console.warn(`⚠️ Station 5: Project plan has only ${plan.scheduledTasks.length} tasks. Flagging as low_quality.`);
+    return { status: 'low_quality', message: 'Hmm, that plan seems a bit too simple for a project like this.' };
+  }
+
+  // Step 5.3: Date-based analysis for projects
+  if (!intel.deadline) {
+    console.log('✅ Station 5: Project plan has no deadline to check against. Passing as success.');
+    return { status: 'success' };
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const deadlineDate = new Date(intel.deadline);
+
+  const daysAvailable = Math.ceil((deadlineDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  const totalProjectDays = plan.totalProjectDays;
+
+  const calculatedEndDate = new Date(today);
+  calculatedEndDate.setDate(today.getDate() + totalProjectDays);
+  const calculatedEndDateString = calculatedEndDate.toISOString().split('T')[0];
+
+  if (totalProjectDays > daysAvailable) {
+    console.log(`⚠️ Station 5: Over-scoped. Plan needs ${totalProjectDays} days, but only ${daysAvailable} are available.`);
+    return {
+      status: 'over_scoped',
+      message: `Heads up! This plan is ambitious and needs about ${totalProjectDays} days, which goes past your deadline.`,
+      calculatedEndDate: calculatedEndDateString,
+    };
+  }
+
+  const UNDER_SCOPED_THRESHOLD_DAYS = 14;
+  if (daysAvailable - totalProjectDays > UNDER_SCOPED_THRESHOLD_DAYS) {
+    console.log(`📈 Station 5: Under-scoped. Plan finishes ${daysAvailable - totalProjectDays} days early.`);
+    return {
+      status: 'under_scoped',
+      message: `Great news! This plan should be done way ahead of schedule, around ${calculatedEndDateString}.`,
+      calculatedEndDate: calculatedEndDateString,
+    };
+  }
+
+  console.log('✅ Station 5: Project plan is a perfect fit for the timeline.');
+  return {
+    status: 'success',
+    message: 'Your personalized plan is ready!',
+    calculatedEndDate: calculatedEndDateString,
+  };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   
@@ -462,10 +535,17 @@ serve(async (req) => {
     console.log("  - Total project days:", totalProjectDays);
     console.log("  - Calculated end date:", calculatedEndDate);
 
+    const analysis = analyzePlanQuality(
+      { scheduledTasks, totalProjectDays },
+      { modality: intel.modality, deadline: intel?.deadline }
+    );
+
+    const finalCalculatedEndDate = analysis.calculatedEndDate ?? calculatedEndDate;
+
     const payload = {
-      status: "success",
-      message: "Plan generated successfully!",
-      calculatedEndDate,
+      status: analysis.status,
+      message: analysis.message ?? "Plan generated successfully!",
+      calculatedEndDate: finalCalculatedEndDate,
       plan: {
         milestones,
         scheduledTasks,
