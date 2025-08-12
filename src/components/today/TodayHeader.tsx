@@ -28,11 +28,11 @@ const TodayHeader: React.FC<TodayHeaderProps> = ({ overdueCount }) => {
   // Get context-aware message based on overdue count
   const getContextMessage = () => {
     if (overdueCount === 0) {
-      return "You're all caught up on overdue tasks";
+      return "Your today tasks are running bug-free";
     } else if (overdueCount <= 5) {
-      return "A few things need attention, but you've got this";
+      return "A few bugs need fixing, but you've got this";
     } else {
-      return "Let's tackle the backlog one step at a time";
+      return "Multiple bugs detected - let's squash them one by one";
     }
   };
 
