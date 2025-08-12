@@ -75,6 +75,21 @@ const AIOnboardingWizard = () => {
     });
   };
 
+  // Helper function to detect and filter out JSON responses
+  const isJSONResponse = (content: string): boolean => {
+    const trimmed = content.trim();
+    return trimmed.startsWith('{') && trimmed.endsWith('}') && trimmed.includes('"status"');
+  };
+
+  // Helper function to clean AI response content
+  const cleanAIResponse = (content: string): string => {
+    // If it looks like JSON, return a friendly fallback message
+    if (isJSONResponse(content)) {
+      return "I'm processing your request. Can you tell me more about what you'd like to achieve?";
+    }
+    return content;
+  };
+
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
@@ -115,13 +130,20 @@ const AIOnboardingWizard = () => {
         return;
       }
 
-      if (data?.type === "message" && typeof data?.content === "string") {
+      // Handle different response formats and clean JSON if needed
+      if (data?.content && typeof data.content === "string") {
         setIsAITyping(false);
-        setMessages((prev) => [...prev, { role: "assistant", content: data.content }]);
+        const cleanedContent = cleanAIResponse(data.content);
+        setMessages((prev) => [...prev, { role: "assistant", content: cleanedContent }]);
+      } else if (data?.type === "message" && typeof data?.content === "string") {
+        setIsAITyping(false);
+        const cleanedContent = cleanAIResponse(data.content);
+        setMessages((prev) => [...prev, { role: "assistant", content: cleanedContent }]);
       } else if (typeof data === "string") {
         // fallback if function returned plain text
         setIsAITyping(false);
-        setMessages((prev) => [...prev, { role: "assistant", content: data }]);
+        const cleanedContent = cleanAIResponse(data);
+        setMessages((prev) => [...prev, { role: "assistant", content: cleanedContent }]);
       } else {
         setIsAITyping(false);
         toast({ title: "Unexpected response", variant: "destructive" });
