@@ -15,6 +15,7 @@ export default {
     }
 
     const url = new URL(request.url);
+    console.log('Worker received request for:', url.pathname);
     
     try {
       if (url.pathname === '/onboard-goal') {
@@ -22,9 +23,18 @@ export default {
       } else if (url.pathname === '/generate-plan') {
         return await handleGeneratePlan(request, env);
       } else {
-        return new Response('Not Found', { status: 404 });
+        // Return available endpoints for debugging
+        return new Response(JSON.stringify({
+          error: 'Endpoint not found',
+          available_endpoints: ['/onboard-goal', '/generate-plan'],
+          requested_path: url.pathname
+        }), {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
       }
     } catch (error) {
+      console.error('Worker error:', error);
       return new Response(JSON.stringify({ error: error.message }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
