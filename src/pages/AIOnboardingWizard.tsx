@@ -93,14 +93,10 @@ const AIOnboardingWizard = () => {
     setIsAITyping(true);
 
     try {
-      // Call Cloudflare Worker instead of Supabase function
-      const response = await fetch('https://openrouter-proxy.ogazievictorchi.workers.dev/onboard-goal', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: outbound }),
+      const { data, error } = await supabase.functions.invoke("onboard-goal", {
+        body: { messages: outbound },
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'API call failed');
+      if (error) throw error;
 
       // Handoff or normal message
       if (data?.status === "ready_to_generate" && data?.intel) {
