@@ -125,7 +125,12 @@ const AIOnboardingWizard = () => {
           },
         ]);
         setTimeout(() => {
-          navigate("/plan-review", { state: { intel: data.intel } });
+          navigate("/plan-review", { 
+            state: { 
+              intel: data.intel,
+              userConstraints: data.userConstraints 
+            } 
+          });
         }, 1200);
         return;
       }

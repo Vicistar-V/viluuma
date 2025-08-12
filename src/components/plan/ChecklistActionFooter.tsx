@@ -19,9 +19,8 @@ interface ChecklistActionFooterProps {
   intel: {
     title: string;
     modality: "project" | "checklist";
-    deadline: string | null;
-    hoursPerWeek?: number;
     context?: string;
+    levelOfDetail?: "condensed" | "standard" | "comprehensive";
   };
   recomputing: boolean;
   saving: boolean;

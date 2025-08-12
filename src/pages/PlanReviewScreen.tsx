@@ -12,9 +12,13 @@ import ChecklistActionFooter from "@/components/plan/ChecklistActionFooter";
 interface Intel {
   title: string;
   modality: "project" | "checklist";
+  context?: string;
+  levelOfDetail?: "condensed" | "standard" | "comprehensive";
+}
+
+interface UserConstraints {
   deadline: string | null;
   hoursPerWeek?: number;
-  context?: string;
 }
 
 interface ScheduledTask {
@@ -46,6 +50,7 @@ const PlanReviewScreen = () => {
   const { toast } = useToast();
 
   const intel = (state?.intel || null) as Intel | null;
+  const userConstraints = (state?.userConstraints || null) as UserConstraints | null;
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -64,8 +69,9 @@ const PlanReviewScreen = () => {
       try {
         setLoading(true);
         console.log("Calling generate-plan with intel:", intel);
+        console.log("Calling generate-plan with userConstraints:", userConstraints);
         const { data, error } = await supabase.functions.invoke("generate-plan", {
-          body: { intel },
+          body: { intel, userConstraints },
         });
         console.log("Generate-plan response:", { data, error });
         if (error) throw error;
@@ -104,6 +110,7 @@ const PlanReviewScreen = () => {
         const { data, error } = await supabase.functions.invoke("generate-plan", {
           body: { 
             intel, 
+            userConstraints,
             compression_requested: !!action.options?.compression_requested,
             extension_requested: !!action.options?.expansion_requested 
           },
@@ -133,7 +140,7 @@ const PlanReviewScreen = () => {
       try {
         setRecomputing(true);
         const { data, error } = await supabase.functions.invoke("generate-plan", {
-          body: { intel },
+          body: { intel, userConstraints },
         });
         if (error) throw error;
         setBlueprint(data as Blueprint);
@@ -182,7 +189,7 @@ const PlanReviewScreen = () => {
       };
 
       // Use the new deadline if provided (for extended deadline scenarios)
-      const targetDate = newDeadline || intel.deadline;
+      const targetDate = newDeadline || userConstraints?.deadline;
 
       const { data, error } = await supabase.rpc("save_goal_plan", {
         p_title: intel.title,
@@ -278,6 +285,7 @@ const PlanReviewScreen = () => {
         <ProjectActionFooter
           blueprint={blueprint}
           intel={intel}
+          userConstraints={userConstraints}
           recomputing={recomputing}
           saving={saving}
           onAction={handleProjectAction}

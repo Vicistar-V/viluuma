@@ -163,20 +163,45 @@ serve(async (req) => {
     // Check if we have everything we need for the handoff
     if (missingInfo.length === 0 && state.title && state.modality) {
       console.log("✅ All information collected, generating intel object");
-      // We have everything! Return the intel directly
+      
+      // Calculate level of detail hint based on deadline (if it's a project)
+      let levelOfDetail = "standard";
+      if (state.modality === "project" && state.deadline) {
+        const today = new Date();
+        const deadlineDate = new Date(state.deadline);
+        const daysAvailable = Math.max(0, Math.floor((deadlineDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)));
+        
+        if (daysAvailable <= 14) {
+          levelOfDetail = "condensed"; // Very short timeline - crash course
+        } else if (daysAvailable >= 180) {
+          levelOfDetail = "comprehensive"; // Long timeline - masterclass level
+        } else {
+          levelOfDetail = "standard"; // Normal detailed plan
+        }
+      }
+      
+      // Create intel object WITHOUT deadline and hoursPerWeek for AI
+      // These will be stored separately for analysis AFTER generation
       const intel = {
         title: state.title,
         modality: state.modality,
-        deadline: state.modality === "checklist" ? null : (state.deadline || null),
-        hoursPerWeek: state.modality === "checklist" ? 0 : (state.hoursPerWeek || 8),
-        context: state.context || ""
+        context: state.context || "",
+        levelOfDetail: levelOfDetail
       };
       
-      console.log("🎯 Generated intel:", JSON.stringify(intel, null, 2));
+      // Store the user's actual constraints separately for analysis
+      const userConstraints = {
+        deadline: state.modality === "checklist" ? null : (state.deadline || null),
+        hoursPerWeek: state.modality === "checklist" ? 0 : (state.hoursPerWeek || 8)
+      };
+      
+      console.log("🎯 Generated intel (AI-focused):", JSON.stringify(intel, null, 2));
+      console.log("📊 User constraints (analysis-focused):", JSON.stringify(userConstraints, null, 2));
       
       return new Response(JSON.stringify({
         status: "ready_to_generate",
-        intel
+        intel,
+        userConstraints
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

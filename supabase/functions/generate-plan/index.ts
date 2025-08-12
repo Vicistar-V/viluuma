@@ -9,7 +9,10 @@ const corsHeaders = {
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
-const BASE_INSTRUCTIONS = `You are an elite project planner. Given INTEL about a user's goal, create a sequential plan with milestones and tasks.
+const BASE_INSTRUCTIONS = `You are an elite subject-matter expert and plan architect. Given a goal and context, create a realistic, sequential plan with milestones and tasks.
+
+Your job is NOT to be a project manager or worry about deadlines. Your job is to be an expert in the subject matter and provide realistic estimates.
+
 Return ONLY JSON following exactly this schema (no prose, no backticks):
 {
   "milestones": [
@@ -27,22 +30,42 @@ Return ONLY JSON following exactly this schema (no prose, no backticks):
   ]
 }
 Rules:
-- Tasks must be ordered in execution order.
-- Keep tasks atomic and actionable (1–8 hours typically).
-- Prefer 3–6 milestones; 5–20 total tasks for typical goals.
-- Always include duration_hours as an integer.
-- milestone_index refers to the milestone order_index.
+- Tasks must be ordered in logical execution sequence
+- Keep tasks atomic and actionable (1–8 hours typically)
+- Prefer 3–6 milestones; 5–20 total tasks for typical goals
+- duration_hours should be your honest estimate of effort required
+- milestone_index refers to the milestone order_index
+- Focus on REALISTIC time estimates, not fitting into any timeline
 `;
 
 function buildPrompt(intel: any, opts: { compression?: boolean; extension?: boolean }) {
-  const { title, modality, deadline, hoursPerWeek, context } = intel || {};
+  const { title, modality, context, levelOfDetail } = intel || {};
+  
+  // Build level of detail instruction without mentioning deadlines
+  let detailInstruction = "";
+  if (levelOfDetail === "condensed") {
+    detailInstruction = "Create a condensed, crash-course style plan focusing on the most essential steps.";
+  } else if (levelOfDetail === "comprehensive") {
+    detailInstruction = "Create a comprehensive, masterclass-level plan with thorough depth and detail.";
+  } else {
+    detailInstruction = "Create a standard, well-structured plan with good detail and coverage.";
+  }
+  
   const compressionNote = opts.compression
     ? "TIGHTEN the scope by ~20% while keeping quality."
     : opts.extension
-    ? "User is willing to extend timeline; be slightly more thorough."
+    ? "User wants more thorough coverage; be slightly more comprehensive."
     : "";
 
-  return `${BASE_INSTRUCTIONS}\nINTEL:\n- title: ${title}\n- modality: ${modality}\n- deadline: ${deadline ?? "none"}\n- hoursPerWeek: ${hoursPerWeek ?? 8}\n- context: ${context ?? ""}\n${compressionNote}\nReturn ONLY JSON.`;
+  return `${BASE_INSTRUCTIONS}
+
+GOAL: ${title}
+MODALITY: ${modality}
+CONTEXT: ${context ?? ""}
+DETAIL LEVEL: ${detailInstruction}
+${compressionNote}
+
+Return ONLY JSON.`;
 }
 
 function tryExtractJson(text: string): any | null {
@@ -107,13 +130,87 @@ function daysBetweenUTC(a: Date, b: Date) {
   return Math.max(0, Math.floor(ms / (1000 * 60 * 60 * 24)));
 }
 
+// NEW: Unbiased analysis function that compares realistic timeline vs user constraints
+function performAnalysis(userConstraints: any, totalProjectDays: number, calculatedEndDate: string): {
+  status: "success" | "over_scoped" | "under_scoped" | "low_quality";
+  message: string;
+} {
+  if (!userConstraints) {
+    return {
+      status: "success",
+      message: "Plan looks good! No deadline constraints to check."
+    };
+  }
+
+  const { deadline } = userConstraints;
+  if (!deadline) {
+    return {
+      status: "success", 
+      message: "Your plan is ready! Since there's no deadline pressure, you can work at your own pace."
+    };
+  }
+
+  console.log("📊 UNBIASED ANALYSIS:");
+  console.log("  - User deadline:", deadline);
+  console.log("  - Realistic end date:", calculatedEndDate);
+  console.log("  - Total realistic days needed:", totalProjectDays);
+
+  // Calculate days available from today to user's deadline
+  const today = new Date();
+  const deadlineDate = new Date(deadline);
+  const daysAvailable = Math.max(0, Math.floor((deadlineDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)));
+  
+  console.log("  - Days available:", daysAvailable);
+
+  if (daysAvailable === 0) {
+    return {
+      status: "over_scoped",
+      message: "The deadline has already passed or is today. This plan needs more time to be done properly."
+    };
+  }
+
+  const scopeRatio = totalProjectDays / daysAvailable;
+  console.log("  - Scope ratio (realistic days / available days):", scopeRatio);
+
+  if (scopeRatio > 1.1) { // More than 10% over deadline
+    return {
+      status: "over_scoped",
+      message: "This plan is ambitious for your timeline. Based on realistic estimates, it would take longer than your deadline allows."
+    };
+  } else if (scopeRatio < 0.6) { // Less than 60% of available time
+    return {
+      status: "under_scoped", 
+      message: "Great news! This plan should finish well ahead of your deadline. You might want to make it more comprehensive."
+    };
+  } else {
+    return {
+      status: "success",
+      message: "Perfect! This plan fits well within your deadline with a realistic pace."
+    };
+  }
+}
+
 function buildChecklistPrompt(intel: any, opts: { compression?: boolean }) {
-  const { title, context } = intel || {};
+  const { title, context, levelOfDetail } = intel || {};
+  
+  // Build level of detail instruction for checklists
+  let detailInstruction = "";
+  if (levelOfDetail === "condensed") {
+    detailInstruction = "Create a focused, essential-only checklist with core tasks.";
+  } else if (levelOfDetail === "comprehensive") {
+    detailInstruction = "Create a thorough, comprehensive checklist covering all aspects.";
+  } else {
+    detailInstruction = "Create a well-balanced checklist with good detail and coverage.";
+  }
+
   const compressionNote = opts.compression
     ? "Keep the scope focused and manageable."
     : "";
 
-  return `You are an elite checklist creator. Given a goal, create a structured checklist with milestones and tasks.
+  return `You are an elite checklist creator and subject-matter expert. Given a goal, create a structured checklist with realistic tasks.
+
+Your job is to provide realistic estimates without worrying about timelines or personal schedules.
+
 Return ONLY JSON following exactly this schema (no prose, no backticks):
 {
   "milestones": [
@@ -134,13 +231,14 @@ Rules:
 - Focus on actionable tasks that can be completed independently
 - Tasks should be atomic and specific (1-4 hours typically)
 - Prefer 3-5 milestones; 8-15 total tasks for most goals
-- Duration is for estimation only, not scheduling
+- Duration is your honest estimate of effort required
 - milestone_index refers to the milestone order_index
-- No timeline or scheduling references needed
 
 GOAL: ${title}
 CONTEXT: ${context || ""}
+DETAIL LEVEL: ${detailInstruction}
 ${compressionNote}
+
 Return ONLY JSON.`;
 }
 
@@ -279,11 +377,12 @@ serve(async (req) => {
     const requestBody = await req.json();
     console.log("📊 Request body:", JSON.stringify(requestBody, null, 2));
     
-    const { intel, compression_requested = false, extension_requested = false } = requestBody;
+    const { intel, userConstraints, compression_requested = false, extension_requested = false } = requestBody;
     
     console.log("🔍 Validating intel data...");
     console.log("📝 Intel title:", intel?.title);
     console.log("🎯 Intel modality:", intel?.modality);
+    console.log("📊 User constraints:", JSON.stringify(userConstraints, null, 2));
     
     if (!intel?.title || !intel?.modality) {
       console.error("❌ Missing required intel data - title or modality");
@@ -463,64 +562,47 @@ serve(async (req) => {
       priority: ["low","medium","high"].includes(String(t?.priority)) ? String(t.priority) : null,
     }));
 
-    const hoursPerWeek = Math.max(1, Number(intel?.hoursPerWeek ?? 8));
+    // Use a STANDARD daily budget for REALISTIC timeline calculation
+    // This is independent of user's personal time commitment
+    const STANDARD_DAILY_BUDGET = 2; // 2 hours per day as realistic standard
     const daysPerWeek = 5;
-    const dailyBudget = Math.max(1, Math.floor(hoursPerWeek / daysPerWeek));
 
     let currentOffset = 0;
     const scheduledTasks = tasks.map((t: any) => {
-      const durationDays = Math.max(1, Math.ceil(t.duration_hours / dailyBudget));
+      const durationDays = Math.max(1, Math.ceil(t.duration_hours / STANDARD_DAILY_BUDGET));
       const start = currentOffset;
       const end = start + durationDays - 1;
       currentOffset = end + 1;
       return { ...t, start_day_offset: start, end_day_offset: end };
     });
 
-    // Final quality checks
+    // Calculate REALISTIC project timeline (independent of user constraints)
     const today = new Date();
-    const deadlineDate = intel?.deadline ? new Date(intel.deadline) : null;
     const totalProjectDays = scheduledTasks.length ? scheduledTasks[scheduledTasks.length - 1].end_day_offset + 1 : 0;
-    const daysAvailable = deadlineDate ? daysBetweenUTC(today, deadlineDate) : null;
     
-    // Calculate the projected end date
+    // Calculate the REALISTIC projected end date
     const projectedEndDate = new Date(today);
     projectedEndDate.setUTCDate(projectedEndDate.getUTCDate() + totalProjectDays);
     const calculatedEndDate = projectedEndDate.toISOString().split('T')[0];
+    
+    console.log("📊 REALISTIC TIMELINE CALCULATION:");
+    console.log("  - Total tasks:", tasks.length);
+    console.log("  - Total project days:", totalProjectDays);
+    console.log("  - Calculated end date:", calculatedEndDate);
 
-    let status: "success" | "over_scoped" | "under_scoped" | "low_quality" = "success";
-    let message = "Looks great! Ready when you are.";
-
-    // Quality check: too few tasks
-    if (scheduledTasks.length < 3) {
-      status = "low_quality";
-      message = "This plan seems too light. Try extending the timeline or adding detail.";
-    }
-
-    // Scope analysis against deadline
-    if (daysAvailable != null && status !== "low_quality") {
-      const scopeRatio = totalProjectDays / daysAvailable;
-      
-      if (scopeRatio > 1.1) { // More than 10% over deadline
-        status = "over_scoped";
-        message = "Ambitious timeline. Consider compressing or extending the deadline.";
-      } else if (scopeRatio < 0.6) { // Less than 60% of available time
-        status = "under_scoped";
-        message = "This might be too lax for your deadline. Want to expand it?";
-      }
-    }
-
+    // NOW perform UNBIASED analysis using user constraints
+    const analysisResult = performAnalysis(userConstraints, totalProjectDays, calculatedEndDate);
+    
     const payload = {
-      status,
-      message,
+      ...analysisResult,
       calculatedEndDate,
       plan: {
         milestones,
         scheduledTasks,
-        hoursPerWeek,
-        dailyBudget,
+        hoursPerWeek: userConstraints?.hoursPerWeek || 8, // User's personal constraint
+        dailyBudget: userConstraints?.hoursPerWeek ? Math.max(1, Math.floor(userConstraints.hoursPerWeek / daysPerWeek)) : STANDARD_DAILY_BUDGET,
       },
     };
-
     return new Response(JSON.stringify(payload), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

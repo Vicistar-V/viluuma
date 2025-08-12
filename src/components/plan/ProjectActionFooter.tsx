@@ -24,9 +24,12 @@ interface ProjectActionFooterProps {
   intel: {
     title: string;
     modality: "project" | "checklist";
+    context?: string;
+    levelOfDetail?: "condensed" | "standard" | "comprehensive";
+  };
+  userConstraints?: {
     deadline: string | null;
     hoursPerWeek?: number;
-    context?: string;
   };
   recomputing: boolean;
   saving: boolean;
@@ -38,7 +41,7 @@ interface ProjectActionFooterProps {
   }) => void;
 }
 
-const ProjectActionFooter = ({ blueprint, intel, recomputing, saving, onAction }: ProjectActionFooterProps) => {
+const ProjectActionFooter = ({ blueprint, intel, userConstraints, recomputing, saving, onAction }: ProjectActionFooterProps) => {
   const { status, calculatedEndDate } = blueprint;
   
   // Generate scenario-specific messages and button configurations for projects
@@ -66,7 +69,7 @@ const ProjectActionFooter = ({ blueprint, intel, recomputing, saving, onAction }
         };
 
       case 'over_scoped':
-        const userDeadline = intel.deadline ? new Date(intel.deadline).toLocaleDateString() : "your deadline";
+        const userDeadline = userConstraints?.deadline ? new Date(userConstraints.deadline).toLocaleDateString() : "your deadline";
         const calcEnd = calculatedEndDate ? new Date(calculatedEndDate).toLocaleDateString() : "later than expected";
         return {
           message: `⚠️ Heads up! This plan is ambitious and might go past your deadline of ${userDeadline}. The calculated end date is ${calcEnd}.`,
