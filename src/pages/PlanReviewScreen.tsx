@@ -145,7 +145,7 @@ const PlanReviewScreen = () => {
     }
   };
 
-  // Project save with date anchoring
+  // Project save with date anchoring - BLAZING FAST VERSION
   const handleProjectSave = async (plan?: any, newDeadline?: string) => {
     const planToSave = plan || blueprint?.plan;
     if (!intel || !planToSave) return;
@@ -159,7 +159,8 @@ const PlanReviewScreen = () => {
         return d;
       };
 
-      const tasksPayload = planToSave.scheduledTasks.map((t: any) => {
+      // Prepare tasks with anchored dates
+      const tasksWithDates = planToSave.scheduledTasks.map((t: any) => {
         const startDate = addDays(start, t.start_day_offset);
         const endDate = addDays(start, t.end_day_offset);
         return {
@@ -174,6 +175,12 @@ const PlanReviewScreen = () => {
         };
       });
 
+      // Create unified plan object for blazing-fast CTE-based save
+      const unifiedPlan = {
+        ...planToSave,
+        scheduledTasks: tasksWithDates
+      };
+
       // Use the new deadline if provided (for extended deadline scenarios)
       const targetDate = newDeadline || intel.deadline;
 
@@ -181,9 +188,8 @@ const PlanReviewScreen = () => {
         p_title: intel.title,
         p_modality: intel.modality,
         p_target_date: targetDate,
-        p_milestones: planToSave.milestones,
-        p_tasks: tasksPayload,
-      });
+        p_plan: unifiedPlan,
+      } as any); // Bypass type check for new function signature
 
       if (error) throw error;
       const goalId = data as string;
@@ -196,7 +202,7 @@ const PlanReviewScreen = () => {
     }
   };
 
-  // Checklist save without date anchoring
+  // Checklist save without date anchoring - BLAZING FAST VERSION
   const handleChecklistSave = async (plan?: any) => {
     const planToSave = plan || blueprint?.plan;
     if (!intel || !planToSave) return;
@@ -204,8 +210,8 @@ const PlanReviewScreen = () => {
     try {
       setSaving(true);
 
-      // For checklists, save tasks without dates (no anchoring)
-      const tasksPayload = planToSave.scheduledTasks.map((t: any) => ({
+      // For checklists, prepare tasks without dates (no anchoring)
+      const tasksWithoutDates = planToSave.scheduledTasks.map((t: any) => ({
         title: t.title,
         description: t.description,
         duration_hours: t.duration_hours,
@@ -216,13 +222,18 @@ const PlanReviewScreen = () => {
         is_anchored: false, // Not anchored to dates
       }));
 
+      // Create unified plan object for blazing-fast CTE-based save
+      const unifiedPlan = {
+        ...planToSave,
+        scheduledTasks: tasksWithoutDates
+      };
+
       const { data, error } = await supabase.rpc("save_goal_plan", {
         p_title: intel.title,
         p_modality: intel.modality,
         p_target_date: null, // No deadline for checklists
-        p_milestones: planToSave.milestones,
-        p_tasks: tasksPayload,
-      });
+        p_plan: unifiedPlan,
+      } as any); // Bypass type check for new function signature
 
       if (error) throw error;
       const goalId = data as string;
