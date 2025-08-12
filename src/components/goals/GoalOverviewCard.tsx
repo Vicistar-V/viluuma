@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Calendar, Clock, Trophy, Target } from "lucide-react";
 import { format } from "date-fns";
 import { useEffect, useState } from "react";
+import { useGoalStats } from "@/hooks/useGoalStats";
 
 interface Goal {
   id: string;
@@ -24,6 +25,7 @@ interface GoalOverviewCardProps {
 
 export const GoalOverviewCard = ({ goal }: GoalOverviewCardProps) => {
   const [showCelebration, setShowCelebration] = useState(false);
+  const { data: goalStats } = useGoalStats(goal.id);
   const progress = goal.total_tasks > 0 ? Math.round((goal.completed_tasks / goal.total_tasks) * 100) : 0;
 
   // Trigger celebration for completed goals
@@ -65,7 +67,7 @@ export const GoalOverviewCard = ({ goal }: GoalOverviewCardProps) => {
       });
     } else if (goal.target_date && goal.modality === 'project') {
       const targetDate = new Date(goal.target_date);
-      const isOverdue = targetDate < new Date() && goal.status === 'active';
+      const isOverdue = goalStats?.is_overdue || (targetDate < new Date() && goal.status === 'active');
       stats.push({
         icon: Calendar,
         label: isOverdue ? "Overdue" : "Target",
@@ -88,6 +90,17 @@ export const GoalOverviewCard = ({ goal }: GoalOverviewCardProps) => {
         label: "Status",
         value: goal.modality === 'project' ? "Time-bound Project" : "Flexible Checklist"
       });
+    }
+
+    // Add statistics from database if available
+    if (goalStats) {
+      if (goalStats.days_since_created) {
+        stats.push({
+          icon: Calendar,
+          label: "Age",
+          value: `${goalStats.days_since_created} days`
+        });
+      }
     }
 
     return stats;
