@@ -153,12 +153,16 @@ async function fetchAIBlueprint(prompt: string): Promise<string> {
     'HTTP-Referer': Deno.env.get('SUPABASE_URL') || 'https://supabase.com',
     'X-Title': 'Viluuma Mobile App',
   };
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 45000);
 
   const response = await fetch(OPENROUTER_URL, {
     method: 'POST',
     headers,
     body: JSON.stringify(body),
+    signal: controller.signal,
   });
+  clearTimeout(timeoutId);
 
   // 1) Network/server errors
   if (!response.ok) {
@@ -188,6 +192,18 @@ async function fetchAIBlueprint(prompt: string): Promise<string> {
   return rawJSONString;
 }
 
+function stripToJSONObject(s: string): string {
+  const trimmed = String(s ?? '').trim();
+  let cleaned = trimmed.replace(/^```json\s*/i, '').replace(/```$/i, '').trim();
+  cleaned = cleaned.replace(/^```/, '').replace(/```$/, '').trim();
+  const firstBrace = cleaned.indexOf('{');
+  const lastBrace = cleaned.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    cleaned = cleaned.slice(firstBrace, lastBrace + 1);
+  }
+  return cleaned;
+}
+
 // Station 3: The Sanitizer & Enricher - processAIBlueprint
 interface ViluumaTask {
   id: string;
@@ -204,10 +220,11 @@ function processAIBlueprint(rawJSONString: string): ViluumaTask[] {
   
   // Step 3.1: Parse & Structure Validation
   let plan: any;
+  const cleaned = stripToJSONObject(rawJSONString);
   try {
-    plan = JSON.parse(rawJSONString);
+    plan = JSON.parse(cleaned);
   } catch (e) {
-    console.error("❌ Station 3 ERROR: Failed to parse AI JSON.", e.message);
+    console.error("❌ Station 3 ERROR: Failed to parse AI JSON.", (e as any)?.message || e);
     throw new Error('AI_INVALID_JSON');
   }
 
@@ -245,7 +262,8 @@ function processAIBlueprint(rawJSONString: string): ViluumaTask[] {
         return;
       }
 
-      const duration = Math.max(1, parseInt(rawTask.duration_hours, 10)) || 1;
+      const rawDur = Number(rawTask.duration_hours);
+      const duration = Math.max(1, Math.min(40, Math.round(isFinite(rawDur) ? rawDur : 1)));
       
       let priority = rawTask.priority?.toLowerCase() || 'medium';
       if (!['high', 'medium', 'low'].includes(priority)) {
@@ -323,9 +341,9 @@ function calculateRelativeSchedule(
   return { scheduledTasks, totalProjectDays };
 }
 
-// Utility functions for workday-aware calculations (inclusive semantics)
-function isWeekend(date: Date): boolean {
-  const day = date.getDay();
+// Utility functions for workday-aware calculations (UTC inclusive semantics)
+function isWeekendUTC(date: Date): boolean {
+  const day = date.getUTCDay();
   return day === 0 || day === 6;
 }
 
@@ -333,40 +351,31 @@ function isValidDate(date: Date): boolean {
   return !isNaN(date.getTime());
 }
 
-// Inclusive: 1 workday from a workday returns the same day. If start is weekend, begin on next workday.
-function addWorkdays(start: Date, workdays: number): Date {
-  const d = new Date(start);
-  d.setHours(0, 0, 0, 0);
-
-  // Normalize to first workday (today if already a workday)
-  while (isWeekend(d)) {
-    d.setDate(d.getDate() + 1);
+// Inclusive: 1 workday from a workday returns the same day; weekends skipped; normalized to UTC midnight
+function addWorkdaysInclusiveUTC(start: Date, workdays: number): Date {
+  const d = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate()));
+  while (isWeekendUTC(d)) {
+    d.setUTCDate(d.getUTCDate() + 1);
   }
-
-  // If only 1 workday, it's the normalized start day
   if (workdays <= 1) return d;
-
   let remaining = workdays - 1;
   while (remaining > 0) {
-    d.setDate(d.getDate() + 1);
-    if (!isWeekend(d)) remaining--;
+    d.setUTCDate(d.getUTCDate() + 1);
+    if (!isWeekendUTC(d)) remaining--;
   }
   return d;
 }
 
-// Inclusive: counts workdays including start and end if they are workdays
-function countWorkdaysBetween(start: Date, end: Date): number {
-  const s = new Date(start);
-  s.setHours(0, 0, 0, 0);
-  const e = new Date(end);
-  e.setHours(0, 0, 0, 0);
+// Inclusive: counts workdays between two dates at UTC midnight
+function countWorkdaysBetweenUTC(start: Date, end: Date): number {
+  const s = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate()));
+  const e = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), end.getUTCDate()));
   if (e < s) return 0;
-
   let count = 0;
   const d = new Date(s);
   while (d <= e) {
-    if (!isWeekend(d)) count++;
-    d.setDate(d.getDate() + 1);
+    if (!isWeekendUTC(d)) count++;
+    d.setUTCDate(d.getUTCDate() + 1);
   }
   return count;
 }
@@ -405,8 +414,8 @@ function analyzePlanQuality(
     return { status: 'success' };
   }
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const now = new Date();
+  const todayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 
   const deadlineDate = new Date(intel.deadline);
   if (!isValidDate(deadlineDate)) {
@@ -414,10 +423,11 @@ function analyzePlanQuality(
     return { status: 'success' };
   }
 
-  const workdaysAvailable = countWorkdaysBetween(today, deadlineDate);
+  const deadlineUTC = new Date(Date.UTC(deadlineDate.getUTCFullYear(), deadlineDate.getUTCMonth(), deadlineDate.getUTCDate()));
+  const workdaysAvailable = countWorkdaysBetweenUTC(todayUTC, deadlineUTC);
   const totalProjectWorkdays = plan.totalProjectDays;
 
-  const calculatedEndDate = addWorkdays(today, totalProjectWorkdays);
+  const calculatedEndDate = addWorkdaysInclusiveUTC(todayUTC, totalProjectWorkdays);
   const calculatedEndDateString = calculatedEndDate.toISOString().split('T')[0];
 
   if (totalProjectWorkdays > workdaysAvailable) {
@@ -475,7 +485,12 @@ interface PlanBlueprint {
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
-  
+  if (req.method !== "POST") {
+    return new Response(
+      JSON.stringify({ error: "Method not allowed", code: "METHOD_NOT_ALLOWED" }),
+      { status: 405, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
   try {
     console.log("🚀 generate-plan function started");
     console.log("📋 Request method:", req.method);
@@ -484,7 +499,7 @@ serve(async (req) => {
     const apiKey = Deno.env.get("OPENROUTER_API_KEY");
     if (!apiKey) {
       console.error("❌ Missing OPENROUTER_API_KEY environment variable");
-      return new Response(JSON.stringify({ error: "Missing OPENROUTER_API_KEY" }), {
+      return new Response(JSON.stringify({ error: "Missing OPENROUTER_API_KEY", code: "CONFIG_MISSING_API_KEY" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -499,16 +514,25 @@ serve(async (req) => {
     console.log("🔍 Validating intel data...");
     console.log("📝 Intel title:", intel?.title);
     console.log("🎯 Intel modality:", intel?.modality);
-    console.log("📊 User constraints:", JSON.stringify(userConstraints, null, 2));
+    console.log("📊 User constraints keys:", userConstraints ? Object.keys(userConstraints) : []);
     
     if (!intel?.title || !intel?.modality) {
       console.error("❌ Missing required intel data - title or modality");
-      return new Response(JSON.stringify({ error: "intel.title and intel.modality required" }), {
+      return new Response(JSON.stringify({ error: "intel.title and intel.modality required", code: "BAD_REQUEST_MISSING_FIELDS" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
     console.log("✅ Intel validation passed");
+
+    const validModalities = ['project', 'checklist'] as const;
+    if (!validModalities.includes(intel.modality)) {
+      console.error("❌ Invalid intel.modality:", intel.modality);
+      return new Response(
+        JSON.stringify({ error: "intel.modality must be 'project' or 'checklist'", code: "BAD_REQUEST_INVALID_MODALITY" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     console.log("🏗️ Processing project modality - building prompt");
     const prompt = constructAIPrompt({
@@ -527,7 +551,7 @@ serve(async (req) => {
       content = await fetchAIBlueprint(prompt);
     } catch (err) {
       console.error('❌ Station 2 failed:', err);
-      return new Response(JSON.stringify({ error: String(err) }), {
+      return new Response(JSON.stringify({ error: String(err), code: "AI_API_ERROR" }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -539,10 +563,15 @@ serve(async (req) => {
       viluumaTasks = processAIBlueprint(content);
     } catch (err) {
       console.error('❌ Station 3 failed:', err);
-      return new Response(JSON.stringify({ error: String(err) }), {
+      return new Response(JSON.stringify({ error: String(err), code: "AI_PARSE_ERROR" }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
+    }
+    const MAX_TASKS = 200;
+    if (viluumaTasks.length > MAX_TASKS) {
+      console.warn(`⚠️ Station 3 WARN: Truncating tasks from ${viluumaTasks.length} to ${MAX_TASKS}`);
+      viluumaTasks = viluumaTasks.slice(0, MAX_TASKS);
     }
 
     // Convert ViluumaTasks back to the expected format for the response
@@ -553,12 +582,13 @@ serve(async (req) => {
       }));
 
     // Station 4: Calculate personalized relative schedule
+    const requestedHPW = userConstraints?.hoursPerWeek ?? 20;
+    const hoursPerWeek = Math.min(80, Math.max(1, Number(requestedHPW)));
     const { scheduledTasks: scheduledViluuma, totalProjectDays } = calculateRelativeSchedule(
       viluumaTasks,
-      { hoursPerWeek: userConstraints?.hoursPerWeek }
+      { hoursPerWeek }
     );
 
-    const hoursPerWeek = userConstraints?.hoursPerWeek ?? 20;
     const dailyBudget = Math.max(1, hoursPerWeek / 5);
 
     // Map scheduled tasks to response format with milestone_index
@@ -576,10 +606,10 @@ serve(async (req) => {
       };
     });
 
-    // Calculate project end date in workdays (skip weekends)
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const projectedEndDate = addWorkdays(today, totalProjectDays);
+    // Calculate project end date in workdays (skip weekends) using UTC-safe helpers
+    const now = new Date();
+    const todayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    const projectedEndDate = addWorkdaysInclusiveUTC(todayUTC, totalProjectDays);
     const calculatedEndDate = projectedEndDate.toISOString().split('T')[0];
     
     console.log("📊 REALISTIC TIMELINE CALCULATION:");
@@ -619,7 +649,7 @@ serve(async (req) => {
     });
   } catch (error) {
     console.error("generate-plan error:", error);
-    return new Response(JSON.stringify({ error: String(error) }), {
+    return new Response(JSON.stringify({ error: String(error), code: "UNKNOWN_ERROR" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
