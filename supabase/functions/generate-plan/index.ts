@@ -189,6 +189,8 @@ async function fetchAIBlueprint(prompt: string): Promise<string> {
   }
 
   console.log(`✅ Station 2: Successfully received raw plan (${rawJSONString.length} characters)`);
+  console.log("📋 Raw AI Response Content:", rawJSONString);
+  
   return rawJSONString;
 }
 
