@@ -176,10 +176,40 @@ async function callConversationalAI(messages: any[]): Promise<string> {
     throw new Error(`AI API error: ${response.status}`);
   }
 
-  const data = await response.json();
-  const content = data?.choices?.[0]?.message?.content || "";
+  // Log the raw response first
+  const rawResponseText = await response.text();
+  console.log("📦 Raw AI Response Body:", rawResponseText);
   
-  console.log("✅ AI response received:", content);
+  // Parse the response
+  let data: any;
+  try {
+    data = JSON.parse(rawResponseText);
+    console.log("🔍 Parsed API Response Data:", JSON.stringify(data, null, 2));
+  } catch (parseError) {
+    console.error("❌ Failed to parse AI response as JSON:", parseError);
+    throw new Error(`Invalid JSON response from AI: ${rawResponseText}`);
+  }
+  
+  // Extract content and log each step
+  const choice = data?.choices?.[0]?.message;
+  console.log("🎯 Extracted choice object:", JSON.stringify(choice, null, 2));
+  
+  let content = "";
+  if (typeof choice?.content === "string" && choice.content.trim()) {
+    content = choice.content;
+    console.log("✅ Content extracted as string:", content);
+  } else if (Array.isArray(choice?.content)) {
+    content = choice.content
+      .map((c: any) => (typeof c === "string" ? c : c.text || ""))
+      .join("\n");
+    console.log("✅ Content extracted from array:", content);
+  } else {
+    console.log("❌ No valid content found in choice:", choice);
+    content = "What would you like to work on?"; // Fallback
+    console.log("🔄 Using fallback content:", content);
+  }
+  
+  console.log("📝 Final extracted content:", content);
   return content;
 }
 
