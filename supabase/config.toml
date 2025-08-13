@@ -1,5 +1,8 @@
 project_id = "ilemfubbtpmfzjtcniel"
 
+[functions.onboard-goal]
+verify_jwt = true
+
 [functions.reschedule-task]
 verify_jwt = true
 

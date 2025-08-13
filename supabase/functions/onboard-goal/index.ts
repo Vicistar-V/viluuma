@@ -42,7 +42,11 @@ RULES:
 - Be a hype man! Get excited about their goals.
 - DO NOT create a plan or give advice. Your only job is to gather the info.
 - Keep responses to 1-2 sentences max. Be conversational and natural.
-- NEVER mention JSON or technical terms to the user.`;
+- NEVER mention JSON or technical terms to the user.
+
+CRITICAL HANDOFF INSTRUCTION:
+- When you believe you have gathered ALL the necessary information (Core Activity, Type, and Deadline for projects), your VERY NEXT response must ONLY be the JSON object: {"status": "ready_to_generate", "intel": { ... }}.
+- Do NOT say anything else when returning the JSON. The frontend will handle the transition messaging.`;
   
   return `${persona}\n\n${mission}`;
 }
@@ -294,7 +298,7 @@ serve(async (req) => {
         },
         userConstraints: {
           deadline: normalizedDeadline,
-          hoursPerWeek: 8 // Default assumption
+          hoursPerWeek: 20 // Updated default assumption for better planning
         }
       };
       
@@ -303,6 +307,60 @@ serve(async (req) => {
       return new Response(JSON.stringify(handoffPayload), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+    
+    // 3. USE AI TO GET THE FINAL HANDOFF WHEN READY
+    // If we're close to completion but need the AI to return the final JSON handoff
+    const readyForHandoff = state.hasTitle && state.hasModality && 
+      (state.extractedModality === "checklist" || (state.extractedModality === "project" && state.hasDeadline));
+      
+    if (readyForHandoff) {
+      console.log("🤖 Ready for AI handoff. Adding special instruction.");
+      // Add special system instruction for final handoff
+      const handoffSystemPrompt = `You have gathered all necessary information:
+- Title: ${state.extractedTitle}
+- Modality: ${state.extractedModality}
+${state.extractedModality === "project" ? `- Deadline: ${state.extractedDeadline}` : ""}
+
+CRITICAL: Since you have ALL required information, you must IMMEDIATELY return ONLY this JSON object (no other text):
+{"status": "ready_to_generate", "intel": {"title": "${state.extractedTitle}", "modality": "${state.extractedModality}", "deadline": "${state.extractedDeadline || null}", "context": "${state.context.replace(/"/g, '\\"')}"}}`;
+
+      const messagesForAI = [
+        { role: 'system', content: handoffSystemPrompt },
+        ...conversationHistory
+      ];
+      
+      try {
+        const aiResponse = await callConversationalAI(messagesForAI);
+        
+        // Check if AI returned the JSON handoff
+        if (aiResponse.includes('"status": "ready_to_generate"')) {
+          console.log("🎯 AI returned handoff JSON, parsing and returning");
+          try {
+            const jsonMatch = aiResponse.match(/\{.*\}/s);
+            if (jsonMatch) {
+              const parsedHandoff = JSON.parse(jsonMatch[0]);
+              
+              // Enhance with userConstraints
+              const enhancedHandoff = {
+                ...parsedHandoff,
+                userConstraints: {
+                  deadline: parsedHandoff.intel.deadline,
+                  hoursPerWeek: 20
+                }
+              };
+              
+              return new Response(JSON.stringify(enhancedHandoff), {
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+              });
+            }
+          } catch (parseErr) {
+            console.warn("⚠️ AI returned malformed JSON, falling back to manual handoff");
+          }
+        }
+      } catch (aiErr) {
+        console.warn("⚠️ AI call failed for handoff, falling back to manual handoff", aiErr);
+      }
     }
     
     // 3. CONSTRUCT THE DYNAMIC PROMPT (If conversation needs to continue)
