@@ -1,12 +1,15 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-// Trigger redeployment
+import { addBusinessDays, differenceInBusinessDays } from 'https://esm.sh/date-fns@3.6.0';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
+
+// Configuration
+const MODEL_TO_USE = "mistralai/mistral-7b-instruct:free";
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
@@ -85,30 +88,28 @@ CONSTRAINTS & RULES:
 `;
 
   const outputFormat = `
-  OUTPUT FORMAT:
-  You MUST return ONLY a valid JSON object. Do not include any introductory text, markdown, or explanations. The JSON object must conform to this exact structure:
-  
-  {
-    "milestones": [
-      { 
-        "title": "Phase 1: Foundation", 
-        "tasks": [
-          {
-            "title": "Specific Actionable Task",
-            "description": "A brief, one-sentence description of the task.",
-            "duration_hours": 6,
-            "priority": "low|medium|high"
-          }
-        ] 
-      }
-    ]
-  }
-  
-  Rules:
-  - Tasks are nested directly within their milestone.
-  - All tasks must be ordered in logical execution sequence within each milestone.
-  - Milestones should be ordered logically.
-  `;
+OUTPUT FORMAT:
+You MUST return ONLY a valid JSON object with this exact structure:
+{
+  "milestones": [
+    {
+      "title": "<Milestone Title>",
+      "tasks": [
+        {
+          "title": "<Task Title>",
+          "description": "<Task Description>",
+          "duration_hours": <Integer>,
+          "priority": "high" | "medium" | "low"
+        }
+      ]
+    }
+  ]
+}
+
+FINAL INSTRUCTIONS:
+- Return ONLY the raw JSON, nothing else.
+- Ensure tasks and milestones are in a logical, sequential order.
+`;
 
   const finalPrompt = `
 ${persona}
@@ -133,10 +134,8 @@ async function fetchAIBlueprint(prompt: string): Promise<string> {
     throw new Error('SERVER ERROR: OpenRouter API key not configured.');
   }
 
-  const modelToUse = 'openai/gpt-oss-20b:free'; // Production default; can be tuned per org
-
   const body: Record<string, unknown> = {
-    model: modelToUse,
+    model: MODEL_TO_USE,
     messages: [
       { role: 'system', content: 'Return only valid JSON.' },
       { role: 'user', content: prompt }
@@ -350,43 +349,8 @@ function calculateRelativeSchedule(
   return { scheduledTasks, totalProjectDays };
 }
 
-// Utility functions for workday-aware calculations (UTC inclusive semantics)
-function isWeekendUTC(date: Date): boolean {
-  const day = date.getUTCDay();
-  return day === 0 || day === 6;
-}
-
 function isValidDate(date: Date): boolean {
   return !isNaN(date.getTime());
-}
-
-// Inclusive: 1 workday from a workday returns the same day; weekends skipped; normalized to UTC midnight
-function addWorkdaysInclusiveUTC(start: Date, workdays: number): Date {
-  const d = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate()));
-  while (isWeekendUTC(d)) {
-    d.setUTCDate(d.getUTCDate() + 1);
-  }
-  if (workdays <= 1) return d;
-  let remaining = workdays - 1;
-  while (remaining > 0) {
-    d.setUTCDate(d.getUTCDate() + 1);
-    if (!isWeekendUTC(d)) remaining--;
-  }
-  return d;
-}
-
-// Inclusive: counts workdays between two dates at UTC midnight
-function countWorkdaysBetweenUTC(start: Date, end: Date): number {
-  const s = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate()));
-  const e = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), end.getUTCDate()));
-  if (e < s) return 0;
-  let count = 0;
-  const d = new Date(s);
-  while (d <= e) {
-    if (!isWeekendUTC(d)) count++;
-    d.setUTCDate(d.getUTCDate() + 1);
-  }
-  return count;
 }
 // Station 5: The Analyst - analyzePlanQuality
 // Define the possible outcomes for clarity
@@ -433,10 +397,10 @@ function analyzePlanQuality(
   }
 
   const deadlineUTC = new Date(Date.UTC(deadlineDate.getUTCFullYear(), deadlineDate.getUTCMonth(), deadlineDate.getUTCDate()));
-  const workdaysAvailable = countWorkdaysBetweenUTC(todayUTC, deadlineUTC);
+  const workdaysAvailable = differenceInBusinessDays(deadlineUTC, todayUTC);
   const totalProjectWorkdays = plan.totalProjectDays;
 
-  const calculatedEndDate = addWorkdaysInclusiveUTC(todayUTC, totalProjectWorkdays);
+  const calculatedEndDate = addBusinessDays(todayUTC, totalProjectWorkdays - 1);
   const calculatedEndDateString = calculatedEndDate.toISOString().split('T')[0];
 
   if (totalProjectWorkdays > workdaysAvailable) {
@@ -617,10 +581,10 @@ serve(async (req) => {
       };
     });
 
-    // Calculate project end date in workdays (skip weekends) using UTC-safe helpers
+    // Calculate project end date in workdays using date-fns
     const now = new Date();
     const todayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-    const projectedEndDate = addWorkdaysInclusiveUTC(todayUTC, totalProjectDays);
+    const projectedEndDate = addBusinessDays(todayUTC, totalProjectDays - 1);
     const calculatedEndDate = projectedEndDate.toISOString().split('T')[0];
     
     console.log("📊 REALISTIC TIMELINE CALCULATION:");
