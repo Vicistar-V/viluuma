@@ -10,10 +10,11 @@ const corsHeaders = {
 
 // Configuration
 const MODEL_TO_USE = "mistralai/mistral-7b-instruct:free";
-
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
-// Station 1: The Prompter - constructAIPrompt
+// ========================================
+// 🎯 STATION 1: THE PROMPTER
+// ========================================
 function constructAIPrompt(intel: {
   title: string;
   modality: 'project' | 'checklist';
@@ -124,13 +125,14 @@ Return ONLY JSON.`;
   return finalPrompt;
 }
 
-// Station 2: The Creative AI - fetchAIBlueprint
+// ========================================
+// 🤖 STATION 2: THE CREATIVE AI
+// ========================================
 async function fetchAIBlueprint(prompt: string): Promise<string> {
   console.log('🤖 Station 2: Calling OpenRouter...');
 
   const openRouterApiKey = Deno.env.get('OPENROUTER_API_KEY');
   if (!openRouterApiKey) {
-    // This is a server configuration error, not a user error.
     throw new Error('SERVER ERROR: OpenRouter API key not configured.');
   }
 
@@ -140,10 +142,9 @@ async function fetchAIBlueprint(prompt: string): Promise<string> {
       { role: 'system', content: 'Return only valid JSON.' },
       { role: 'user', content: prompt }
     ],
-    // --- PRODUCTION-READY PARAMETERS ---
-    temperature: 0.5, // Lower temp for more predictable, structured output
-    max_tokens: 4096, // Room to generate a full plan
-    response_format: { type: 'json_object' }, // Strongly bias valid JSON output
+    temperature: 0.5,
+    max_tokens: 4096,
+    response_format: { type: 'json_object' },
   };
 
   const headers: Record<string, string> = {
@@ -152,6 +153,7 @@ async function fetchAIBlueprint(prompt: string): Promise<string> {
     'HTTP-Referer': Deno.env.get('SUPABASE_URL') || 'https://supabase.com',
     'X-Title': 'Viluuma Mobile App',
   };
+
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 45000);
 
@@ -163,17 +165,14 @@ async function fetchAIBlueprint(prompt: string): Promise<string> {
   });
   clearTimeout(timeoutId);
 
-  // 1) Network/server errors
   if (!response.ok) {
     const errorBody = await response.text();
     console.error(`❌ Station 2 ERROR: OpenRouter API responded with status ${response.status}`, errorBody);
     throw new Error(`AI_API_ERROR: ${response.statusText}`);
   }
 
-  // 2) Parse response
   const aiData = await response.json();
 
-  // 3) Logical validation
   if (!aiData.choices || aiData.choices.length === 0 || !aiData.choices[0]?.message?.content) {
     console.error('❌ Station 2 ERROR: AI response was malformed (no content)', aiData);
     throw new Error('AI_EMPTY_RESPONSE');
@@ -181,7 +180,6 @@ async function fetchAIBlueprint(prompt: string): Promise<string> {
 
   const rawJSONString = String(aiData.choices[0].message.content).trim();
 
-  // 4) Final sanity
   if (!rawJSONString || rawJSONString === '{}') {
     console.error('❌ Station 2 ERROR: AI returned an empty plan', rawJSONString);
     throw new Error('AI_EMPTY_RESPONSE');
@@ -193,18 +191,18 @@ async function fetchAIBlueprint(prompt: string): Promise<string> {
   return rawJSONString;
 }
 
+// JSON cleaning helper
 function stripToJSONObject(s: string): string {
   const trimmed = String(s ?? '').trim();
   let cleaned = trimmed.replace(/^```json\s*/i, '').replace(/```$/i, '').trim();
   cleaned = cleaned.replace(/^```/, '').replace(/```$/, '').trim();
   
   // Fix common AI JSON errors
-  // Fix incomplete property values like "priority":        },
   cleaned = cleaned.replace(/:\s*,/g, ': null,');
   cleaned = cleaned.replace(/:\s*}/g, ': null}');
   cleaned = cleaned.replace(/:\s*]/g, ': null]');
   
-  // Fix malformed property names missing opening quotes (e.g., ` title":` -> `"title":`)
+  // Fix malformed property names missing opening quotes
   cleaned = cleaned.replace(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*"):/g, '$1"$2:');
   
   const firstBrace = cleaned.indexOf('{');
@@ -215,7 +213,9 @@ function stripToJSONObject(s: string): string {
   return cleaned;
 }
 
-// Station 3: The Sanitizer & Enricher - processAIBlueprint
+// ========================================
+// 🏭 STATION 3: THE SANITIZER & ENRICHER
+// ========================================
 interface ViluumaTask {
   id: string;
   name: string;
@@ -226,10 +226,16 @@ interface ViluumaTask {
   dependencies: string[];
 }
 
-function processAIBlueprint(rawJSONString: string): ViluumaTask[] {
+interface CleanMilestone {
+  id: string;
+  title: string;
+  order_index: number;
+}
+
+function processAIBlueprint(rawJSONString: string): { tasks: ViluumaTask[], milestones: CleanMilestone[] } {
   console.log('🏭 Station 3: Starting sanitize & enrich process...');
   
-  // Step 3.1: Parse & Structure Validation
+  // Parse & validate structure
   let plan: any;
   const cleaned = stripToJSONObject(rawJSONString);
   try {
@@ -244,25 +250,32 @@ function processAIBlueprint(rawJSONString: string): ViluumaTask[] {
     throw new Error('AI_INVALID_STRUCTURE');
   }
 
-  // Step 3.2: The Flatten, ID, & Harden Loop - now with nested structure
+  // Process milestones and tasks with ID linking
   const allTasks: ViluumaTask[] = [];
+  const cleanMilestones: CleanMilestone[] = [];
 
   plan.milestones.forEach((milestone: any, milestoneIndex: number) => {
-    // Structure Validation for the milestone
     if (!milestone.title || typeof milestone.title !== 'string') {
       console.warn(`⚠️ Station 3 WARN: Skipping malformed milestone at index ${milestoneIndex}`);
       return;
     }
     
-    // Validate that milestone has tasks array
+    // Create milestone with unique ID
+    const milestoneId = crypto.randomUUID();
+    const cleanMilestone: CleanMilestone = {
+      id: milestoneId,
+      title: milestone.title.trim(),
+      order_index: milestoneIndex
+    };
+    cleanMilestones.push(cleanMilestone);
+    
+    // Process tasks
     if (!milestone.tasks || !Array.isArray(milestone.tasks)) {
       console.warn(`⚠️ Station 3 WARN: Milestone "${milestone.title}" has no valid tasks array. Skipping.`);
       return;
     }
     
-    // Process each task in this milestone
     milestone.tasks.forEach((rawTask: any, taskIndex: number) => {
-      // --- HARDENING & VALIDATION ---
       const name = rawTask.title?.trim();
       if (!name || typeof name !== 'string') {
         console.warn(`⚠️ Station 3 WARN: Skipping malformed task at M${milestoneIndex}, T${taskIndex}`);
@@ -273,37 +286,36 @@ function processAIBlueprint(rawJSONString: string): ViluumaTask[] {
       const duration = Math.max(1, Math.min(40, Math.round(isFinite(rawDur) ? rawDur : 1)));
       
       let priority = rawTask.priority?.toLowerCase() || 'medium';
-      // Handle null priority from cleaned JSON
       if (priority === 'null' || !priority || !['high', 'medium', 'low'].includes(priority)) {
-        priority = 'medium'; // Default to medium if AI gives weird input
+        priority = 'medium';
       }
 
-      // --- ENRICHMENT ---
       const task: ViluumaTask = {
-        id: crypto.randomUUID(), // Assign the unique, permanent ID
+        id: crypto.randomUUID(),
         name: name,
-        description: rawTask.description?.trim() || '', // Ensure it's a string
+        description: rawTask.description?.trim() || '',
         duration_hours: duration,
         priority: priority as 'high' | 'medium' | 'low',
         milestone_name: milestone.title.trim(),
-        dependencies: [] // Empty for V1, but the property exists
+        dependencies: []
       };
 
       allTasks.push(task);
     });
   });
 
-  // Step 3.3: Final Sanity Check
   if (allTasks.length === 0) {
     console.error('❌ Station 3 ERROR: Processing resulted in zero valid tasks.', rawJSONString);
     throw new Error('AI_NO_VALID_TASKS_PROCESSED');
   }
 
-  console.log(`✅ Station 3: Successfully sanitized and enriched ${allTasks.length} tasks.`);
-  return allTasks;
+  console.log(`✅ Station 3: Successfully sanitized and enriched ${allTasks.length} tasks and ${cleanMilestones.length} milestones.`);
+  return { tasks: allTasks, milestones: cleanMilestones };
 }
 
-// Station 4: The Calculator - calculateRelativeSchedule
+// ========================================
+// 🔧 STATION 4: THE CALCULATOR
+// ========================================
 interface ScheduledViluumaTask extends ViluumaTask {
   start_day_offset: number;
   end_day_offset: number;
@@ -312,17 +324,15 @@ interface ScheduledViluumaTask extends ViluumaTask {
 function calculateRelativeSchedule(
   tasks: ViluumaTask[],
   intel: { hoursPerWeek?: number }
-): { scheduledTasks: ScheduledViluumaTask[]; totalProjectDays: number } {
-  // Step 4.1: The Personalizer - determine daily work budget
-  const weeklyBudget = intel.hoursPerWeek ?? 20; // Default to 20 hours/week
+): { scheduledTasks: ScheduledViluumaTask[]; totalCalendarDays: number; totalWorkdays: number } {
+  const weeklyBudget = intel.hoursPerWeek ?? 20;
   const workdaysPerWeek = 5;
   const dailyBudgetHours = Math.max(1, weeklyBudget / workdaysPerWeek);
 
   console.log(`🧠 Station 4: Personalizing schedule with a daily budget of ${dailyBudgetHours.toFixed(1)} hours.`);
 
-  // Step 4.2: The Scheduling Loop - sequential, no dependencies
   const scheduledTasks: ScheduledViluumaTask[] = [];
-  let currentDayOffset = 0; // Project starts at Day 0
+  let currentDayOffset = 0;
 
   for (const task of tasks) {
     const startDay = currentDayOffset;
@@ -335,86 +345,89 @@ function calculateRelativeSchedule(
       end_day_offset: endDay,
     });
 
-    // +1 day rule: next task starts the day after this one ends
     currentDayOffset = endDay + 1;
   }
 
-  // Step 4.3: Final calculation & output
-  const totalProjectDays = scheduledTasks.length > 0
+  const totalCalendarDays = scheduledTasks.length > 0
     ? scheduledTasks[scheduledTasks.length - 1].end_day_offset + 1
     : 0;
 
-  console.log(`✅ Station 4: Schedule calculated. Total relative duration: ${totalProjectDays} days.`);
+  // Calculate workdays using date-fns for accuracy
+  const totalWorkdays = scheduledTasks.length > 0
+    ? differenceInBusinessDays(addBusinessDays(new Date(0), scheduledTasks[scheduledTasks.length - 1].end_day_offset), new Date(0)) + 1
+    : 0;
 
-  return { scheduledTasks, totalProjectDays };
+  console.log(`✅ Station 4: Schedule calculated. Total calendar days: ${totalCalendarDays}, total workdays: ${totalWorkdays}.`);
+
+  return { scheduledTasks, totalCalendarDays, totalWorkdays };
 }
 
-function isValidDate(date: Date): boolean {
-  return !isNaN(date.getTime());
-}
-// Station 5: The Analyst - analyzePlanQuality
-// Define the possible outcomes for clarity
+// ========================================
+// 🔍 STATION 5: THE ANALYST
+// ========================================
 type PlanStatus = 'success' | 'over_scoped' | 'under_scoped' | 'low_quality' | 'success_checklist';
 
 function analyzePlanQuality(
-  plan: { scheduledTasks: ScheduledViluumaTask[]; totalProjectDays: number },
-  intel: {
-    modality: 'project' | 'checklist';
-    deadline?: string;
-  }
+  totalWorkdays: number,
+  modality: 'project' | 'checklist',
+  deadline?: string
 ): { status: PlanStatus; message?: string; calculatedEndDate?: string } {
-  // Step 5.1: Checklist fast lane
-  if (intel.modality === 'checklist') {
-    if (plan.scheduledTasks.length < 3) {
-      console.warn('⚠️ Station 5: Checklist plan is too short. Flagging as low_quality.');
-      return { status: 'low_quality', message: 'This checklist seems a bit too simple.' };
-    } else {
-      console.log('✅ Station 5: Checklist plan passed quality check.');
-      return { status: 'success_checklist' };
-    }
+  console.log("🔍 Station 5: Starting plan quality analysis");
+
+  // Checklist fast lane
+  if (modality === 'checklist') {
+    console.log("📋 Checklist detected - skipping timeline analysis");
+    return { status: 'success_checklist' };
   }
 
-  // Step 5.2: Low quality gatekeeper for projects
-  const MIN_TASKS = 4;
-  if (plan.scheduledTasks.length < MIN_TASKS) {
-    console.warn(`⚠️ Station 5: Project plan has only ${plan.scheduledTasks.length} tasks. Flagging as low_quality.`);
+  // Low quality gatekeeper for projects
+  const MIN_WORKDAYS = 3;
+  if (totalWorkdays < MIN_WORKDAYS) {
+    console.warn(`⚠️ Station 5: Project plan has only ${totalWorkdays} workdays. Flagging as low_quality.`);
     return { status: 'low_quality', message: 'Hmm, that plan seems a bit too simple for a project like this.' };
   }
 
-  // Step 5.3: Date-based analysis for projects
-  if (!intel.deadline) {
+  // Date-based analysis for projects
+  if (!deadline) {
     console.log('✅ Station 5: Project plan has no deadline to check against. Passing as success.');
     return { status: 'success' };
   }
 
-  const now = new Date();
-  const todayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-
-  const deadlineDate = new Date(intel.deadline);
+  const today = new Date();
+  const deadlineDate = new Date(deadline);
+  
   if (!isValidDate(deadlineDate)) {
     console.warn('⚠️ Station 5: Invalid deadline provided. Treating as no deadline.');
     return { status: 'success' };
   }
 
-  const deadlineUTC = new Date(Date.UTC(deadlineDate.getUTCFullYear(), deadlineDate.getUTCMonth(), deadlineDate.getUTCDate()));
-  const workdaysAvailable = differenceInBusinessDays(deadlineUTC, todayUTC);
-  const totalProjectWorkdays = plan.totalProjectDays;
+  // Check for past deadlines first
+  if (deadlineDate < today) {
+    console.warn('⚠️ Station 5: Deadline is in the past.');
+    return { 
+      status: 'over_scoped', 
+      message: "Heads up! The deadline you've chosen is in the past. Let's pick a new one or see what's possible." 
+    };
+  }
 
-  const calculatedEndDate = addBusinessDays(todayUTC, totalProjectWorkdays - 1);
+  const workdaysAvailable = differenceInBusinessDays(deadlineDate, today);
+  const calculatedEndDate = addBusinessDays(today, totalWorkdays - 1);
   const calculatedEndDateString = calculatedEndDate.toISOString().split('T')[0];
 
-  if (totalProjectWorkdays > workdaysAvailable) {
-    console.log(`⚠️ Station 5: Over-scoped. Plan needs ${totalProjectWorkdays} workdays, but only ${workdaysAvailable} are available.`);
+  console.log(`📊 Station 5: Workdays available: ${workdaysAvailable}, workdays needed: ${totalWorkdays}`);
+
+  if (totalWorkdays > workdaysAvailable) {
+    console.log(`⚠️ Station 5: Over-scoped. Plan needs ${totalWorkdays} workdays, but only ${workdaysAvailable} are available.`);
     return {
       status: 'over_scoped',
-      message: `Heads up! This plan is ambitious and needs about ${totalProjectWorkdays} workdays, which goes past your deadline.`,
+      message: `Heads up! This plan is ambitious and needs about ${totalWorkdays} workdays, which goes past your deadline.`,
       calculatedEndDate: calculatedEndDateString,
     };
   }
 
   const UNDER_SCOPED_THRESHOLD_DAYS = 14;
-  if (workdaysAvailable - totalProjectWorkdays > UNDER_SCOPED_THRESHOLD_DAYS) {
-    console.log(`📈 Station 5: Under-scoped. Plan finishes ${workdaysAvailable - totalProjectWorkdays} workdays early.`);
+  if (workdaysAvailable - totalWorkdays > UNDER_SCOPED_THRESHOLD_DAYS) {
+    console.log(`📈 Station 5: Under-scoped. Plan finishes ${workdaysAvailable - totalWorkdays} workdays early.`);
     return {
       status: 'under_scoped',
       message: `Great news! This plan should be done way ahead of schedule, around ${calculatedEndDateString}.`,
@@ -430,203 +443,165 @@ function analyzePlanQuality(
   };
 }
 
-// Standard shipping box for Station 6: The Reporter
-// Client-facing scheduled task format
-interface ClientScheduledTask {
-  id: string;
-  title: string;
-  description: string;
-  milestone_index: number;
-  duration_hours: number;
-  priority: 'high' | 'medium' | 'low';
-  start_day_offset: number;
-  end_day_offset: number;
+function isValidDate(date: Date): boolean {
+  return !isNaN(date.getTime());
 }
 
-interface PlanBlueprint {
-  status: 'success' | 'over_scoped' | 'under_scoped' | 'low_quality' | 'success_checklist' | 'error';
-  message: string;
-  plan?: {
-    milestones: any[];
-    scheduledTasks: ClientScheduledTask[];
-    totalProjectDays: number;
-    hoursPerWeek: number;
-    dailyBudget: number;
+// ========================================
+// 📋 STATION 6: THE REPORTER
+// ========================================
+function createFinalBlueprint(
+  analysis: { status: PlanStatus; message?: string; calculatedEndDate?: string },
+  planData: { milestones: CleanMilestone[]; scheduledTasks: ScheduledViluumaTask[]; totalWorkdays: number },
+  constraints: { hoursPerWeek: number }
+) {
+  console.log("📋 Station 6: Assembling final blueprint");
+
+  // Map milestones to the expected format
+  const finalMilestones = planData.milestones.map(m => ({
+    title: m.title,
+    order_index: m.order_index
+  }));
+
+  // Map tasks to the expected format with milestone linking
+  const finalTasks = planData.scheduledTasks.map((task) => {
+    // Find milestone by matching the milestone name (bulletproof linking)
+    const milestone = planData.milestones.find(m => m.title === task.milestone_name) || planData.milestones[0];
+    
+    return {
+      id: task.id,
+      title: task.name,
+      description: task.description,
+      milestone_index: milestone?.order_index ?? 0,
+      duration_hours: task.duration_hours,
+      priority: task.priority,
+      start_day_offset: task.start_day_offset,
+      end_day_offset: task.end_day_offset
+    };
+  });
+
+  const dailyBudget = constraints.hoursPerWeek / 5;
+
+  return {
+    status: analysis.status,
+    message: analysis.message || 'Plan ready!',
+    calculatedEndDate: analysis.calculatedEndDate,
+    plan: {
+      milestones: finalMilestones,
+      scheduledTasks: finalTasks,
+      hoursPerWeek: constraints.hoursPerWeek,
+      dailyBudget: dailyBudget
+    }
   };
-  calculatedEndDate?: string;
 }
 
+// ========================================
+// 🚀 MAIN SERVE FUNCTION
+// ========================================
 serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
-  if (req.method !== "POST") {
-    return new Response(
-      JSON.stringify({ error: "Method not allowed", code: "METHOD_NOT_ALLOWED" }),
-      { status: 405, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
   }
+
   try {
-    console.log("🚀 generate-plan function started");
-    console.log("📋 Request method:", req.method);
-    console.log("🔑 Checking API key availability...");
+    console.log("🚀 Generate Plan Conductor: Starting plan generation");
     
-    const apiKey = Deno.env.get("OPENROUTER_API_KEY");
-    if (!apiKey) {
-      console.error("❌ Missing OPENROUTER_API_KEY environment variable");
-      return new Response(JSON.stringify({ error: "Missing OPENROUTER_API_KEY", code: "CONFIG_MISSING_API_KEY" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    // ========================================
+    // 1. INPUT & VALIDATION
+    // ========================================
+    const { intel, userConstraints = {} } = await req.json();
+    
+    // Validate required intel
+    if (!intel?.title || typeof intel.title !== "string" || intel.title.trim().length === 0) {
+      throw new Error("MISSING_TITLE");
     }
-    console.log("✅ API key found");
-
-    console.log("📨 Parsing request body...");
-    const requestBody = await req.json();
-    console.log("📊 Request received (keys):", Object.keys(requestBody));
-    const { intel, userConstraints, compression_requested = false, extension_requested = false } = requestBody;
-    
-    console.log("🔍 Validating intel data...");
-    console.log("📝 Intel title:", intel?.title);
-    console.log("🎯 Intel modality:", intel?.modality);
-    console.log("📊 User constraints keys:", userConstraints ? Object.keys(userConstraints) : []);
-    
-    if (!intel?.title || !intel?.modality) {
-      console.error("❌ Missing required intel data - title or modality");
-      return new Response(JSON.stringify({ error: "intel.title and intel.modality required", code: "BAD_REQUEST_MISSING_FIELDS" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    console.log("✅ Intel validation passed");
-
-    const validModalities = ['project', 'checklist'] as const;
-    if (!validModalities.includes(intel.modality)) {
-      console.error("❌ Invalid intel.modality:", intel.modality);
-      return new Response(
-        JSON.stringify({ error: "intel.modality must be 'project' or 'checklist'", code: "BAD_REQUEST_INVALID_MODALITY" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (!intel.modality || !["project", "checklist"].includes(intel.modality)) {
+      throw new Error("INVALID_MODALITY");
     }
 
-    console.log("🏗️ Processing project modality - building prompt");
+    // Normalize constraints
+    const hoursPerWeek = Math.min(80, Math.max(1, Number(userConstraints.hoursPerWeek ?? 20)));
+    console.log(`📊 Input validated: "${intel.title}" (${intel.modality}), ${hoursPerWeek}h/week`);
+
+    // ========================================
+    // 2. STATION 1: THE PROMPTER
+    // ========================================
     const prompt = constructAIPrompt({
       title: intel.title,
       modality: intel.modality,
       context: intel.context,
-      level_of_detail: intel.level_of_detail ?? 'standard',
-      compression_requested,
-      expansion_requested: extension_requested,
+      level_of_detail: intel.levelOfDetail,
+      compression_requested: intel.compression_requested,
+      expansion_requested: intel.expansion_requested
     });
-    console.log("📄 Generated prompt length:", prompt.length);
+    console.log("✅ Station 1: Prompt constructed");
 
-    console.log("🌐 Making API call to OpenRouter via Station 2 helper...");
-    let content: string = '';
-    try {
-      content = await fetchAIBlueprint(prompt);
-    } catch (err) {
-      console.error('❌ Station 2 failed:', err);
-      return new Response(JSON.stringify({ error: String(err), code: "AI_API_ERROR" }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+    // ========================================
+    // 3. STATION 2: THE CREATIVE AI
+    // ========================================
+    const rawAIResponse = await fetchAIBlueprint(prompt);
+    console.log("✅ Station 2: AI blueprint received");
 
-    console.log("🔍 Processing AI response through Station 3...");
-    let viluumaTasks: ViluumaTask[];
-    try {
-      viluumaTasks = processAIBlueprint(content);
-    } catch (err) {
-      console.error('❌ Station 3 failed:', err);
-      return new Response(JSON.stringify({ error: String(err), code: "AI_PARSE_ERROR" }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-    const MAX_TASKS = 200;
-    if (viluumaTasks.length > MAX_TASKS) {
-      console.warn(`⚠️ Station 3 WARN: Truncating tasks from ${viluumaTasks.length} to ${MAX_TASKS}`);
-      viluumaTasks = viluumaTasks.slice(0, MAX_TASKS);
-    }
+    // ========================================
+    // 4. STATION 3: THE SANITIZER & ENRICHER
+    // ========================================
+    const { tasks: enrichedTasks, milestones: cleanMilestones } = processAIBlueprint(rawAIResponse);
+    console.log("✅ Station 3: Tasks and milestones sanitized and enriched");
 
-    // Keep a direct reference to the AI's original milestone structure
-    // We just need to ensure the titles are trimmed, same as in Station 3
-    const parsedAIResponse = JSON.parse(stripToJSONObject(content));
-    const originalMilestones = parsedAIResponse.milestones.map((m: any) => ({
-      title: m.title?.trim(),
-      description: m.description?.trim() || ''
-    }));
+    // ========================================
+    // 5. STATION 4: THE CALCULATOR
+    // ========================================
+    const { scheduledTasks, totalWorkdays } = calculateRelativeSchedule(enrichedTasks, { hoursPerWeek });
+    console.log("✅ Station 4: Schedule calculated");
 
-    // Station 4: Calculate personalized relative schedule
-    const requestedHPW = userConstraints?.hoursPerWeek ?? 20;
-    const hoursPerWeek = Math.min(80, Math.max(1, Number(requestedHPW)));
-    const { scheduledTasks: scheduledViluuma, totalProjectDays } = calculateRelativeSchedule(
-      viluumaTasks,
+    // ========================================
+    // 6. STATION 5: THE ANALYST
+    // ========================================
+    const analysis = analyzePlanQuality(totalWorkdays, intel.modality, userConstraints.deadline);
+    console.log("✅ Station 5: Plan quality analyzed");
+
+    // ========================================
+    // 7. STATION 6: THE REPORTER
+    // ========================================
+    const blueprint = createFinalBlueprint(
+      analysis,
+      { milestones: cleanMilestones, scheduledTasks, totalWorkdays },
       { hoursPerWeek }
     );
+    console.log(`✅ Station 6: Final blueprint assembled with status '${blueprint.status}'`);
 
-    const dailyBudget = Math.max(1, hoursPerWeek / 5);
-
-    // Map scheduled tasks to response format - milestone_name already exists on scheduledViluuma
-    const scheduledTasks = scheduledViluuma.map((task) => {
-      // Find milestone index by matching milestone_name to original milestone titles
-      const milestoneIndex = originalMilestones.findIndex(m => m.title === task.milestone_name);
-      return {
-        id: task.id,
-        title: task.name,
-        description: task.description,
-        milestone_index: milestoneIndex >= 0 ? milestoneIndex + 1 : 1,
-        duration_hours: task.duration_hours,
-        priority: task.priority,
-        start_day_offset: task.start_day_offset,
-        end_day_offset: task.end_day_offset,
-      };
-    });
-
-    // Calculate project end date in workdays using date-fns
-    const now = new Date();
-    const todayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-    const projectedEndDate = addBusinessDays(todayUTC, totalProjectDays - 1);
-    const calculatedEndDate = projectedEndDate.toISOString().split('T')[0];
-    
-    console.log("📊 REALISTIC TIMELINE CALCULATION:");
-    console.log("  - Total tasks:", scheduledTasks.length);
-    console.log("  - Total project days:", totalProjectDays);
-    console.log("  - Calculated end date:", calculatedEndDate);
-
-    const analysis = analyzePlanQuality(
-      { scheduledTasks: scheduledViluuma, totalProjectDays },
-      { modality: intel.modality, deadline: userConstraints?.deadline ?? intel?.deadline }
-    );
-
-    const finalCalculatedEndDate = analysis.calculatedEndDate ?? calculatedEndDate;
-
-    const blueprint: PlanBlueprint = {
-      status: analysis.status,
-      message: analysis.message ?? '',
-      plan: {
-        milestones: originalMilestones,
-        scheduledTasks,
-        totalProjectDays,
-        hoursPerWeek,
-        dailyBudget,
-      },
-      calculatedEndDate: finalCalculatedEndDate,
-    };
-
-    // Keep plan even for low_quality to allow UI display; only omit calculatedEndDate for checklists
-    if (blueprint.status === 'success_checklist') {
-      delete blueprint.calculatedEndDate;
-    }
-
-    console.log(`✅ Station 6: Reporting final status '${blueprint.status}'. Shipping blueprint to client.`);
-
+    console.log(`🎉 Generate Plan Conductor: SUCCESS. Shipping blueprint.`);
     return new Response(JSON.stringify(blueprint), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (error) {
-    console.error("generate-plan error:", error);
-    return new Response(JSON.stringify({ error: String(error), code: "UNKNOWN_ERROR" }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+
+  } catch (error: any) {
+    console.error("❌ Generate Plan Conductor: FATAL ERROR", error);
+    
+    // Map known errors to user-friendly messages
+    const errorMap: Record<string, string> = {
+      MISSING_TITLE: "Please provide a goal title.",
+      INVALID_MODALITY: "Invalid plan type. Choose 'project' or 'checklist'.",
+      AI_TIMEOUT: "The AI took too long to respond. Please try again.",
+      AI_INVALID_JSON: "The AI response was malformed. Please try again.",
+      AI_INVALID_STRUCTURE: "The AI response had an invalid structure. Please try again.",
+      AI_NO_VALID_TASKS_PROCESSED: "No valid tasks could be extracted from the AI response. Please try again.",
+      AI_EMPTY_RESPONSE: "The AI returned an empty response. Please try again.",
+      AI_API_ERROR: "The AI service is currently unavailable. Please try again later.",
+      SERVER_ERROR: "A server configuration error occurred. Please contact support."
+    };
+
+    const userMessage = errorMap[error.message] || "An unexpected error occurred. Please try again.";
+    
+    return new Response(
+      JSON.stringify({ 
+        error: error.message, 
+        message: userMessage 
+      }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
   }
 });
