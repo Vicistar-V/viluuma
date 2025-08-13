@@ -92,22 +92,24 @@ CONSTRAINTS & RULES:
   
   {
     "milestones": [
-      { "title": "Phase 1: Foundation", "order_index": 1 }
-    ],
-    "tasks": [
-      {
-        "title": "Specific Actionable Task",
-        "description": "A brief, one-sentence description of the task.",
-        "milestone_index": 1,
-        "duration_hours": 6,
-        "priority": "low|medium|high"
+      { 
+        "title": "Phase 1: Foundation", 
+        "tasks": [
+          {
+            "title": "Specific Actionable Task",
+            "description": "A brief, one-sentence description of the task.",
+            "duration_hours": 6,
+            "priority": "low|medium|high"
+          }
+        ] 
       }
     ]
   }
   
   Rules:
-  - "milestone_index" refers to the milestone's "order_index".
-  - All tasks must be ordered in logical execution sequence.
+  - Tasks are nested directly within their milestone.
+  - All tasks must be ordered in logical execution sequence within each milestone.
+  - Milestones should be ordered logically.
   `;
 
   const finalPrompt = `
@@ -235,12 +237,7 @@ function processAIBlueprint(rawJSONString: string): ViluumaTask[] {
     throw new Error('AI_INVALID_STRUCTURE');
   }
 
-  if (!plan.tasks || !Array.isArray(plan.tasks) || plan.tasks.length === 0) {
-    console.error("❌ Station 3 ERROR: AI JSON is missing a valid 'tasks' array.", plan);
-    throw new Error('AI_INVALID_STRUCTURE');
-  }
-
-  // Step 3.2: The Flatten, ID, & Harden Loop
+  // Step 3.2: The Flatten, ID, & Harden Loop - now with nested structure
   const allTasks: ViluumaTask[] = [];
 
   plan.milestones.forEach((milestone: any, milestoneIndex: number) => {
@@ -250,13 +247,14 @@ function processAIBlueprint(rawJSONString: string): ViluumaTask[] {
       return;
     }
     
-    // Find tasks for this milestone
-    const milestoneTasks = plan.tasks.filter((task: any) => 
-      task.milestone_index === milestone.order_index || 
-      task.milestone_index === milestoneIndex + 1
-    );
+    // Validate that milestone has tasks array
+    if (!milestone.tasks || !Array.isArray(milestone.tasks)) {
+      console.warn(`⚠️ Station 3 WARN: Milestone "${milestone.title}" has no valid tasks array. Skipping.`);
+      return;
+    }
     
-    milestoneTasks.forEach((rawTask: any, taskIndex: number) => {
+    // Process each task in this milestone
+    milestone.tasks.forEach((rawTask: any, taskIndex: number) => {
       // --- HARDENING & VALIDATION ---
       const name = rawTask.title?.trim();
       if (!name || typeof name !== 'string') {
