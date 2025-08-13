@@ -155,7 +155,7 @@ async function callConversationalAI(messages: any[]): Promise<string> {
   console.log("🤖 Calling conversational AI with", messages.length, "messages");
 
   const requestPayload = {
-    model: "mistralai/mistral-7b-instruct:free", // Fast, cheap, conversational model
+    model: "openai/gpt-oss-20b:free", // Fast, cheap, conversational model
     temperature: 0.7, // Natural conversation feel
     max_tokens: 150, // Keep responses short and focused
     messages: messages,
