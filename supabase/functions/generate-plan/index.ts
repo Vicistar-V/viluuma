@@ -222,6 +222,7 @@ interface ViluumaTask {
   description: string;
   duration_hours: number;
   priority: 'high' | 'medium' | 'low';
+  milestone_id: string;
   milestone_name: string;
   dependencies: string[];
 }
@@ -296,6 +297,7 @@ function processAIBlueprint(rawJSONString: string): { tasks: ViluumaTask[], mile
         description: rawTask.description?.trim() || '',
         duration_hours: duration,
         priority: priority as 'high' | 'medium' | 'low',
+        milestone_id: milestoneId,
         milestone_name: milestone.title.trim(),
         dependencies: []
       };
@@ -465,8 +467,8 @@ function createFinalBlueprint(
 
   // Map tasks to the expected format with milestone linking
   const finalTasks = planData.scheduledTasks.map((task) => {
-    // Find milestone by matching the milestone name (bulletproof linking)
-    const milestone = planData.milestones.find(m => m.title === task.milestone_name) || planData.milestones[0];
+    // Find milestone by its unique ID for bulletproof linking
+    const milestone = planData.milestones.find(m => m.id === task.milestone_id) || planData.milestones[0];
     
     return {
       id: task.id,
