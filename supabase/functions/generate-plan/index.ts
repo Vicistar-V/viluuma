@@ -9,7 +9,7 @@ const corsHeaders = {
 };
 
 // Configuration
-const MODEL_TO_USE = "mistralai/mistral-7b-instruct:free";
+const DEFAULT_MODEL = "mistralai/mistral-7b-instruct:free";
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 // ========================================
@@ -23,7 +23,15 @@ function constructAIPrompt(intel: {
   compression_requested?: boolean;
   expansion_requested?: boolean;
 }) {
-  const title = String(intel.title || '').trim();
+  // Robust input validation
+  if (!intel?.title || typeof intel.title !== 'string' || intel.title.trim().length === 0) {
+    throw new Error('MISSING_TITLE');
+  }
+  if (!intel?.modality || !['project', 'checklist'].includes(intel.modality)) {
+    throw new Error('INVALID_MODALITY');
+  }
+  
+  const title = intel.title.trim();
   const modality = intel.modality;
   const context = intel.context || 'No additional context provided.';
   const level = intel.level_of_detail ?? 'standard';
@@ -137,7 +145,7 @@ async function fetchAIBlueprint(prompt: string): Promise<string> {
   }
 
   const body: Record<string, unknown> = {
-    model: MODEL_TO_USE,
+    model: DEFAULT_MODEL,
     messages: [
       { role: 'system', content: 'Return only valid JSON.' },
       { role: 'user', content: prompt }
@@ -326,7 +334,7 @@ interface ScheduledViluumaTask extends ViluumaTask {
 function calculateRelativeSchedule(
   tasks: ViluumaTask[],
   intel: { hoursPerWeek?: number }
-): { scheduledTasks: ScheduledViluumaTask[]; totalCalendarDays: number; totalWorkdays: number } {
+): { scheduledTasks: ScheduledViluumaTask[]; totalProjectDays: number } {
   const weeklyBudget = intel.hoursPerWeek ?? 20;
   const workdaysPerWeek = 5;
   const dailyBudgetHours = Math.max(1, weeklyBudget / workdaysPerWeek);
@@ -350,18 +358,13 @@ function calculateRelativeSchedule(
     currentDayOffset = endDay + 1;
   }
 
-  const totalCalendarDays = scheduledTasks.length > 0
+  const totalProjectDays = scheduledTasks.length > 0
     ? scheduledTasks[scheduledTasks.length - 1].end_day_offset + 1
     : 0;
 
-  // Calculate workdays using date-fns for accuracy
-  const totalWorkdays = scheduledTasks.length > 0
-    ? differenceInBusinessDays(addBusinessDays(new Date(0), scheduledTasks[scheduledTasks.length - 1].end_day_offset), new Date(0)) + 1
-    : 0;
+  console.log(`✅ Station 4: Schedule calculated. Total project days: ${totalProjectDays}.`);
 
-  console.log(`✅ Station 4: Schedule calculated. Total calendar days: ${totalCalendarDays}, total workdays: ${totalWorkdays}.`);
-
-  return { scheduledTasks, totalCalendarDays, totalWorkdays };
+  return { scheduledTasks, totalProjectDays };
 }
 
 // ========================================
@@ -370,17 +373,28 @@ function calculateRelativeSchedule(
 type PlanStatus = 'success' | 'over_scoped' | 'under_scoped' | 'low_quality' | 'success_checklist';
 
 function analyzePlanQuality(
-  totalWorkdays: number,
+  totalProjectDays: number,
+  totalTaskCount: number,
   modality: 'project' | 'checklist',
   deadline?: string
 ): { status: PlanStatus; message?: string; calculatedEndDate?: string } {
   console.log("🔍 Station 5: Starting plan quality analysis");
 
-  // Checklist fast lane
+  // Low quality check for checklists
   if (modality === 'checklist') {
-    console.log("📋 Checklist detected - skipping timeline analysis");
+    if (totalTaskCount < 3) {
+      console.warn(`⚠️ Station 5: Checklist has only ${totalTaskCount} tasks. Flagging as low_quality.`);
+      return { status: 'low_quality', message: 'This checklist seems a bit too simple. Consider adding more detailed steps.' };
+    }
+    console.log("📋 Checklist detected - passing quality check");
     return { status: 'success_checklist' };
   }
+
+  // Convert relative project days to actual business days for analysis
+  const today = new Date();
+  const totalWorkdays = totalProjectDays > 0 
+    ? differenceInBusinessDays(addBusinessDays(today, totalProjectDays - 1), today) + 1
+    : 0;
 
   // Low quality gatekeeper for projects
   const MIN_WORKDAYS = 3;
@@ -395,7 +409,6 @@ function analyzePlanQuality(
     return { status: 'success' };
   }
 
-  const today = new Date();
   const deadlineDate = new Date(deadline);
   
   if (!isValidDate(deadlineDate)) {
@@ -553,13 +566,13 @@ serve(async (req) => {
     // ========================================
     // 5. STATION 4: THE CALCULATOR
     // ========================================
-    const { scheduledTasks, totalWorkdays } = calculateRelativeSchedule(enrichedTasks, { hoursPerWeek });
+    const { scheduledTasks, totalProjectDays } = calculateRelativeSchedule(enrichedTasks, { hoursPerWeek });
     console.log("✅ Station 4: Schedule calculated");
 
     // ========================================
     // 6. STATION 5: THE ANALYST
     // ========================================
-    const analysis = analyzePlanQuality(totalWorkdays, intel.modality, userConstraints.deadline);
+    const analysis = analyzePlanQuality(totalProjectDays, enrichedTasks.length, intel.modality, userConstraints.deadline);
     console.log("✅ Station 5: Plan quality analyzed");
 
     // ========================================
@@ -567,7 +580,7 @@ serve(async (req) => {
     // ========================================
     const blueprint = createFinalBlueprint(
       analysis,
-      { milestones: cleanMilestones, scheduledTasks, totalWorkdays },
+      { milestones: cleanMilestones, scheduledTasks, totalWorkdays: totalProjectDays },
       { hoursPerWeek }
     );
     console.log(`✅ Station 6: Final blueprint assembled with status '${blueprint.status}'`);
