@@ -13,82 +13,18 @@ interface ChatMessageType {
   content: string;
 }
 
-interface ConversationState {
-  hasGoalMentioned: boolean;
-  hasModalityDetected: boolean;
-  detectedModality: "project" | "checklist" | null;
-  conversationStage: "gathering_goal" | "clarifying_modality" | "gathering_details" | "ready";
-}
-
 const AIOnboardingWizard = () => {
   const [messages, setMessages] = useState<ChatMessageType[]>([
     {
       role: "assistant",
-      content:
-        "Hey! I'm Viluuma, your friendly AI coach. Tell me what awesome goal is on your mind!",
+      content: "Hey! I'm Viluuma, your friendly AI coach. What awesome goal is on your mind? 🎯",
     },
   ]);
   const [userInput, setUserInput] = useState("");
   const [isAITyping, setIsAITyping] = useState(false);
-  const [conversationState, setConversationState] = useState<ConversationState>({
-    hasGoalMentioned: false,
-    hasModalityDetected: false,
-    detectedModality: null,
-    conversationStage: "gathering_goal"
-  });
   const navigate = useNavigate();
   const { toast } = useToast();
   const inputRef = useRef<HTMLInputElement | null>(null);
-
-  // Helper function to detect modality from user message
-  const detectModality = (message: string): "project" | "checklist" | null => {
-    const projectKeywords = /\b(project|deadline|by|before|due|timeline|schedule|finished|complete by|need by)\b/i;
-    const checklistKeywords = /\b(checklist|ongoing|over time|habit|routine|general|someday|eventually|no deadline|no rush)\b/i;
-    
-    if (projectKeywords.test(message)) return "project";
-    if (checklistKeywords.test(message)) return "checklist";
-    return null;
-  };
-
-  // Update conversation state based on user input
-  const updateConversationState = (userMessage: string) => {
-    const detectedModality = detectModality(userMessage);
-    
-    setConversationState(prev => {
-      const hasGoal = prev.hasGoalMentioned || userMessage.length > 10;
-      const hasModality = prev.hasModalityDetected || detectedModality !== null;
-      
-      let stage: ConversationState["conversationStage"] = "gathering_goal";
-      
-      if (hasGoal && !hasModality) {
-        stage = "clarifying_modality";
-      } else if (hasGoal && hasModality) {
-        stage = detectedModality === "checklist" ? "ready" : "gathering_details";
-      }
-      
-      return {
-        hasGoalMentioned: hasGoal,
-        hasModalityDetected: hasModality,
-        detectedModality: detectedModality || prev.detectedModality,
-        conversationStage: stage
-      };
-    });
-  };
-
-  // Helper function to detect and filter out JSON responses
-  const isJSONResponse = (content: string): boolean => {
-    const trimmed = content.trim();
-    return trimmed.startsWith('{') && trimmed.endsWith('}') && trimmed.includes('"status"');
-  };
-
-  // Helper function to clean AI response content
-  const cleanAIResponse = (content: string): string => {
-    // If it looks like JSON, return a friendly fallback message
-    if (isJSONResponse(content)) {
-      return "I'm processing your request. Can you tell me more about what you'd like to achieve?";
-    }
-    return content;
-  };
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -96,34 +32,43 @@ const AIOnboardingWizard = () => {
 
   const handleSend = async () => {
     const trimmed = userInput.trim();
-    if (!trimmed) return;
+    if (!trimmed || isAITyping) return;
 
-    // Update conversation state based on user input
-    updateConversationState(trimmed);
-
+    // Add user message to conversation
     const newUserMessage: ChatMessageType = { role: "user", content: trimmed };
-    const outbound = [...messages, newUserMessage];
-    setMessages(outbound);
+    const updatedMessages = [...messages, newUserMessage];
+    setMessages(updatedMessages);
     setUserInput("");
     setIsAITyping(true);
 
     try {
+      console.log("📤 Sending conversation to onboard-goal function");
+      
       const { data, error } = await supabase.functions.invoke("onboard-goal", {
-        body: { messages: outbound },
+        body: { conversationHistory: updatedMessages },
       });
-      if (error) throw error;
+      
+      if (error) {
+        console.error("❌ Supabase function error:", error);
+        throw error;
+      }
 
-      // Handoff or normal message
+      console.log("📥 Received response:", data);
+
+      // Check for handoff to plan generation
       if (data?.status === "ready_to_generate" && data?.intel) {
+        console.log("🎯 Handoff detected, navigating to plan review");
+        
         setIsAITyping(false);
         setMessages((prev) => [
           ...prev,
           {
             role: "assistant",
-            content:
-              "Awesome, I've got everything I need! Let me work my magic and architect your plan...",
+            content: "Perfect! I've got everything I need. Let me work my magic and create your plan... ✨",
           },
         ]);
+        
+        // Navigate to plan review with intel data
         setTimeout(() => {
           navigate("/plan-review", { 
             state: { 
@@ -131,74 +76,89 @@ const AIOnboardingWizard = () => {
               userConstraints: data.userConstraints 
             } 
           });
-        }, 1200);
+        }, 1500);
         return;
       }
 
-      // Handle different response formats and clean JSON if needed
-      if (data?.content && typeof data.content === "string") {
+      // Handle normal conversation response
+      if (data?.content) {
         setIsAITyping(false);
-        const cleanedContent = cleanAIResponse(data.content);
-        setMessages((prev) => [...prev, { role: "assistant", content: cleanedContent }]);
-      } else if (data?.type === "message" && typeof data?.content === "string") {
-        setIsAITyping(false);
-        const cleanedContent = cleanAIResponse(data.content);
-        setMessages((prev) => [...prev, { role: "assistant", content: cleanedContent }]);
-      } else if (typeof data === "string") {
-        // fallback if function returned plain text
-        setIsAITyping(false);
-        const cleanedContent = cleanAIResponse(data);
-        setMessages((prev) => [...prev, { role: "assistant", content: cleanedContent }]);
+        setMessages((prev) => [
+          ...prev, 
+          { role: "assistant", content: data.content }
+        ]);
       } else {
+        console.warn("⚠️ Unexpected response format:", data);
         setIsAITyping(false);
-        toast({ title: "Unexpected response", variant: "destructive" });
+        toast({ 
+          title: "Unexpected response format", 
+          description: "Please try again.",
+          variant: "destructive" 
+        });
       }
-    } catch (e: any) {
-      console.error(e);
+
+    } catch (error: any) {
+      console.error("❌ Error in conversation:", error);
       setIsAITyping(false);
-      toast({ title: "Failed to send", description: String(e?.message || e), variant: "destructive" });
+      
+      // Add a fallback assistant message for better UX
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: "Sorry, I had a hiccup there! Can you tell me again about your goal?",
+        },
+      ]);
+      
+      toast({ 
+        title: "Connection issue", 
+        description: "Please try again.",
+        variant: "destructive" 
+      });
     }
   };
 
   return (
     <main className="mx-auto max-w-screen-sm p-4 pb-24">
-      <h1 className="sr-only">AI Planner Onboarding</h1>
-      <div className="space-y-3">
-        {messages.map((m, i) => (
-          <ChatMessage key={i} role={m.role} content={m.content} />
+      <h1 className="sr-only">AI Goal Onboarding</h1>
+      
+      {/* Chat Messages */}
+      <div className="space-y-3 mb-4">
+        {messages.map((message, index) => (
+          <ChatMessage 
+            key={index} 
+            role={message.role} 
+            content={message.content} 
+          />
         ))}
         {isAITyping && <TypingIndicator />}
       </div>
 
+      {/* Input Area */}
       <Card className="fixed inset-x-0 bottom-0 mx-auto max-w-screen-sm border-t">
         <CardContent className="flex items-center gap-2 p-3">
           <Input
             ref={inputRef}
             value={userInput}
             onChange={(e) => setUserInput(e.target.value)}
-            placeholder={
-              conversationState.conversationStage === "gathering_goal" 
-                ? "Tell me about your goal..." 
-                : conversationState.conversationStage === "clarifying_modality"
-                ? "Is this a project or ongoing checklist?"
-                : "Type your reply..."
-            }
+            placeholder="Type your message..."
+            disabled={isAITyping}
             onKeyDown={(e) => {
-              if (e.key === "Enter") handleSend();
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                handleSend();
+              }
             }}
+            className="flex-1"
           />
-          <Button onClick={handleSend} disabled={!userInput.trim()}>
+          <Button 
+            onClick={handleSend} 
+            disabled={!userInput.trim() || isAITyping}
+            size="sm"
+          >
             Send
           </Button>
         </CardContent>
-        
-        {/* Conversation progress indicator */}
-        {conversationState.detectedModality && (
-          <div className="px-3 pb-2 text-xs text-muted-foreground text-center">
-            Detected: {conversationState.detectedModality === "project" ? "Project with deadline" : "Ongoing checklist"}
-            {conversationState.detectedModality === "checklist" && " • Almost done!"}
-          </div>
-        )}
       </Card>
     </main>
   );

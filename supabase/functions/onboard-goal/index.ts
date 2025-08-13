@@ -7,320 +7,304 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-// Helper functions for intelligent conversation management
-function detectModalityFromMessage(message: string): "project" | "checklist" | null {
-  const projectKeywords = /\b(project|deadline|by|before|due|timeline|schedule|finished|complete by|need by)\b/i;
-  const checklistKeywords = /\b(checklist|ongoing|over time|habit|routine|general|someday|eventually|no deadline|no rush)\b/i;
+// ===============================
+// PART 1: STATE-AWARE SYSTEM PROMPT
+// ===============================
+
+function constructOnboardingPrompt(
+  conversationHistory: any[],
+  currentState: { hasTitle: boolean; hasModality: boolean; hasDeadline?: boolean }
+): string {
   
-  if (projectKeywords.test(message)) return "project";
-  if (checklistKeywords.test(message)) return "checklist";
-  return null;
-}
-
-function extractGoalTitle(messages: any[]): string | null {
-  for (const msg of messages) {
-    if (msg.role === "user" && msg.content && msg.content.length > 5) {
-      // Simple extraction - use first meaningful user message as potential title
-      const content = msg.content.trim();
-      if (content.length > 5 && content.length < 200) {
-        return content;
-      }
-    }
+  // 1. Build the list of what's still needed
+  const unansweredQuestions = [];
+  if (!currentState.hasTitle) {
+    unansweredQuestions.push("- The user's core goal (the 'what').");
   }
-  return null;
-}
+  if (!currentState.hasModality) {
+    unansweredQuestions.push("- The goal's type: is it a 'Project' with a deadline, or an ongoing 'Checklist'?");
+  }
+  if (currentState.hasModality && currentState.hasDeadline === false) {
+    unansweredQuestions.push("- A specific target date or deadline for the project.");
+  }
+  
+  // 2. The Persona (our "Friend" Vibe)
+  const persona = "You are Viluuma, a super friendly and supportive AI coach. Your goal is to have a quick, casual chat to help a user figure out their next big goal. Talk like a real friend (1-2 short sentences, like you're texting).";
 
-function buildDynamicSystemPrompt(missingInfo: string[]): string {
-  const basePrompt = `You are Viluuma, a friendly AI coach. Help define their goal quickly.
-
-NEEDED: ${missingInfo.join(', ')}
+  // 3. The Mission & Rules
+  const mission = `
+YOUR MISSION:
+Your only job right now is to figure out the following information:
+${unansweredQuestions.join('\n')}
 
 RULES:
-- 1 short sentence max
-- Ask ONE question about missing info
-- When ready, respond ONLY with: {"status":"ready_to_generate","intel":{"title":"...","modality":"project|checklist","deadline":"YYYY-MM-DD|null","hoursPerWeek":8,"context":"..."}}`;
+- Always ask a friendly, clarifying question to get the next piece of information.
+- Be a hype man! Get excited about their goals.
+- DO NOT create a plan or give advice. Your only job is to gather the info.
+- Keep responses to 1-2 sentences max. Be conversational and natural.
+- NEVER mention JSON or technical terms to the user.`;
   
-  return basePrompt;
+  return `${persona}\n\n${mission}`;
 }
 
-function analyzeConversationState(messages: any[]): {
-  title: string | null;
-  modality: "project" | "checklist" | null;
-  deadline: string | null;
-  hoursPerWeek: number | null;
-  context: string | null;
+// ===============================
+// PART 2: DETERMINISTIC STATE ANALYSIS
+// ===============================
+
+function analyzeConversationState(conversationHistory: any[]): {
+  hasTitle: boolean;
+  hasModality: boolean;
+  hasDeadline: boolean | undefined;
+  extractedTitle: string;
+  extractedModality: "project" | "checklist" | "";
+  extractedDeadline: string;
+  context: string;
 } {
-  let title = null;
-  let modality = null;
-  let deadline = null;
-  let hoursPerWeek = null;
-  let context = null;
+  let hasTitle = false;
+  let hasModality = false;
+  let hasDeadline: boolean | undefined = undefined;
+  let extractedTitle = "";
+  let extractedModality: "project" | "checklist" | "" = "";
+  let extractedDeadline = "";
+  let context = "";
 
-  // Extract goal title from first meaningful user message
-  title = extractGoalTitle(messages);
+  console.log("🔍 Analyzing conversation with", conversationHistory.length, "messages");
 
-  // Detect modality from user messages
-  for (const msg of messages) {
-    if (msg.role === "user") {
-      const detectedModality = detectModalityFromMessage(msg.content);
-      if (detectedModality) {
-        modality = detectedModality;
-        break;
+  conversationHistory.forEach((msg, index) => {
+    if (msg.role === 'user') {
+      const content = msg.content.toLowerCase();
+      
+      // Title detection - use the first meaningful user message
+      if (!hasTitle && msg.content.trim().length > 5) {
+        hasTitle = true;
+        extractedTitle = msg.content.trim();
+        console.log("📝 Title detected:", extractedTitle);
       }
-    }
-  }
-
-  // Extract deadline if mentioned (simple regex for dates)
-  const deadlineRegex = /\b(\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2}\/\d{4}|january|february|march|april|may|june|july|august|september|october|november|december|\d{1,2}th|\d{1,2}st|\d{1,2}nd|\d{1,2}rd)\b/i;
-  for (const msg of messages) {
-    if (msg.role === "user" && deadlineRegex.test(msg.content)) {
-      // Simple extraction - in a real app, you'd use a proper date parser
-      const match = msg.content.match(deadlineRegex);
-      if (match) {
-        context = `Mentioned deadline context: ${match[0]}`;
-        // For now, we'll let the AI handle date parsing in its response
+      
+      // Modality detection with specific keywords
+      if (!hasModality) {
+        const projectKeywords = /\b(project|deadline|by|before|due|timeline|schedule|finished|complete by|need by|target date|specific date)\b/i;
+        const checklistKeywords = /\b(checklist|ongoing|over time|habit|routine|general|someday|eventually|no deadline|no rush|continuous|daily|weekly)\b/i;
+        
+        if (projectKeywords.test(content)) {
+          hasModality = true;
+          extractedModality = "project";
+          hasDeadline = false; // We know it's a project, but haven't extracted the date yet
+          console.log("🎯 Project modality detected");
+        } else if (checklistKeywords.test(content)) {
+          hasModality = true;
+          extractedModality = "checklist";
+          hasDeadline = undefined; // Checklists don't need deadlines
+          console.log("📋 Checklist modality detected");
+        }
       }
-    }
-  }
-
-  // Extract hours per week if mentioned
-  const hoursRegex = /\b(\d+)\s*(hours?|hrs?)\s*(per\s*week|weekly|each\s*week)\b/i;
-  for (const msg of messages) {
-    if (msg.role === "user" && hoursRegex.test(msg.content)) {
-      const match = msg.content.match(hoursRegex);
-      if (match) {
-        hoursPerWeek = parseInt(match[1]);
-        break;
+      
+      // Date extraction for projects only
+      if (extractedModality === "project" && hasDeadline === false) {
+        // Multiple date pattern matching
+        const datePatterns = [
+          /\b(\d{4}-\d{2}-\d{2})\b/, // YYYY-MM-DD
+          /\b(\d{1,2}\/\d{1,2}\/\d{4})\b/, // MM/DD/YYYY
+          /\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\w*\s+\d{1,2}(?:st|nd|rd|th)?\b/i, // Month Day
+          /\b\d{1,2}(?:st|nd|rd|th)?\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\w*\b/i, // Day Month
+          /\bin\s+(\d+)\s+(days?|weeks?|months?)\b/i, // "in 2 weeks"
+        ];
+        
+        for (const pattern of datePatterns) {
+          const match = msg.content.match(pattern);
+          if (match) {
+            extractedDeadline = match[0];
+            hasDeadline = true;
+            console.log("📅 Deadline detected:", extractedDeadline);
+            break;
+          }
+        }
       }
+      
+      // Build context from all user messages
+      context += msg.content + "\n";
     }
-  }
+  });
 
-  return { title, modality, deadline, hoursPerWeek, context };
+  console.log("📊 Final state analysis:", {
+    hasTitle, hasModality, hasDeadline,
+    extractedTitle, extractedModality, extractedDeadline
+  });
+
+  return {
+    hasTitle,
+    hasModality,
+    hasDeadline,
+    extractedTitle,
+    extractedModality,
+    extractedDeadline,
+    context: context.trim()
+  };
 }
 
-const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+// ===============================
+// PART 3: CONVERSATIONAL AI CALLER
+// ===============================
+
+async function callConversationalAI(messages: any[]): Promise<string> {
+  const apiKey = Deno.env.get("OPENROUTER_API_KEY");
+  if (!apiKey) {
+    throw new Error("Missing OPENROUTER_API_KEY");
+  }
+
+  console.log("🤖 Calling conversational AI with", messages.length, "messages");
+
+  const requestPayload = {
+    model: "mistralai/mistral-7b-instruct:free", // Fast, cheap, conversational model
+    temperature: 0.7, // Natural conversation feel
+    max_tokens: 150, // Keep responses short and focused
+    messages: messages,
+  };
+
+  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(requestPayload),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    console.error("❌ AI API error:", errText);
+    throw new Error(`AI API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  const content = data?.choices?.[0]?.message?.content || "";
+  
+  console.log("✅ AI response received:", content);
+  return content;
+}
+
+// ===============================
+// PART 4: MAIN ORCHESTRATOR
+// ===============================
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     console.log("🚀 onboard-goal function started");
-    console.log("📋 Request method:", req.method);
-    console.log("🔑 Checking API key availability...");
     
-    const apiKey = Deno.env.get("OPENROUTER_API_KEY");
-    if (!apiKey) {
-      console.error("❌ Missing OPENROUTER_API_KEY environment variable");
-      return new Response(JSON.stringify({ error: "Missing OPENROUTER_API_KEY" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    console.log("✅ API key found");
-
-    console.log("📨 Parsing request body...");
-    const requestBody = await req.json();
-    console.log("📊 Request body:", JSON.stringify(requestBody, null, 2));
+    // Parse and validate request
+    const { conversationHistory } = await req.json();
     
-    const { messages } = requestBody;
-    if (!Array.isArray(messages)) {
-      console.error("❌ Invalid payload: messages should be an array");
-      return new Response(JSON.stringify({ error: "Invalid payload: messages[] required" }), {
+    if (!conversationHistory || !Array.isArray(conversationHistory)) {
+      console.error("❌ Invalid request: conversationHistory is required");
+      return new Response(JSON.stringify({ error: "Invalid request: conversationHistory is required." }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    console.log("✅ Messages validation passed, count:", messages.length);
 
-    // Analyze conversation state to determine what info is still needed
-    console.log("🔍 Analyzing conversation state...");
-    const state = analyzeConversationState(messages);
-    console.log("📊 Conversation state:", JSON.stringify(state, null, 2));
-    
-    const missingInfo: string[] = [];
+    console.log("📨 Processing conversation with", conversationHistory.length, "messages");
 
-    if (!state.title) {
-      missingInfo.push("Core Activity: What is the user's main goal?");
-    }
+    // 1. ANALYZE THE CURRENT STATE (Our deterministic logic)
+    const state = analyzeConversationState(conversationHistory);
     
-    if (!state.modality) {
-      missingInfo.push("Modality: Is this a Project (with deadline) or a Checklist (ongoing)?");
-    }
+    // 2. CHECK FOR COMPLETION (Our backend decides when we're done)
+    const isProjectComplete = state.extractedModality === "project" && state.hasDeadline;
+    const isChecklistComplete = state.extractedModality === "checklist" && state.hasModality;
     
-    // Only ask for deadline if it's a project
-    if (state.modality === "project" && !state.deadline) {
-      missingInfo.push("Deadline: Get a specific target date");
-    }
-    
-    // Only ask for hours per week if it's a project and we don't have it
-    if (state.modality === "project" && !state.hoursPerWeek) {
-      missingInfo.push("Time Commitment: How many hours per week can they dedicate?");
-    }
-
-    console.log("📝 Missing info:", missingInfo);
-
-    // Check if we have everything we need for the handoff
-    if (missingInfo.length === 0 && state.title && state.modality) {
-      console.log("✅ All information collected, generating intel object");
+    if (isProjectComplete || isChecklistComplete) {
+      console.log("✅ Onboarding complete. Preparing intel payload.");
       
-      // Calculate level of detail hint based on deadline (if it's a project)
-      let levelOfDetail = "standard";
-      if (state.modality === "project" && state.deadline) {
-        const today = new Date();
-        const deadlineDate = new Date(state.deadline);
-        const daysAvailable = Math.max(0, Math.floor((deadlineDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)));
-        
-        if (daysAvailable <= 14) {
-          levelOfDetail = "condensed"; // Very short timeline - crash course
-        } else if (daysAvailable >= 180) {
-          levelOfDetail = "comprehensive"; // Long timeline - masterclass level
-        } else {
-          levelOfDetail = "standard"; // Normal detailed plan
+      // Parse the deadline to a proper date format if it's a project
+      let normalizedDeadline = null;
+      if (state.extractedModality === "project" && state.extractedDeadline) {
+        try {
+          // Handle relative dates like "in 2 weeks"
+          if (state.extractedDeadline.includes("in")) {
+            const relativeMatch = state.extractedDeadline.match(/in\s+(\d+)\s+(days?|weeks?|months?)/i);
+            if (relativeMatch) {
+              const amount = parseInt(relativeMatch[1]);
+              const unit = relativeMatch[2].toLowerCase();
+              const today = new Date();
+              
+              if (unit.startsWith("day")) {
+                today.setDate(today.getDate() + amount);
+              } else if (unit.startsWith("week")) {
+                today.setDate(today.getDate() + (amount * 7));
+              } else if (unit.startsWith("month")) {
+                today.setMonth(today.getMonth() + amount);
+              }
+              
+              normalizedDeadline = today.toISOString().split('T')[0];
+            }
+          } else {
+            // Try to parse as a regular date
+            const parsedDate = new Date(state.extractedDeadline);
+            if (!isNaN(parsedDate.getTime())) {
+              normalizedDeadline = parsedDate.toISOString().split('T')[0];
+            }
+          }
+        } catch (e) {
+          console.warn("⚠️ Could not parse deadline, using original:", state.extractedDeadline);
+          normalizedDeadline = state.extractedDeadline;
         }
       }
       
-      // Create intel object WITHOUT deadline and hoursPerWeek for AI
-      // These will be stored separately for analysis AFTER generation
-      const intel = {
-        title: state.title,
-        modality: state.modality,
-        context: state.context || "",
-        levelOfDetail: levelOfDetail
-      };
-      
-      // Store the user's actual constraints separately for analysis
-      const userConstraints = {
-        deadline: state.modality === "checklist" ? null : (state.deadline || null),
-        hoursPerWeek: state.modality === "checklist" ? 0 : (state.hoursPerWeek || 8)
-      };
-      
-      console.log("🎯 Generated intel (AI-focused):", JSON.stringify(intel, null, 2));
-      console.log("📊 User constraints (analysis-focused):", JSON.stringify(userConstraints, null, 2));
-      
-      return new Response(JSON.stringify({
+      const handoffPayload = {
         status: "ready_to_generate",
-        intel,
-        userConstraints
-      }), {
+        intel: {
+          title: state.extractedTitle,
+          modality: state.extractedModality,
+          deadline: normalizedDeadline,
+          context: state.context
+        },
+        userConstraints: {
+          deadline: normalizedDeadline,
+          hoursPerWeek: 8 // Default assumption
+        }
+      };
+      
+      console.log("🎯 Returning handoff payload:", JSON.stringify(handoffPayload, null, 2));
+      
+      return new Response(JSON.stringify(handoffPayload), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
-    // Build dynamic system prompt based on missing information
-    console.log("🎯 Building dynamic system prompt for missing info");
-    const dynamicSystemPrompt = buildDynamicSystemPrompt(missingInfo);
-    console.log("📄 System prompt length:", dynamicSystemPrompt.length);
-
-    // Use full conversation history
-    const finalMessages = [
-      { role: "system", content: dynamicSystemPrompt },
-      ...messages,
-    ];
-    console.log("💬 Final messages count:", finalMessages.length);
-
-    console.log("🌐 Making API call to OpenRouter...");
-    const requestPayload = {
-      model: "openai/gpt-oss-20b:free",
-      temperature: 0.1,
-      max_tokens: 500, // Increased for reasoning model
-      messages: finalMessages,
-    };
-    console.log("📤 API Request payload:", JSON.stringify(requestPayload, null, 2));
-
-    const response = await fetch(OPENROUTER_URL, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(requestPayload),
-    });
-
-    console.log("📥 API Response status:", response.status);
-    console.log("📥 API Response headers:", Object.fromEntries(response.headers.entries()));
-
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error("❌ onboard-goal upstream error:", errText);
-      return new Response(JSON.stringify({ error: "Upstream error", details: errText }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // 1. Log the raw API response body
-    const rawResponseText = await response.text();
-    console.log("📦 Raw API Response Body:", rawResponseText);
-
-    // 2. Parse and log the structured data
-    let data: any;
-    try {
-      data = JSON.parse(rawResponseText);
-      console.log("🔍 Parsed API Response Data:", JSON.stringify(data, null, 2));
-    } catch (parseError) {
-      console.error("❌ Failed to parse API response as JSON:", parseError);
-      console.log("📝 Raw response text was:", rawResponseText);
-      return new Response(JSON.stringify({ error: "Invalid JSON response from OpenRouter" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // 3. Extract content and log each step
-    let content: string = "";
-    const choice = data?.choices?.[0]?.message;
-    console.log("🎯 Extracted choice object:", JSON.stringify(choice, null, 2));
     
-    if (typeof choice?.content === "string" && choice.content.trim()) {
-      content = choice.content;
-      console.log("✅ Content extracted as string:", content);
-    } else if (Array.isArray(choice?.content)) {
-      content = choice.content
-        .map((c: any) => (typeof c === "string" ? c : c.text || ""))
-        .join("\n");
-      console.log("✅ Content extracted from array:", content);
-    } else if (typeof choice?.reasoning === "string" && choice.reasoning.trim()) {
-      // Fallback for reasoning models - extract from reasoning field
-      content = choice.reasoning;
-      console.log("✅ Content extracted from reasoning field:", content);
-    } else {
-      console.log("❌ No valid content found in choice:", choice);
-      // Return a helpful fallback message
-      content = "What goal would you like to work on?";
-      console.log("🔄 Using fallback content:", content);
-    }
-
-    console.log("📝 Final extracted content:", content);
-
-    // 4. Try to detect special JSON handoff and log the process
-    let parsed: any = null;
-    console.log("🔍 Attempting JSON handoff detection...");
-    try {
-      parsed = JSON.parse(content.trim());
-      console.log("✅ Content parsed as JSON:", JSON.stringify(parsed, null, 2));
-    } catch (jsonError) {
-      console.log("❌ Content is not JSON, treating as conversation:", jsonError.message);
-    }
-
-    if (parsed && parsed.status === "ready_to_generate" && parsed.intel) {
-      console.log("🎯 JSON handoff detected, returning intel payload");
-      return new Response(JSON.stringify(parsed), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // 5. Log the final conversation response
-    console.log("💬 Returning conversation message content:", content);
-    const finalResponse = { content };
-    console.log("📤 Final response object:", JSON.stringify(finalResponse, null, 2));
-    return new Response(JSON.stringify({ content }), {
+    // 3. CONSTRUCT THE DYNAMIC PROMPT (If conversation needs to continue)
+    const currentState = {
+      hasTitle: state.hasTitle,
+      hasModality: state.hasModality,
+      hasDeadline: state.hasDeadline
+    };
+    
+    const systemPrompt = constructOnboardingPrompt(conversationHistory, currentState);
+    
+    const messagesForAI = [
+      { role: 'system', content: systemPrompt },
+      ...conversationHistory
+    ];
+    
+    // 4. CALL THE AI FOR THE NEXT CHAT RESPONSE
+    const aiResponse = await callConversationalAI(messagesForAI);
+    
+    // 5. RETURN THE CHAT MESSAGE
+    // The frontend receives this as a simple string to display in a new chat bubble
+    console.log("💬 Returning conversation response");
+    return new Response(JSON.stringify({ content: aiResponse }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
+
   } catch (error) {
-    console.error("onboard-goal error:", error);
-    return new Response(JSON.stringify({ error: String(error) }), {
+    console.error("❌ onboard-goal error:", error);
+    return new Response(JSON.stringify({ 
+      error: "Internal server error",
+      details: String(error)
+    }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
