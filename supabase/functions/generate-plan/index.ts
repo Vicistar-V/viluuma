@@ -18,13 +18,11 @@ function constructAIPrompt(intel: {
   level_of_detail?: 'standard' | 'condensed' | 'comprehensive';
   compression_requested?: boolean;
   expansion_requested?: boolean;
-  // Allow legacy field names for compatibility
-  levelOfDetail?: 'standard' | 'condensed' | 'comprehensive';
 }) {
   const title = String(intel.title || '').trim();
   const modality = intel.modality;
   const context = intel.context || 'No additional context provided.';
-  const level = (intel.level_of_detail ?? intel.levelOfDetail ?? 'standard') as 'standard' | 'condensed' | 'comprehensive';
+  const level = intel.level_of_detail ?? 'standard';
   const compressionRequested = Boolean(intel.compression_requested);
   const expansionRequested = Boolean(intel.expansion_requested);
 
@@ -539,7 +537,7 @@ serve(async (req) => {
       title: intel.title,
       modality: intel.modality,
       context: intel.context,
-      level_of_detail: intel.level_of_detail ?? intel.levelOfDetail ?? 'standard',
+      level_of_detail: intel.level_of_detail ?? 'standard',
       compression_requested,
       expansion_requested: extension_requested,
     });
@@ -574,12 +572,13 @@ serve(async (req) => {
       viluumaTasks = viluumaTasks.slice(0, MAX_TASKS);
     }
 
-    // Convert ViluumaTasks back to the expected format for the response
-    const milestones = [...new Set(viluumaTasks.map(t => t.milestone_name))]
-      .map((name, idx) => ({
-        title: name,
-        order_index: idx + 1
-      }));
+    // Keep a direct reference to the AI's original milestone structure
+    // We just need to ensure the titles are trimmed, same as in Station 3
+    const parsedAIResponse = JSON.parse(stripToJSONObject(content));
+    const originalMilestones = parsedAIResponse.milestones.map((m: any) => ({
+      title: m.title?.trim(),
+      description: m.description?.trim() || ''
+    }));
 
     // Station 4: Calculate personalized relative schedule
     const requestedHPW = userConstraints?.hoursPerWeek ?? 20;
@@ -591,14 +590,15 @@ serve(async (req) => {
 
     const dailyBudget = Math.max(1, hoursPerWeek / 5);
 
-    // Map scheduled tasks to response format with milestone_index
+    // Map scheduled tasks to response format - milestone_name already exists on scheduledViluuma
     const scheduledTasks = scheduledViluuma.map((task) => {
-      const idx = milestones.findIndex(m => m.title === task.milestone_name);
+      // Find milestone index by matching milestone_name to original milestone titles
+      const milestoneIndex = originalMilestones.findIndex(m => m.title === task.milestone_name);
       return {
         id: task.id,
         title: task.name,
         description: task.description,
-        milestone_index: idx >= 0 ? idx + 1 : 1,
+        milestone_index: milestoneIndex >= 0 ? milestoneIndex + 1 : 1,
         duration_hours: task.duration_hours,
         priority: task.priority,
         start_day_offset: task.start_day_offset,
@@ -628,7 +628,7 @@ serve(async (req) => {
       status: analysis.status,
       message: analysis.message ?? '',
       plan: {
-        milestones,
+        milestones: originalMilestones,
         scheduledTasks,
         totalProjectDays,
         hoursPerWeek,
