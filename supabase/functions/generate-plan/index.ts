@@ -198,6 +198,13 @@ function stripToJSONObject(s: string): string {
   const trimmed = String(s ?? '').trim();
   let cleaned = trimmed.replace(/^```json\s*/i, '').replace(/```$/i, '').trim();
   cleaned = cleaned.replace(/^```/, '').replace(/```$/, '').trim();
+  
+  // Fix common AI JSON errors
+  // Fix incomplete property values like "priority":        },
+  cleaned = cleaned.replace(/:\s*,/g, ': null,');
+  cleaned = cleaned.replace(/:\s*}/g, ': null}');
+  cleaned = cleaned.replace(/:\s*]/g, ': null]');
+  
   const firstBrace = cleaned.indexOf('{');
   const lastBrace = cleaned.lastIndexOf('}');
   if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
@@ -264,7 +271,8 @@ function processAIBlueprint(rawJSONString: string): ViluumaTask[] {
       const duration = Math.max(1, Math.min(40, Math.round(isFinite(rawDur) ? rawDur : 1)));
       
       let priority = rawTask.priority?.toLowerCase() || 'medium';
-      if (!['high', 'medium', 'low'].includes(priority)) {
+      // Handle null priority from cleaned JSON
+      if (priority === 'null' || !priority || !['high', 'medium', 'low'].includes(priority)) {
         priority = 'medium'; // Default to medium if AI gives weird input
       }
 
