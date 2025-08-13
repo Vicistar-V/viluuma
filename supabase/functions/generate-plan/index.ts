@@ -205,6 +205,9 @@ function stripToJSONObject(s: string): string {
   cleaned = cleaned.replace(/:\s*}/g, ': null}');
   cleaned = cleaned.replace(/:\s*]/g, ': null]');
   
+  // Fix malformed property names missing opening quotes (e.g., ` title":` -> `"title":`)
+  cleaned = cleaned.replace(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*"):/g, '$1"$2:');
+  
   const firstBrace = cleaned.indexOf('{');
   const lastBrace = cleaned.lastIndexOf('}');
   if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
