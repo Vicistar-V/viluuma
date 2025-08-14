@@ -380,6 +380,48 @@ CRITICAL: Since you have ALL required information, you must IMMEDIATELY return O
     // 4. CALL THE AI FOR THE NEXT CHAT RESPONSE
     const aiResponse = await callConversationalAI(messagesForAI);
     
+    // 4.5 CHECK IF THIS RESPONSE IS ACTUALLY A HANDOFF JSON
+    // If the AI response contains the handoff JSON, parse and return it properly
+    if (aiResponse.includes('"status": "ready_to_generate"')) {
+      console.log("🎯 AI returned handoff JSON in conversation, parsing and returning");
+      try {
+        const jsonMatch = aiResponse.match(/\{.*\}/s);
+        if (jsonMatch) {
+          const parsedHandoff = JSON.parse(jsonMatch[0]);
+          
+          // Transform the AI response format to our expected format
+          const properIntel = {
+            title: parsedHandoff.intel?.title || parsedHandoff.intel?.core_activity || "Untitled Goal",
+            modality: parsedHandoff.intel?.modality?.toLowerCase() || parsedHandoff.intel?.type?.toLowerCase() || "project",
+            deadline: parsedHandoff.intel?.deadline || null,
+            context: parsedHandoff.intel?.context || ""
+          };
+          
+          // Ensure modality is valid
+          if (properIntel.modality !== "project" && properIntel.modality !== "checklist") {
+            properIntel.modality = "project";
+          }
+          
+          const enhancedHandoff = {
+            status: "ready_to_generate",
+            intel: properIntel,
+            userConstraints: {
+              deadline: properIntel.deadline,
+              hoursPerWeek: 20
+            }
+          };
+          
+          console.log("✅ Properly formatted handoff:", JSON.stringify(enhancedHandoff, null, 2));
+          
+          return new Response(JSON.stringify(enhancedHandoff), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      } catch (parseErr) {
+        console.warn("⚠️ AI returned malformed JSON, treating as normal conversation", parseErr);
+      }
+    }
+    
     // 5. RETURN THE CHAT MESSAGE
     // The frontend receives this as a simple string to display in a new chat bubble
     console.log("💬 Returning conversation response");
