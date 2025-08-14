@@ -19,19 +19,7 @@ function constructOnboardingPrompt(
   const currentDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
   const currentYear = new Date().getFullYear();
   
-  // 1. Build the list of what's still needed
-  const unansweredQuestions = [];
-  if (!currentState.hasTitle) {
-    unansweredQuestions.push("- The user's core goal (the 'what').");
-  }
-  if (!currentState.hasModality) {
-    unansweredQuestions.push("- The goal's type: is it a 'Project' with a deadline, or an ongoing 'Checklist'?");
-  }
-  if (currentState.hasModality && currentState.hasDeadline === false) {
-    unansweredQuestions.push("- A specific target date or deadline for the project.");
-  }
-  
-  // 2. The Persona with Current Date Context
+  // The Persona with Current Date Context
   const persona = `You are Viluuma, a super friendly and supportive AI coach. Your goal is to have a quick, casual chat to help a user figure out their next big goal. Talk like a real friend (1-2 short sentences, like you're texting).
 
 CRITICAL CONTEXT:
@@ -39,22 +27,24 @@ CRITICAL CONTEXT:
 - Current year: ${currentYear}
 - When discussing deadlines, be aware that we are in ${currentYear}`;
 
-  // 3. The Mission & Rules
+  // The Mission & Rules
   const mission = `
 YOUR MISSION:
-Your only job right now is to figure out the following information:
-${unansweredQuestions.join('\n')}
+Have a natural conversation to figure out:
+- The user's core goal (what they want to achieve)
+- The goal type: "Project" (has a deadline) or "Checklist" (ongoing habit/routine)
+- For projects: a specific deadline
 
 RULES:
-- Always ask a friendly, clarifying question to get the next piece of information.
-- Be a hype man! Get excited about their goals.
-- DO NOT create a plan or give advice. Your only job is to gather the info.
-- Keep responses to 1-2 sentences max. Be conversational and natural.
-- NEVER mention JSON or technical terms to the user.
+- Ask friendly, natural questions based on the conversation flow
+- Be a hype man! Get excited about their goals
+- DO NOT create a plan or give advice. Your only job is to gather the info
+- Keep responses to 1-2 sentences max. Be conversational and natural
+- NEVER mention JSON or technical terms to the user
 - When suggesting deadlines, remember we are in ${currentYear}, not 2024!
 
 CRITICAL HANDOFF INSTRUCTION:
-- When you believe you have gathered ALL the necessary information (Core Activity, Type, and Deadline for projects), your VERY NEXT response must ONLY be the JSON object: {"status": "ready_to_generate", "intel": { ... }}.
+- When you believe you have gathered ALL the necessary information (Core Activity, Type, and Deadline for projects), your VERY NEXT response must ONLY be the JSON object: {"status": "ready_to_generate", "intel": {"title": "goal title", "modality": "project" or "checklist", "deadline": "YYYY-MM-DD or null", "context": "conversation summary"}}.
 - Do NOT say anything else when returning the JSON. The frontend will handle the transition messaging.`;
   
   return `${persona}\n\n${mission}`;
@@ -65,92 +55,20 @@ CRITICAL HANDOFF INSTRUCTION:
 // ===============================
 
 function analyzeConversationState(conversationHistory: any[]): {
-  hasTitle: boolean;
-  hasModality: boolean;
-  hasDeadline: boolean | undefined;
-  extractedTitle: string;
-  extractedModality: "project" | "checklist" | "";
-  extractedDeadline: string;
   context: string;
 } {
-  let hasTitle = false;
-  let hasModality = false;
-  let hasDeadline: boolean | undefined = undefined;
-  let extractedTitle = "";
-  let extractedModality: "project" | "checklist" | "" = "";
-  let extractedDeadline = "";
   let context = "";
 
-  console.log("🔍 Analyzing conversation with", conversationHistory.length, "messages");
+  console.log("🔍 Building context from", conversationHistory.length, "messages");
 
-  conversationHistory.forEach((msg, index) => {
+  // Simply build context from all user messages
+  conversationHistory.forEach((msg) => {
     if (msg.role === 'user') {
-      const content = msg.content.toLowerCase();
-      
-      // Title detection - use the first meaningful user message
-      if (!hasTitle && msg.content.trim().length > 5) {
-        hasTitle = true;
-        extractedTitle = msg.content.trim();
-        console.log("📝 Title detected:", extractedTitle);
-      }
-      
-      // Modality detection with specific keywords
-      if (!hasModality) {
-        const projectKeywords = /\b(project|deadline|by|before|due|timeline|schedule|finished|complete by|need by|target date|specific date)\b/i;
-        const checklistKeywords = /\b(checklist|ongoing|over time|habit|routine|general|someday|eventually|no deadline|no rush|continuous|daily|weekly)\b/i;
-        
-        if (projectKeywords.test(content)) {
-          hasModality = true;
-          extractedModality = "project";
-          hasDeadline = false; // We know it's a project, but haven't extracted the date yet
-          console.log("🎯 Project modality detected");
-        } else if (checklistKeywords.test(content)) {
-          hasModality = true;
-          extractedModality = "checklist";
-          hasDeadline = undefined; // Checklists don't need deadlines
-          console.log("📋 Checklist modality detected");
-        }
-      }
-      
-      // Date extraction for projects only
-      if (extractedModality === "project" && hasDeadline === false) {
-        // Multiple date pattern matching
-        const datePatterns = [
-          /\b(\d{4}-\d{2}-\d{2})\b/, // YYYY-MM-DD
-          /\b(\d{1,2}\/\d{1,2}\/\d{4})\b/, // MM/DD/YYYY
-          /\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\w*\s+\d{1,2}(?:st|nd|rd|th)?\b/i, // Month Day
-          /\b\d{1,2}(?:st|nd|rd|th)?\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\w*\b/i, // Day Month
-          /\bin\s+(\d+)\s+(days?|weeks?|months?)\b/i, // "in 2 weeks"
-        ];
-        
-        for (const pattern of datePatterns) {
-          const match = msg.content.match(pattern);
-          if (match) {
-            extractedDeadline = match[0];
-            hasDeadline = true;
-            console.log("📅 Deadline detected:", extractedDeadline);
-            break;
-          }
-        }
-      }
-      
-      // Build context from all user messages
       context += msg.content + "\n";
     }
   });
 
-  console.log("📊 Final state analysis:", {
-    hasTitle, hasModality, hasDeadline,
-    extractedTitle, extractedModality, extractedDeadline
-  });
-
   return {
-    hasTitle,
-    hasModality,
-    hasDeadline,
-    extractedTitle,
-    extractedModality,
-    extractedDeadline,
     context: context.trim()
   };
 }
@@ -252,131 +170,15 @@ serve(async (req) => {
 
     console.log("📨 Processing conversation with", conversationHistory.length, "messages");
 
-    // 1. ANALYZE THE CURRENT STATE (Our deterministic logic)
+    // 1. BUILD CONVERSATION CONTEXT
     const state = analyzeConversationState(conversationHistory);
     
-    // 2. CHECK FOR COMPLETION (Our backend decides when we're done)
-    const isProjectComplete = state.extractedModality === "project" && state.hasDeadline;
-    const isChecklistComplete = state.extractedModality === "checklist" && state.hasModality;
-    
-    if (isProjectComplete || isChecklistComplete) {
-      console.log("✅ Onboarding complete. Preparing intel payload.");
-      
-      // Parse the deadline to a proper date format if it's a project
-      let normalizedDeadline = null;
-      if (state.extractedModality === "project" && state.extractedDeadline) {
-        try {
-          // Handle relative dates like "in 2 weeks"
-          if (state.extractedDeadline.includes("in")) {
-            const relativeMatch = state.extractedDeadline.match(/in\s+(\d+)\s+(days?|weeks?|months?)/i);
-            if (relativeMatch) {
-              const amount = parseInt(relativeMatch[1]);
-              const unit = relativeMatch[2].toLowerCase();
-              const today = new Date();
-              
-              if (unit.startsWith("day")) {
-                today.setDate(today.getDate() + amount);
-              } else if (unit.startsWith("week")) {
-                today.setDate(today.getDate() + (amount * 7));
-              } else if (unit.startsWith("month")) {
-                today.setMonth(today.getMonth() + amount);
-              }
-              
-              normalizedDeadline = today.toISOString().split('T')[0];
-            }
-          } else {
-            // Try to parse as a regular date
-            const parsedDate = new Date(state.extractedDeadline);
-            if (!isNaN(parsedDate.getTime())) {
-              normalizedDeadline = parsedDate.toISOString().split('T')[0];
-            }
-          }
-        } catch (e) {
-          console.warn("⚠️ Could not parse deadline, using original:", state.extractedDeadline);
-          normalizedDeadline = state.extractedDeadline;
-        }
-      }
-      
-      const handoffPayload = {
-        status: "ready_to_generate",
-        intel: {
-          title: state.extractedTitle,
-          modality: state.extractedModality,
-          deadline: normalizedDeadline,
-          context: state.context
-        },
-        userConstraints: {
-          deadline: normalizedDeadline,
-          hoursPerWeek: 20 // Updated default assumption for better planning
-        }
-      };
-      
-      console.log("🎯 Returning handoff payload:", JSON.stringify(handoffPayload, null, 2));
-      
-      return new Response(JSON.stringify(handoffPayload), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    
-    // 3. USE AI TO GET THE FINAL HANDOFF WHEN READY
-    // If we're close to completion but need the AI to return the final JSON handoff
-    const readyForHandoff = state.hasTitle && state.hasModality && 
-      (state.extractedModality === "checklist" || (state.extractedModality === "project" && state.hasDeadline));
-      
-    if (readyForHandoff) {
-      console.log("🤖 Ready for AI handoff. Adding special instruction.");
-      // Add special system instruction for final handoff
-      const handoffSystemPrompt = `You have gathered all necessary information:
-- Title: ${state.extractedTitle}
-- Modality: ${state.extractedModality}
-${state.extractedModality === "project" ? `- Deadline: ${state.extractedDeadline}` : ""}
-
-CRITICAL: Since you have ALL required information, you must IMMEDIATELY return ONLY this JSON object (no other text):
-{"status": "ready_to_generate", "intel": {"title": "${state.extractedTitle}", "modality": "${state.extractedModality}", "deadline": "${state.extractedDeadline || null}", "context": "${state.context.replace(/"/g, '\\"')}"}}`;
-
-      const messagesForAI = [
-        { role: 'system', content: handoffSystemPrompt },
-        ...conversationHistory
-      ];
-      
-      try {
-        const aiResponse = await callConversationalAI(messagesForAI);
-        
-        // Check if AI returned the JSON handoff
-        if (aiResponse.includes('"status": "ready_to_generate"')) {
-          console.log("🎯 AI returned handoff JSON, parsing and returning");
-          try {
-            const jsonMatch = aiResponse.match(/\{.*\}/s);
-            if (jsonMatch) {
-              const parsedHandoff = JSON.parse(jsonMatch[0]);
-              
-              // Enhance with userConstraints
-              const enhancedHandoff = {
-                ...parsedHandoff,
-                userConstraints: {
-                  deadline: parsedHandoff.intel.deadline,
-                  hoursPerWeek: 20
-                }
-              };
-              
-              return new Response(JSON.stringify(enhancedHandoff), {
-                headers: { ...corsHeaders, "Content-Type": "application/json" },
-              });
-            }
-          } catch (parseErr) {
-            console.warn("⚠️ AI returned malformed JSON, falling back to manual handoff");
-          }
-        }
-      } catch (aiErr) {
-        console.warn("⚠️ AI call failed for handoff, falling back to manual handoff", aiErr);
-      }
-    }
-    
-    // 3. CONSTRUCT THE DYNAMIC PROMPT (If conversation needs to continue)
+    // 2. CONSTRUCT THE DYNAMIC PROMPT 
+    // Let the AI decide what questions to ask based on conversation flow
     const currentState = {
-      hasTitle: state.hasTitle,
-      hasModality: state.hasModality,
-      hasDeadline: state.hasDeadline
+      hasTitle: true, // Let AI determine this from conversation
+      hasModality: true, // Let AI determine this from conversation  
+      hasDeadline: true // Let AI determine this from conversation
     };
     
     const systemPrompt = constructOnboardingPrompt(conversationHistory, currentState);
