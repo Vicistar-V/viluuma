@@ -4,16 +4,20 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
+import { useUserStatus } from '@/hooks/useUserStatus';
 import { useGoals, useUpdateGoalStatus, useDeleteGoal } from '@/hooks/useGoals';
 import { useToast } from '@/hooks/use-toast';
 import { Target, Plus, TrendingUp, CheckCircle, Archive } from 'lucide-react';
 import { GoalCard } from '@/components/goals/GoalCard';
 import { GoalFiltersComponent, GoalFilters } from '@/components/goals/GoalFilters';
+import { CoachTipBanner } from '@/components/monetization/CoachTipBanner';
+import { ArchivedGoalsSection } from '@/components/monetization/ArchivedGoalsSection';
 import ThemeToggle from '@/components/ThemeToggle';
 import { BottomNav } from '@/components/BottomNav';
 
 const GoalsScreen = () => {
   const { user, loading } = useAuth();
+  const { subscriptionStatus, canCreateGoal } = useUserStatus();
   const navigate = useNavigate();
   // BLAZING FAST: Direct table read - triggers handle all progress calculations
   const { data: goals, isLoading: goalsLoading } = useGoals();
@@ -31,11 +35,19 @@ const GoalsScreen = () => {
       navigate('/login');
     }
   }, [user, loading, navigate]);
+
+  // Separate active and archived goals
+  const { activeGoals, archivedGoals } = useMemo(() => {
+    if (!goals) return { activeGoals: [], archivedGoals: [] };
+    
+    const active = goals.filter(goal => !goal.is_archived);
+    const archived = goals.filter(goal => goal.is_archived);
+    
+    return { activeGoals: active, archivedGoals: archived };
+  }, [goals]);
   
   const filteredGoals = useMemo(() => {
-    if (!goals) return [];
-    
-    return goals.filter(goal => {
+    return activeGoals.filter(goal => {
       const matchesSearch = !filters.search || 
         goal.title.toLowerCase().includes(filters.search.toLowerCase()) ||
         goal.description?.toLowerCase().includes(filters.search.toLowerCase());
@@ -45,19 +57,19 @@ const GoalsScreen = () => {
       
       return matchesSearch && matchesStatus && matchesModality;
     });
-  }, [goals, filters]);
+  }, [activeGoals, filters]);
   
   // BLAZING FAST: Client-side stats calculation (no database aggregation queries needed)
   const stats = useMemo(() => {
     if (!goals) return { total: 0, active: 0, completed: 0, archived: 0 };
     
     return {
-      total: goals.length,
-      active: goals.filter(g => g.status === 'active').length,
-      completed: goals.filter(g => g.status === 'completed').length,
-      archived: goals.filter(g => g.status === 'archived').length,
+      total: activeGoals.length,
+      active: activeGoals.filter(g => g.status === 'active').length,
+      completed: activeGoals.filter(g => g.status === 'completed').length,
+      archived: archivedGoals.length,
     };
-  }, [goals]);
+  }, [activeGoals, archivedGoals]);
   
   const handleStatusChange = (goalId: string, status: 'active' | 'archived' | 'completed') => {
     updateGoalStatus.mutate({ goalId, status });
@@ -77,9 +89,9 @@ const GoalsScreen = () => {
               <h1 className="text-xl font-semibold">Goals</h1>
             </div>
             <div className="flex items-center gap-2">
-              <Button asChild size="sm">
-                <Link to="/goals/new"><span className="inline-flex items-center"><Plus className="mr-1 h-4 w-4" /> New Goal</span></Link>
-              </Button>
+            <Button asChild size="sm" disabled={!canCreateGoal}>
+              <Link to="/goals/new"><span className="inline-flex items-center"><Plus className="mr-1 h-4 w-4" /> New Goal</span></Link>
+            </Button>
               <ThemeToggle />
             </div>
           </div>
@@ -118,7 +130,7 @@ const GoalsScreen = () => {
             <h1 className="text-xl font-semibold">Goals</h1>
           </div>
           <div className="flex items-center gap-2">
-            <Button asChild size="sm">
+            <Button asChild size="sm" disabled={!canCreateGoal}>
               <Link to="/goals/new"><span className="inline-flex items-center"><Plus className="mr-1 h-4 w-4" /> New Goal</span></Link>
             </Button>
             <ThemeToggle />
@@ -129,6 +141,7 @@ const GoalsScreen = () => {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto space-y-8">
+          <CoachTipBanner />
           {/* Stats Overview */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Card>
@@ -181,12 +194,12 @@ const GoalsScreen = () => {
           </div>
 
           {/* Goals List */}
-          {goals && goals.length > 0 ? (
+          {activeGoals && activeGoals.length > 0 ? (
             <div className="space-y-6">
               <GoalFiltersComponent
                 filters={filters}
                 onFiltersChange={setFilters}
-                totalCount={goals.length}
+                totalCount={activeGoals.length}
                 filteredCount={filteredGoals.length}
               />
               
@@ -224,7 +237,7 @@ const GoalsScreen = () => {
                 <p className="text-muted-foreground mb-6">
                   Start your journey by creating your first goal. Set milestones, track progress, and achieve your dreams.
                 </p>
-                <Button asChild size="lg">
+                <Button asChild size="lg" disabled={!canCreateGoal}>
                   <Link to="/goals/new">
                     <Plus className="mr-2 h-5 w-5" />
                     Create Your First Goal
@@ -233,6 +246,8 @@ const GoalsScreen = () => {
               </CardContent>
             </Card>
           )}
+
+          <ArchivedGoalsSection archivedGoals={archivedGoals} />
         </div>
       </main>
       <BottomNav />

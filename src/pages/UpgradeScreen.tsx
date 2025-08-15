@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +13,7 @@ export const UpgradeScreen = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { refreshStatus } = useUserStatus();
+  const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
 
   const features = [
@@ -66,8 +68,9 @@ export const UpgradeScreen = () => {
           description: "Your subscription is now active. All features unlocked!",
         });
 
-        // Refresh user status
+        // Refresh user status and goals data
         await refreshStatus();
+        queryClient.invalidateQueries({ queryKey: ['goals'] });
         
         // Navigate back to goals
         navigate('/goals');
