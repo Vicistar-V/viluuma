@@ -17,6 +17,7 @@ export interface Goal {
   updated_at: string;
   completed_at: string | null;
   user_id: string;
+  is_archived: boolean;
 }
 
 const QUERY_KEY = 'goals';
@@ -30,7 +31,7 @@ export const useGoals = () => {
       if (!user) throw new Error('User not authenticated');
       
       const { data, error } = await supabase
-        .from('goals')
+        .from('goals_with_computed_status')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
@@ -48,15 +49,22 @@ export const useUpdateGoalStatus = () => {
   
   return useMutation({
     mutationFn: async ({ goalId, status }: { goalId: string; status: 'active' | 'archived' | 'completed' }) => {
-      const { error } = await supabase
-        .from('goals')
-        .update({ 
-          status,
-          completed_at: status === 'completed' ? new Date().toISOString() : null
-        })
-        .eq('id', goalId);
-      
-      if (error) throw error;
+      if (status === 'archived') {
+        // Use the archive flag for archiving
+        const { error } = await supabase
+          .from('goals')
+          .update({ is_archived: true })
+          .eq('id', goalId);
+        if (error) throw error;
+      } else if (status === 'active') {
+        // Reactivate by setting archive flag to false
+        const { error } = await supabase
+          .from('goals')
+          .update({ is_archived: false })
+          .eq('id', goalId);
+        if (error) throw error;
+      }
+      // Completed status is now computed automatically, no manual update needed
     },
     onSuccess: (_, { status }) => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });

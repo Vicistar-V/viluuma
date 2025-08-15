@@ -40,6 +40,7 @@ interface Goal {
   weekly_hours?: number | null;
   created_at: string;
   completed_at?: string | null;
+  is_archived: boolean;
 }
 
 interface CompletedGoalViewProps {

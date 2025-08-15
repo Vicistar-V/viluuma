@@ -28,6 +28,7 @@ interface Goal {
   created_at: string;
   updated_at: string;
   completed_at?: string | null;
+  is_archived: boolean;
 }
 interface Milestone { 
   id: string; 
@@ -92,8 +93,8 @@ const GoalDetailScreen = () => {
     
     try {
       const [{ data: goalData, error: goalErr }, { data: msData }, { data: tData }] = await Promise.all([
-        supabase.from('goals').select('*').eq('id', id).maybeSingle(),
-        supabase.from('milestones').select('*').eq('goal_id', id).order('order_index', { ascending: true, nullsFirst: false }).order('created_at'),
+        supabase.from('goals_with_computed_status').select('*').eq('id', id).maybeSingle(),
+        supabase.from('milestones_with_computed_status').select('*').eq('goal_id', id).order('order_index', { ascending: true, nullsFirst: false }).order('created_at'),
         supabase.from('tasks').select('*').eq('goal_id', id).order('start_date', { ascending: true, nullsFirst: false }).order('created_at')
       ]);
       
@@ -152,20 +153,26 @@ const GoalDetailScreen = () => {
 
   const handleStatusChange = async (status: 'active' | 'archived' | 'completed'): Promise<void> => {
     if (!goal) return;
-    const { error } = await supabase.from('goals').update({ 
-      status,
-      completed_at: status === 'completed' ? new Date().toISOString() : null
-    }).eq('id', goal.id);
-    if (error) {
-      toast({ title: 'Error', description: error.message });
-      return;
-    }
     
-    setGoal({ 
-      ...goal, 
-      status, 
-      completed_at: status === 'completed' ? new Date().toISOString() : null 
-    });
+    if (status === 'archived') {
+      // Use the archive flag for archiving
+      const { error } = await supabase.from('goals').update({ is_archived: true }).eq('id', goal.id);
+      if (error) {
+        toast({ title: 'Error', description: error.message });
+        return;
+      }
+    } else if (status === 'active') {
+      // Reactivate by setting archive flag to false
+      const { error } = await supabase.from('goals').update({ is_archived: false }).eq('id', goal.id);
+      if (error) {
+        toast({ title: 'Error', description: error.message });
+        return;
+      }
+    }
+    // Completed status is now computed automatically, no manual update needed
+    
+    // Refresh to get the computed status
+    await refresh();
     
     if (status === 'completed') {
       toast({ title: "🎉 Goal Completed!", description: "Congratulations on your achievement!" });
