@@ -4,7 +4,10 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
+import { UserStatusProvider } from "@/hooks/useUserStatus";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { ProgressForegoneScreen } from "@/pages/ProgressForegoneScreen";
+import { UpgradeScreen } from "@/pages/UpgradeScreen";
 import Index from "./pages/Index";
 import LoginScreen from "./pages/LoginScreen";
 import SignUpScreen from "./pages/SignUpScreen";
@@ -21,8 +24,9 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <ThemeProvider>
-      <AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <UserStatusProvider>
         <TooltipProvider>
           <Toaster />
           <Sonner />
@@ -38,13 +42,16 @@ const App = () => (
               <Route path="/plan-review" element={<PlanReviewScreen />} />
               <Route path="/goals/:id" element={<GoalDetailScreen />} />
               <Route path="/profile" element={<ProfileScreen />} />
+              <Route path="/progress-foregone/:goalId" element={<ProgressForegoneScreen />} />
+              <Route path="/upgrade" element={<UpgradeScreen />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
         </TooltipProvider>
-      </AuthProvider>
-    </ThemeProvider>
+          </UserStatusProvider>
+        </AuthProvider>
+      </ThemeProvider>
   </QueryClientProvider>
 );
 
