@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "13.0.4"
@@ -214,23 +214,23 @@ export type Database = {
     }
     Functions: {
       create_manual_goal: {
-        Args: { p_title: string; p_modality: string; p_target_date?: string }
+        Args: { p_modality: string; p_target_date?: string; p_title: string }
         Returns: string
       }
       create_milestone: {
-        Args: { p_goal_id: string; p_title: string; p_order_index?: number }
+        Args: { p_goal_id: string; p_order_index?: number; p_title: string }
         Returns: string
       }
       create_task: {
         Args: {
-          p_milestone_id: string
-          p_title: string
           p_description?: string
+          p_duration_hours?: number
+          p_end_date?: string
+          p_is_anchored?: boolean
+          p_milestone_id: string
           p_priority?: string
           p_start_date?: string
-          p_end_date?: string
-          p_duration_hours?: number
-          p_is_anchored?: boolean
+          p_title: string
         }
         Returns: string
       }
@@ -243,7 +243,7 @@ export type Database = {
         Returns: undefined
       }
       execute_plan_update: {
-        Args: { p_tasks_to_update?: Json; p_task_id_to_delete?: string }
+        Args: { p_task_id_to_delete?: string; p_tasks_to_update?: Json }
         Returns: undefined
       }
       get_all_overdue_tasks: {
@@ -280,11 +280,11 @@ export type Database = {
       }
       save_goal_plan: {
         Args: {
-          p_title: string
+          p_milestones: Json
           p_modality: string
           p_target_date: string
-          p_milestones: Json
           p_tasks: Json
+          p_title: string
         }
         Returns: string
       }
