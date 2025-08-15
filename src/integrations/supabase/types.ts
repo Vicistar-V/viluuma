@@ -127,20 +127,32 @@ export type Database = {
       profiles: {
         Row: {
           created_at: string
+          current_period_ends_at: string | null
           display_name: string | null
           id: string
+          provider_subscription_id: string | null
+          signed_up_at: string
+          subscription_status: Database["public"]["Enums"]["subscription_status_enum"]
           updated_at: string
         }
         Insert: {
           created_at?: string
+          current_period_ends_at?: string | null
           display_name?: string | null
           id: string
+          provider_subscription_id?: string | null
+          signed_up_at?: string
+          subscription_status?: Database["public"]["Enums"]["subscription_status_enum"]
           updated_at?: string
         }
         Update: {
           created_at?: string
+          current_period_ends_at?: string | null
           display_name?: string | null
           id?: string
+          provider_subscription_id?: string | null
+          signed_up_at?: string
+          subscription_status?: Database["public"]["Enums"]["subscription_status_enum"]
           updated_at?: string
         }
         Relationships: []
@@ -231,6 +243,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_messages: {
+        Row: {
+          content: string
+          created_at: string
+          expires_at: string | null
+          id: string
+          is_read: boolean
+          message_type: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_read?: boolean
+          message_type: string
+          title: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_read?: boolean
+          message_type?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
       }
     }
     Views: {
@@ -350,6 +395,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      can_create_new_goal: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       create_manual_goal: {
         Args: { p_modality: string; p_target_date?: string; p_title: string }
         Returns: string
@@ -387,6 +436,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: Json
       }
+      get_current_subscription_status: {
+        Args: Record<PropertyKey, never>
+        Returns: Database["public"]["Enums"]["subscription_status_enum"]
+      }
       get_goal_stats: {
         Args: { goal_uuid: string }
         Returns: Json
@@ -415,6 +468,14 @@ export type Database = {
         Args: { p_priority: string }
         Returns: number
       }
+      queue_trial_coaching_messages: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      queue_what_if_nudges: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       save_goal_plan: {
         Args: {
           p_milestones: Json
@@ -435,7 +496,12 @@ export type Database = {
       }
     }
     Enums: {
-      [_ in never]: never
+      subscription_status_enum:
+        | "trial"
+        | "free"
+        | "active"
+        | "canceled"
+        | "expired"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -562,6 +628,14 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      subscription_status_enum: [
+        "trial",
+        "free",
+        "active",
+        "canceled",
+        "expired",
+      ],
+    },
   },
 } as const
