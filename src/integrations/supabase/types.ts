@@ -21,6 +21,7 @@ export type Database = {
           created_at: string
           description: string | null
           id: string
+          is_archived: boolean | null
           modality: string
           status: string
           target_date: string | null
@@ -36,6 +37,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          is_archived?: boolean | null
           modality: string
           status?: string
           target_date?: string | null
@@ -51,6 +53,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          is_archived?: boolean | null
           modality?: string
           status?: string
           target_date?: string | null
@@ -110,6 +113,13 @@ export type Database = {
             columns: ["goal_id"]
             isOneToOne: false
             referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "milestones_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals_with_computed_status"
             referencedColumns: ["id"]
           },
         ]
@@ -193,10 +203,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "tasks_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals_with_computed_status"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "tasks_milestone_id_fkey"
             columns: ["milestone_id"]
             isOneToOne: false
             referencedRelation: "milestones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_milestone_id_fkey"
+            columns: ["milestone_id"]
+            isOneToOne: false
+            referencedRelation: "milestones_with_computed_status"
             referencedColumns: ["id"]
           },
           {
@@ -210,9 +234,122 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      goals_with_computed_status: {
+        Row: {
+          completed_at: string | null
+          completed_tasks: number | null
+          created_at: string | null
+          description: string | null
+          id: string | null
+          is_archived: boolean | null
+          modality: string | null
+          status: string | null
+          target_date: string | null
+          title: string | null
+          total_tasks: number | null
+          updated_at: string | null
+          user_id: string | null
+          weekly_hours: number | null
+        }
+        Insert: {
+          completed_at?: string | null
+          completed_tasks?: number | null
+          created_at?: string | null
+          description?: string | null
+          id?: string | null
+          is_archived?: boolean | null
+          modality?: string | null
+          status?: never
+          target_date?: string | null
+          title?: string | null
+          total_tasks?: number | null
+          updated_at?: string | null
+          user_id?: string | null
+          weekly_hours?: number | null
+        }
+        Update: {
+          completed_at?: string | null
+          completed_tasks?: number | null
+          created_at?: string | null
+          description?: string | null
+          id?: string | null
+          is_archived?: boolean | null
+          modality?: string | null
+          status?: never
+          target_date?: string | null
+          title?: string | null
+          total_tasks?: number | null
+          updated_at?: string | null
+          user_id?: string | null
+          weekly_hours?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goals_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      milestones_with_computed_status: {
+        Row: {
+          completed_tasks: number | null
+          created_at: string | null
+          goal_id: string | null
+          id: string | null
+          order_index: number | null
+          status: string | null
+          title: string | null
+          total_tasks: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          completed_tasks?: number | null
+          created_at?: string | null
+          goal_id?: string | null
+          id?: string | null
+          order_index?: number | null
+          status?: never
+          title?: string | null
+          total_tasks?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          completed_tasks?: number | null
+          created_at?: string | null
+          goal_id?: string | null
+          id?: string | null
+          order_index?: number | null
+          status?: never
+          title?: string | null
+          total_tasks?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "milestones_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "milestones_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals_with_computed_status"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
+      archive_excess_goals: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       create_manual_goal: {
         Args: { p_modality: string; p_target_date?: string; p_title: string }
         Returns: string
