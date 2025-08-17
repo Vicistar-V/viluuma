@@ -131,6 +131,9 @@ export type Database = {
           display_name: string | null
           id: string
           provider_subscription_id: string | null
+          revenuecat_original_app_user_id: string | null
+          revenuecat_subscription_id: string | null
+          revenuecat_user_id: string | null
           signed_up_at: string
           subscription_status: Database["public"]["Enums"]["subscription_status_enum"]
           updated_at: string
@@ -141,6 +144,9 @@ export type Database = {
           display_name?: string | null
           id: string
           provider_subscription_id?: string | null
+          revenuecat_original_app_user_id?: string | null
+          revenuecat_subscription_id?: string | null
+          revenuecat_user_id?: string | null
           signed_up_at?: string
           subscription_status?: Database["public"]["Enums"]["subscription_status_enum"]
           updated_at?: string
@@ -151,6 +157,9 @@ export type Database = {
           display_name?: string | null
           id?: string
           provider_subscription_id?: string | null
+          revenuecat_original_app_user_id?: string | null
+          revenuecat_subscription_id?: string | null
+          revenuecat_user_id?: string | null
           signed_up_at?: string
           subscription_status?: Database["public"]["Enums"]["subscription_status_enum"]
           updated_at?: string

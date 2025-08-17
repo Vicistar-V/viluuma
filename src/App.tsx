@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { UserStatusProvider, useUserStatus } from "@/hooks/useUserStatus";
+import { RevenueCatProvider } from "@/hooks/useRevenueCat";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { ProgressForegoneScreen } from "@/pages/ProgressForegoneScreen";
 import { UpgradeScreen } from "@/pages/UpgradeScreen";
@@ -90,15 +91,17 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
       <AuthProvider>
-        <UserStatusProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
-              <AppContent />
-            </BrowserRouter>
-          </TooltipProvider>
-        </UserStatusProvider>
+        <RevenueCatProvider>
+          <UserStatusProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Sonner />
+              <BrowserRouter>
+                <AppContent />
+              </BrowserRouter>
+            </TooltipProvider>
+          </UserStatusProvider>
+        </RevenueCatProvider>
       </AuthProvider>
     </ThemeProvider>
   </QueryClientProvider>
