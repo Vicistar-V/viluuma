@@ -34,69 +34,54 @@ export const UserStatusProvider = ({ children }: { children: React.ReactNode }) 
     }
 
     try {
-      let statusData: SubscriptionStatus;
-      
-      // Use RevenueCat customer info if configured, otherwise fallback to database
-      if (isConfigured && customerInfo) {
-        // Map RevenueCat entitlements to subscription status
-        const activeEntitlements = customerInfo.entitlements?.active || {};
-        const hasActiveSubscription = Object.keys(activeEntitlements).length > 0;
+      // Use backend verification for reliable subscription status
+      const { data: verificationResult, error: verificationError } = await supabase.functions.invoke(
+        'verify-subscription',
+        { body: {} }
+      );
+
+      if (verificationError) {
+        console.error('Backend verification failed, falling back to database:', verificationError);
         
-        if (hasActiveSubscription) {
-          statusData = 'active';
-        } else {
-          // Check if user is still in trial period
-          const { data: profileData } = await supabase
-            .from('profiles')
-            .select('signed_up_at')
-            .eq('id', user.id)
-            .single();
-            
-          if (profileData?.signed_up_at) {
-            const signupDate = new Date(profileData.signed_up_at);
-            const trialEndDate = new Date(signupDate.getTime() + 7 * 24 * 60 * 60 * 1000);
-            const now = new Date();
-            
-            if (now <= trialEndDate) {
-              statusData = 'trial';
-            } else {
-              statusData = 'free';
-            }
-          } else {
-            statusData = 'trial'; // New user
-          }
-        }
-      } else {
         // Fallback to database status
         const { data, error } = await supabase.rpc('get_current_subscription_status');
         if (error) throw error;
-        statusData = data;
+        
+        const { data: canCreateData, error: canCreateError } = await supabase.rpc('can_create_new_goal');
+        if (canCreateError) throw canCreateError;
+
+        // Get profile data for trial calculation
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('signed_up_at')
+          .eq('id', user.id)
+          .single();
+
+        if (profileError) throw profileError;
+
+        // Calculate trial days left
+        let daysLeft = null;
+        if (data === 'trial' && profileData?.signed_up_at) {
+          const signupDate = new Date(profileData.signed_up_at);
+          const trialEndDate = new Date(signupDate.getTime() + 7 * 24 * 60 * 60 * 1000);
+          const now = new Date();
+          const msLeft = trialEndDate.getTime() - now.getTime();
+          daysLeft = Math.max(0, Math.ceil(msLeft / (24 * 60 * 60 * 1000)));
+        }
+
+        // Check for status change from trial to free (downgrade trigger)
+        if (previousStatus === 'trial' && data === 'free') {
+          handleDowngrade();
+        }
+
+        setPreviousStatus(subscriptionStatus);
+        setSubscriptionStatus(data);
+        setCanCreateGoal(canCreateData);
+        setTrialDaysLeft(daysLeft);
+        return;
       }
 
-      // Get goal creation permission
-      const { data: canCreateData, error: canCreateError } = await supabase
-        .rpc('can_create_new_goal');
-
-      if (canCreateError) throw canCreateError;
-
-      // Get profile data for trial calculation
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('signed_up_at')
-        .eq('id', user.id)
-        .single();
-
-      if (profileError) throw profileError;
-
-      // Calculate trial days left
-      let daysLeft = null;
-      if (statusData === 'trial' && profileData?.signed_up_at) {
-        const signupDate = new Date(profileData.signed_up_at);
-        const trialEndDate = new Date(signupDate.getTime() + 7 * 24 * 60 * 60 * 1000);
-        const now = new Date();
-        const msLeft = trialEndDate.getTime() - now.getTime();
-        daysLeft = Math.max(0, Math.ceil(msLeft / (24 * 60 * 60 * 1000)));
-      }
+      const { subscriptionStatus: statusData, canCreateGoal: canCreateData, trialDaysLeft: daysLeft } = verificationResult;
 
       // Check for status change from trial to free (downgrade trigger)
       if (previousStatus === 'trial' && statusData === 'free') {

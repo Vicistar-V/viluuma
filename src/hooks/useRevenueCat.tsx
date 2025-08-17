@@ -3,6 +3,7 @@ import { Purchases, LOG_LEVEL } from '@revenuecat/purchases-capacitor';
 import { Capacitor } from '@capacitor/core';
 import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 interface RevenueCatContextType {
   isConfigured: boolean;
@@ -135,6 +136,16 @@ export const RevenueCatProvider = ({ children }: { children: React.ReactNode }) 
 
   const purchasePackage = async (packageToPurchase: any): Promise<boolean> => {
     if (!isConfigured) {
+      // For web platform, we can't use the mobile SDK
+      if (!Capacitor.isNativePlatform()) {
+        toast({
+          title: "Mobile App Required",
+          description: "Purchases must be made through the mobile app.",
+          variant: "destructive"
+        });
+        return false;
+      }
+
       toast({
         title: "Error",
         description: "RevenueCat not configured",
@@ -153,6 +164,25 @@ export const RevenueCatProvider = ({ children }: { children: React.ReactNode }) 
       console.log('RevenueCat: Purchase successful', purchaseResult);
       
       setCustomerInfo(purchaseResult.customerInfo);
+
+      // Record purchase in backend for additional verification
+      try {
+        const { data, error } = await supabase.functions.invoke('record-purchase', {
+          body: {
+            fetch_token: 'mobile_purchase_completed',
+            product_id: packageToPurchase.identifier,
+            platform: Capacitor.getPlatform() as 'ios' | 'android',
+          }
+        });
+
+        if (error) {
+          console.warn('Backend purchase recording failed:', error);
+        } else {
+          console.log('Purchase recorded in backend:', data);
+        }
+      } catch (backendError) {
+        console.warn('Backend purchase recording error:', backendError);
+      }
       
       toast({
         title: "Purchase Successful!",
