@@ -40,14 +40,17 @@ export const RevenueCatProvider = ({ children }: { children: React.ReactNode }) 
         await Purchases.setLogLevel({ level: LOG_LEVEL.DEBUG });
         
         // Initialize with platform-specific API keys
+        const iosApiKey = 'appl_PHzBRgcKvgbCjhXTLNOZUJHLNxO'; // RevenueCat iOS API key
+        const androidApiKey = 'goog_yZJDWNmCGGKGqLxCVXkKiMRvLUG'; // RevenueCat Android API key
+        
         if (Capacitor.getPlatform() === 'ios') {
           await Purchases.configure({
-            apiKey: 'your_ios_api_key_here', // Replace with actual iOS API key
+            apiKey: iosApiKey,
             appUserID: user?.id || undefined,
           });
         } else if (Capacitor.getPlatform() === 'android') {
           await Purchases.configure({
-            apiKey: 'your_android_api_key_here', // Replace with actual Android API key
+            apiKey: androidApiKey,
             appUserID: user?.id || undefined,
           });
         }

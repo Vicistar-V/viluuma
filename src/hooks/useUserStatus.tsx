@@ -2,6 +2,7 @@ import { useState, useEffect, createContext, useContext } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
+import { useRevenueCat } from './useRevenueCat';
 
 export type SubscriptionStatus = 'trial' | 'free' | 'active' | 'canceled' | 'expired';
 
@@ -19,6 +20,7 @@ const UserStatusContext = createContext<UserStatusContextType | undefined>(undef
 export const UserStatusProvider = ({ children }: { children: React.ReactNode }) => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { customerInfo, isConfigured } = useRevenueCat();
   const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [canCreateGoal, setCanCreateGoal] = useState(false);
@@ -32,11 +34,44 @@ export const UserStatusProvider = ({ children }: { children: React.ReactNode }) 
     }
 
     try {
-      // Get current subscription status
-      const { data: statusData, error: statusError } = await supabase
-        .rpc('get_current_subscription_status');
-
-      if (statusError) throw statusError;
+      let statusData: SubscriptionStatus;
+      
+      // Use RevenueCat customer info if configured, otherwise fallback to database
+      if (isConfigured && customerInfo) {
+        // Map RevenueCat entitlements to subscription status
+        const activeEntitlements = customerInfo.entitlements?.active || {};
+        const hasActiveSubscription = Object.keys(activeEntitlements).length > 0;
+        
+        if (hasActiveSubscription) {
+          statusData = 'active';
+        } else {
+          // Check if user is still in trial period
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('signed_up_at')
+            .eq('id', user.id)
+            .single();
+            
+          if (profileData?.signed_up_at) {
+            const signupDate = new Date(profileData.signed_up_at);
+            const trialEndDate = new Date(signupDate.getTime() + 7 * 24 * 60 * 60 * 1000);
+            const now = new Date();
+            
+            if (now <= trialEndDate) {
+              statusData = 'trial';
+            } else {
+              statusData = 'free';
+            }
+          } else {
+            statusData = 'trial'; // New user
+          }
+        }
+      } else {
+        // Fallback to database status
+        const { data, error } = await supabase.rpc('get_current_subscription_status');
+        if (error) throw error;
+        statusData = data;
+      }
 
       // Get goal creation permission
       const { data: canCreateData, error: canCreateError } = await supabase
@@ -120,6 +155,13 @@ export const UserStatusProvider = ({ children }: { children: React.ReactNode }) 
   useEffect(() => {
     refreshStatus();
   }, [user]);
+
+  // Refresh status when RevenueCat customer info changes
+  useEffect(() => {
+    if (isConfigured && customerInfo) {
+      refreshStatus();
+    }
+  }, [customerInfo, isConfigured]);
 
   // Refresh status every 5 minutes
   useEffect(() => {

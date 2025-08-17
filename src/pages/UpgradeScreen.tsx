@@ -7,13 +7,15 @@ import { ArrowLeft, Crown, Check, Sparkles, Target, Zap, Clock, Shield, Smartpho
 import { useToast } from '@/hooks/use-toast';
 import { useUserStatus } from '@/hooks/useUserStatus';
 import { useRevenueCat } from '@/hooks/useRevenueCat';
+import { useRevenueCatOfferings } from '@/hooks/useRevenueCatOfferings';
 import { Capacitor } from '@capacitor/core';
 
 export const UpgradeScreen = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { refreshStatus } = useUserStatus();
-  const { packages, purchasePackage, restorePurchases, loading: rcLoading, isConfigured } = useRevenueCat();
+  const { purchasePackage, restorePurchases, loading: rcLoading, isConfigured } = useRevenueCat();
+  const { preferredPackage, hasOfferings, loading: offeringsLoading } = useRevenueCatOfferings();
   const [loading, setLoading] = useState(false);
 
   const features = [
@@ -54,7 +56,7 @@ export const UpgradeScreen = () => {
       return;
     }
 
-    if (!isConfigured || packages.length === 0) {
+    if (!isConfigured || !hasOfferings || !preferredPackage) {
       toast({
         title: "Not Available",
         description: "Subscription packages are not available at this time.",
@@ -65,8 +67,8 @@ export const UpgradeScreen = () => {
 
     setLoading(true);
     try {
-      // Use the first available package (typically monthly subscription)
-      const packageToPurchase = packages[0];
+      // Use the preferred package (monthly if available)
+      const packageToPurchase = preferredPackage;
       const success = await purchasePackage(packageToPurchase);
       
       if (success) {
@@ -107,7 +109,7 @@ export const UpgradeScreen = () => {
   };
 
   const isNative = Capacitor.isNativePlatform();
-  const purchaseButtonDisabled = loading || rcLoading || (!isNative && true);
+  const purchaseButtonDisabled = loading || rcLoading || offeringsLoading || (!isNative && true);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
@@ -182,8 +184,14 @@ export const UpgradeScreen = () => {
                 </Badge>
               </div>
               <div className="space-y-1">
-                <div className="text-3xl font-bold">$7.99</div>
-                <div className="text-muted-foreground">per month</div>
+                <div className="text-3xl font-bold">
+                  {preferredPackage?.product?.priceString || '$7.99'}
+                </div>
+                <div className="text-muted-foreground">
+                  {preferredPackage?.identifier?.includes('monthly') ? 'per month' : 
+                   preferredPackage?.identifier?.includes('annual') ? 'per year' : 
+                   preferredPackage?.identifier?.includes('weekly') ? 'per week' : 'per month'}
+                </div>
               </div>
             </div>
             

@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { UserStatusProvider, useUserStatus } from "@/hooks/useUserStatus";
 import { RevenueCatProvider } from "@/hooks/useRevenueCat";
+import { useRevenueCatAttributes } from "@/hooks/useRevenueCatAttributes";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { ProgressForegoneScreen } from "@/pages/ProgressForegoneScreen";
 import { UpgradeScreen } from "@/pages/UpgradeScreen";
@@ -32,6 +33,9 @@ const AppContent = () => {
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [showDowngradeOverlay, setShowDowngradeOverlay] = useState(false);
   const [prevStatus, setPrevStatus] = useState(subscriptionStatus);
+
+  // Initialize RevenueCat user attributes
+  useRevenueCatAttributes();
 
   // First-time user experience
   useEffect(() => {
