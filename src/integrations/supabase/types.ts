@@ -427,6 +427,14 @@ export type Database = {
         Args: { p_task_id: string }
         Returns: undefined
       }
+      detect_and_queue_deadline_warnings: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      detect_and_queue_momentum_boosters: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       detect_and_queue_slumps: {
         Args: Record<PropertyKey, never>
         Returns: undefined
@@ -438,6 +446,15 @@ export type Database = {
       get_all_overdue_tasks: {
         Args: Record<PropertyKey, never>
         Returns: Json
+      }
+      get_cron_job_status: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          active: boolean
+          jobname: string
+          last_run: string
+          schedule: string
+        }[]
       }
       get_goal_stats: {
         Args: { goal_uuid: string }
