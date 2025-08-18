@@ -6,7 +6,6 @@ import TodayTaskItem from '@/components/today/TodayTaskItem';
 import OverdueTasksAccordion from '@/components/today/OverdueTasksAccordion';
 import TodayLoadingSkeleton from '@/components/today/TodayLoadingSkeleton';
 import { BottomNav } from '@/components/BottomNav';
-import { CoachTipBanner } from '@/components/monetization/CoachTipBanner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent } from '@/components/ui/card';
 import { Target, CheckCircle, Clock } from 'lucide-react';
@@ -57,8 +56,6 @@ const TodayScreen: React.FC = () => {
     <div className="min-h-screen bg-background">
       <div className={`container mx-auto p-4 pb-20 ${overdueCount > 5 ? 'space-y-2' : ''}`}>
         <TodayHeader overdueCount={overdueCount} />
-        
-        <CoachTipBanner />
         
         {/* Pristine Today Tasks List */}
         <div className={`transition-opacity duration-300 ${
