@@ -353,6 +353,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      archive_goal: {
+        Args: { p_goal_id: string }
+        Returns: undefined
+      }
       create_manual_goal: {
         Args: { p_modality: string; p_target_date?: string; p_title: string }
         Returns: string
