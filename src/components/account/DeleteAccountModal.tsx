@@ -57,15 +57,16 @@ export const DeleteAccountModal = ({ isOpen, onOpenChange, onSuccess }: DeleteAc
     setStep('deleting');
 
     try {
-      // Call the delete_my_account function
-      const { error: deleteError } = await supabase.rpc('delete_my_account');
+      // Call the edge function to delete the entire account
+      const { data, error } = await supabase.functions.invoke('delete-user-account');
 
-      if (deleteError) {
-        throw deleteError;
+      if (error) {
+        throw error;
       }
 
-      // Sign out the user after successful deletion
-      await supabase.auth.signOut();
+      if (!data?.success) {
+        throw new Error(data?.error || 'Failed to delete account');
+      }
 
       toast({
         title: "Account Deleted",
