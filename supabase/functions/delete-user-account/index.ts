@@ -21,14 +21,27 @@ serve(async (req) => {
     }
 
     // Create Supabase client with service role key for admin operations
-    const supabase = createClient(
+    const adminSupabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     );
 
+    // Create regular Supabase client with user's token for authenticated operations
+    const userSupabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      {
+        global: {
+          headers: {
+            Authorization: authHeader,
+          },
+        },
+      }
+    );
+
     // Get user from the JWT token
     const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+    const { data: { user }, error: userError } = await userSupabase.auth.getUser(token);
     
     if (userError || !user) {
       throw new Error('Invalid or expired token');
@@ -36,8 +49,8 @@ serve(async (req) => {
 
     console.log(`Starting account deletion for user: ${user.id}`);
 
-    // First, delete all user data using the existing database function
-    const { error: dataError } = await supabase.rpc('delete_my_account');
+    // First, delete all user data using the existing database function with user context
+    const { error: dataError } = await userSupabase.rpc('delete_my_account');
     if (dataError) {
       console.error('Error deleting user data:', dataError);
       throw new Error(`Failed to delete user data: ${dataError.message}`);
@@ -45,8 +58,8 @@ serve(async (req) => {
 
     console.log(`User data deleted successfully for user: ${user.id}`);
 
-    // Then delete the actual auth user account
-    const { error: authError } = await supabase.auth.admin.deleteUser(user.id);
+    // Then delete the actual auth user account using admin client
+    const { error: authError } = await adminSupabase.auth.admin.deleteUser(user.id);
     if (authError) {
       console.error('Error deleting auth user:', authError);
       throw new Error(`Failed to delete auth user: ${authError.message}`);
