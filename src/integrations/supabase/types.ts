@@ -378,6 +378,10 @@ export type Database = {
         Args: { p_milestone_id: string }
         Returns: number
       }
+      delete_my_account: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       delete_task: {
         Args: { p_task_id: string }
         Returns: undefined

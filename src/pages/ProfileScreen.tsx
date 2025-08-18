@@ -1,18 +1,21 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { LogOut, User, Settings, Camera, Bell, Target } from 'lucide-react';
+import { LogOut, User, Settings, Camera, Bell, Target, Trash2, AlertTriangle } from 'lucide-react';
 import UserProfileCard from '@/components/UserProfileCard';
 import ThemeToggle from '@/components/ThemeToggle';
 import { BottomNav } from '@/components/BottomNav';
+import { DeleteAccountModal } from '@/components/account/DeleteAccountModal';
 
 const ProfileScreen = () => {
   const { user, signOut, loading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -26,6 +29,11 @@ const ProfileScreen = () => {
       title: "Signed out",
       description: "You have been successfully signed out"
     });
+    navigate('/login');
+  };
+
+  const handleDeleteAccountSuccess = () => {
+    setIsDeleteModalOpen(false);
     navigate('/login');
   };
 
@@ -101,6 +109,21 @@ const ProfileScreen = () => {
                     Upload
                   </Button>
                 </div>
+
+                <Separator className="my-4" />
+
+                <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <LogOut className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <p className="text-sm font-medium">Sign Out</p>
+                      <p className="text-xs text-muted-foreground">Sign out of your account</p>
+                    </div>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={handleSignOut}>
+                    Sign Out
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -132,8 +155,48 @@ const ProfileScreen = () => {
               </div>
             </CardContent>
           </Card>
+
+          {/* Danger Zone */}
+          <Card className="border-destructive/20">
+            <CardHeader>
+              <div className="flex items-center space-x-2">
+                <AlertTriangle className="h-5 w-5 text-destructive" />
+                <CardTitle className="text-destructive">Danger Zone</CardTitle>
+              </div>
+              <CardDescription>
+                Irreversible and destructive actions
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between p-4 border border-destructive/20 rounded-lg bg-destructive/5">
+                <div>
+                  <p className="text-sm font-medium text-foreground">Delete Account</p>
+                  <p className="text-xs text-muted-foreground">
+                    Permanently delete your account and all data. This cannot be undone.
+                  </p>
+                </div>
+                <Button 
+                  variant="destructive" 
+                  size="sm" 
+                  onClick={() => setIsDeleteModalOpen(true)}
+                  className="ml-4"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Account
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </main>
+
+      {/* Delete Account Modal */}
+      <DeleteAccountModal
+        isOpen={isDeleteModalOpen}
+        onOpenChange={setIsDeleteModalOpen}
+        onSuccess={handleDeleteAccountSuccess}
+      />
+
       <BottomNav />
     </div>
   );
