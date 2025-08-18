@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { useAppLifecycle } from "@/hooks/useAppLifecycle";
 import Index from "./pages/Index";
 import LoginScreen from "./pages/LoginScreen";
 import SignUpScreen from "./pages/SignUpScreen";
@@ -19,6 +20,12 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
+// App Layout component that handles lifecycle
+function AppLayout({ children }: { children: React.ReactNode }) {
+  useAppLifecycle(); // This handles all app-level notification sync
+  return <>{children}</>;
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
@@ -27,20 +34,22 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<TodayScreen />} />
-              <Route path="/welcome" element={<Index />} />
-              <Route path="/login" element={<LoginScreen />} />
-              <Route path="/signup" element={<SignUpScreen />} />
-              <Route path="/goals" element={<GoalsScreen />} />
-              <Route path="/goals/new" element={<CreateManualGoalScreen />} />
-              <Route path="/goals/ai" element={<AIOnboardingWizard />} />
-              <Route path="/plan-review" element={<PlanReviewScreen />} />
-              <Route path="/goals/:id" element={<GoalDetailScreen />} />
-              <Route path="/profile" element={<ProfileScreen />} />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+            <AppLayout>
+              <Routes>
+                <Route path="/" element={<TodayScreen />} />
+                <Route path="/welcome" element={<Index />} />
+                <Route path="/login" element={<LoginScreen />} />
+                <Route path="/signup" element={<SignUpScreen />} />
+                <Route path="/goals" element={<GoalsScreen />} />
+                <Route path="/goals/new" element={<CreateManualGoalScreen />} />
+                <Route path="/goals/ai" element={<AIOnboardingWizard />} />
+                <Route path="/plan-review" element={<PlanReviewScreen />} />
+                <Route path="/goals/:id" element={<GoalDetailScreen />} />
+                <Route path="/profile" element={<ProfileScreen />} />
+                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </AppLayout>
           </BrowserRouter>
         </TooltipProvider>
       </AuthProvider>

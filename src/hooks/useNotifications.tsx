@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { notificationService } from '@/lib/notifications';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -52,7 +52,7 @@ export const useNotifications = () => {
     }
   };
 
-  const syncAndSchedule = async (): Promise<CoachingNudge | null> => {
+  const syncAndSchedule = useCallback(async (): Promise<CoachingNudge | null> => {
     try {
       console.log('Syncing and scheduling notifications...');
 
@@ -70,21 +70,57 @@ export const useNotifications = () => {
       // Clear yesterday's scheduled digest to prevent duplicates
       await notificationService.cancel({ notifications: [{ id: 1 }] });
 
-      // Schedule TOMORROW'S morning digest
+      // Schedule TOMORROW'S morning digest with enhanced personalization
       const tomorrowAt8AM = new Date();
       tomorrowAt8AM.setDate(tomorrowAt8AM.getDate() + 1);
       tomorrowAt8AM.setHours(8, 0, 0, 0);
 
       if (intelligencePayload.dailyDigest && intelligencePayload.dailyDigest.taskCount > 0) {
+        const personalizedBody = intelligencePayload.dailyDigest.taskCount === 1 
+          ? `Your focus task today: "${intelligencePayload.dailyDigest.firstTaskTitle}"`
+          : `You have ${intelligencePayload.dailyDigest.taskCount} tasks today, starting with "${intelligencePayload.dailyDigest.firstTaskTitle}"`;
+
         await notificationService.schedule({
           notifications: [{
             id: 1, // Static ID for daily digest
             title: "Your Viluuma Daily Digest ☀️",
-            body: `You have ${intelligencePayload.dailyDigest.taskCount} tasks today, starting with "${intelligencePayload.dailyDigest.firstTaskTitle}"`,
+            body: personalizedBody,
             schedule: { at: tomorrowAt8AM },
           }]
         });
         console.log('Scheduled daily digest for tomorrow 8AM');
+      } else if (intelligencePayload.dailyDigest && intelligencePayload.dailyDigest.taskCount === 0) {
+        // Schedule a motivational message for days with no tasks
+        await notificationService.schedule({
+          notifications: [{
+            id: 1,
+            title: "Good morning! ✨",
+            body: "No tasks scheduled for today. A perfect day to plan your next big move or take a well-deserved break!",
+            schedule: { at: tomorrowAt8AM },
+          }]
+        });
+      }
+
+      // Handle coaching nudge with re-engagement backup
+      if (intelligencePayload.coachingNudge) {
+        const nudge = intelligencePayload.coachingNudge;
+        
+        // Schedule a backup notification for 10 minutes later (re-engagement trick)
+        const backupTime = new Date();
+        backupTime.setMinutes(backupTime.getMinutes() + 10);
+        
+        const backupId = parseInt(nudge.id.substring(0, 8), 16);
+        
+        await notificationService.schedule({
+          notifications: [{
+            id: backupId,
+            title: nudge.title,
+            body: nudge.body + " (Tap to open Viluuma)",
+            schedule: { at: backupTime },
+          }]
+        });
+        
+        console.log('Scheduled backup coaching nudge for 10 minutes');
       }
 
       // Return any coaching nudge for immediate display
@@ -94,10 +130,14 @@ export const useNotifications = () => {
       console.error('Error in syncAndSchedule:', error);
       return null;
     }
-  };
+  }, []);
 
-  const acknowledgeMessage = async (messageId: string) => {
+  const acknowledgeMessage = useCallback(async (messageId: string) => {
     try {
+      // Cancel the backup notification when user acknowledges in-app
+      const backupId = parseInt(messageId.substring(0, 8), 16);
+      await notificationService.cancel({ notifications: [{ id: backupId }] });
+      
       const { error } = await supabase.rpc('acknowledge_message', { 
         p_message_id: messageId 
       });
@@ -107,7 +147,7 @@ export const useNotifications = () => {
         throw error;
       }
       
-      console.log('Message acknowledged:', messageId);
+      console.log('Message acknowledged and backup notification cancelled:', messageId);
     } catch (error) {
       console.error('Error acknowledging message:', error);
       toast({
@@ -116,7 +156,7 @@ export const useNotifications = () => {
         variant: "destructive",
       });
     }
-  };
+  }, [toast]);
 
   const scheduleTaskReminder = async (taskId: string, taskTitle: string, reminderTime: Date) => {
     try {

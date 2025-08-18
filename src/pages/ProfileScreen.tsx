@@ -10,6 +10,8 @@ import UserProfileCard from '@/components/UserProfileCard';
 import ThemeToggle from '@/components/ThemeToggle';
 import { BottomNav } from '@/components/BottomNav';
 import { DeleteAccountModal } from '@/components/account/DeleteAccountModal';
+import { NotificationPermissionManager } from '@/components/notifications/NotificationPermissionManager';
+import { NotificationCenter } from '@/components/notifications/NotificationCenter';
 
 const ProfileScreen = () => {
   const { user, signOut, loading } = useAuth();
@@ -70,6 +72,12 @@ const ProfileScreen = () => {
         <div className="max-w-2xl mx-auto space-y-6">
           {/* User Profile Card */}
           <UserProfileCard />
+
+          {/* Notification Management */}
+          <div className="grid gap-6 md:grid-cols-2">
+            <NotificationPermissionManager />
+            <NotificationCenter />
+          </div>
 
           {/* Account Settings */}
           <Card>

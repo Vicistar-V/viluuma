@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Bell, BellRing, Clock } from 'lucide-react';
+import { Bell, BellRing, Clock, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useNotifications } from '@/hooks/useNotifications';
 
 interface TaskReminderButtonProps {
@@ -47,81 +49,79 @@ export const TaskReminderButton = ({ taskId, taskTitle }: TaskReminderButtonProp
     setIsOpen(false);
   };
 
+  const getCurrentTime = () => {
+    const now = new Date();
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = (now.getMinutes() + 15).toString().padStart(2, '0'); // Default to 15 minutes from now
+    return `${hours}:${minutes}`;
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        <Button 
-          variant="ghost" 
+    <Popover open={isOpen} onOpenChange={setIsOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="ghost"
           size="sm"
-          className={hasReminder ? "text-primary" : "text-muted-foreground"}
+          className={`text-muted-foreground hover:text-foreground ${hasReminder ? 'text-primary' : ''}`}
         >
           {hasReminder ? <BellRing className="h-4 w-4" /> : <Bell className="h-4 w-4" />}
         </Button>
-      </DialogTrigger>
-      
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Clock className="h-5 w-5" />
-            Task Reminder
-          </DialogTitle>
-        </DialogHeader>
-        
+      </PopoverTrigger>
+      <PopoverContent className="w-80" align="end">
         <div className="space-y-4">
-          <div>
-            <p className="text-sm text-muted-foreground mb-2">Task:</p>
-            <p className="font-medium">{taskTitle}</p>
+          <div className="space-y-2">
+            <h4 className="font-medium leading-none">Task Reminder</h4>
+            <p className="text-sm text-muted-foreground">
+              {hasReminder ? 'Manage reminder for this task' : 'Set a reminder for this task'}
+            </p>
           </div>
-
+          
           {hasReminder ? (
-            <div className="space-y-4">
-              <p className="text-sm text-green-600 flex items-center gap-2">
-                <BellRing className="h-4 w-4" />
-                Reminder is set for this task
-              </p>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={handleCancelReminder} className="flex-1">
-                  Cancel Reminder
-                </Button>
-                <Button onClick={() => setIsOpen(false)} className="flex-1">
-                  Close
-                </Button>
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-sm">
+                <BellRing className="h-4 w-4 text-primary" />
+                <span>Reminder is active</span>
               </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCancelReminder}
+                className="w-full"
+              >
+                <X className="h-4 w-4 mr-2" />
+                Cancel Reminder
+              </Button>
             </div>
           ) : (
-            <div className="space-y-4">
-              <div>
-                <label htmlFor="reminderTime" className="text-sm font-medium">
-                  Set reminder time:
-                </label>
-                <input
-                  id="reminderTime"
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <Label htmlFor="time">Reminder Time</Label>
+                <Input
+                  id="time"
                   type="time"
                   value={reminderTime}
                   onChange={(e) => setReminderTime(e.target.value)}
-                  className="w-full mt-1 p-2 border rounded-md"
+                  placeholder={getCurrentTime()}
                 />
+                <p className="text-xs text-muted-foreground">
+                  If time is earlier than now, reminder will be set for tomorrow
+                </p>
               </div>
               <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  onClick={() => setIsOpen(false)}
-                  className="flex-1"
-                >
-                  Cancel
-                </Button>
-                <Button 
+                <Button
+                  size="sm"
                   onClick={handleSetReminder}
                   disabled={!reminderTime}
                   className="flex-1"
                 >
+                  <Clock className="h-4 w-4 mr-2" />
                   Set Reminder
                 </Button>
               </div>
             </div>
           )}
         </div>
-      </DialogContent>
-    </Dialog>
+      </PopoverContent>
+    </Popover>
   );
 };
