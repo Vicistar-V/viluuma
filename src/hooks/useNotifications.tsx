@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { LocalNotifications } from '@capacitor/local-notifications';
+import { notificationService } from '@/lib/notifications';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -37,7 +37,7 @@ export const useNotifications = () => {
 
   const requestPermissions = async () => {
     try {
-      const permissions = await LocalNotifications.requestPermissions();
+      const permissions = await notificationService.requestPermissions();
       console.log('Notification permissions:', permissions);
       
       if (permissions.display === 'denied') {
@@ -68,7 +68,7 @@ export const useNotifications = () => {
       console.log('Received intelligence payload:', intelligencePayload);
 
       // Clear yesterday's scheduled digest to prevent duplicates
-      await LocalNotifications.cancel({ notifications: [{ id: 1 }] });
+      await notificationService.cancel({ notifications: [{ id: 1 }] });
 
       // Schedule TOMORROW'S morning digest
       const tomorrowAt8AM = new Date();
@@ -76,7 +76,7 @@ export const useNotifications = () => {
       tomorrowAt8AM.setHours(8, 0, 0, 0);
 
       if (intelligencePayload.dailyDigest && intelligencePayload.dailyDigest.taskCount > 0) {
-        await LocalNotifications.schedule({
+        await notificationService.schedule({
           notifications: [{
             id: 1, // Static ID for daily digest
             title: "Your Viluuma Daily Digest ☀️",
@@ -123,7 +123,7 @@ export const useNotifications = () => {
       // Use the task ID as the notification ID (convert to number)
       const notificationId = parseInt(taskId.substring(0, 8), 16); // Convert part of UUID to number
       
-      await LocalNotifications.schedule({
+      await notificationService.schedule({
         notifications: [{
           id: notificationId,
           title: "Task Reminder 📋",
@@ -152,7 +152,7 @@ export const useNotifications = () => {
     try {
       const notificationId = parseInt(taskId.substring(0, 8), 16);
       
-      await LocalNotifications.cancel({ notifications: [{ id: notificationId }] });
+      await notificationService.cancel({ notifications: [{ id: notificationId }] });
       
       toast({
         title: "Reminder cancelled",
@@ -168,7 +168,7 @@ export const useNotifications = () => {
   const checkTaskReminderExists = async (taskId: string): Promise<boolean> => {
     try {
       const notificationId = parseInt(taskId.substring(0, 8), 16);
-      const { notifications } = await LocalNotifications.getPending();
+      const { notifications } = await notificationService.getPending();
       
       return notifications.some(n => n.id === notificationId);
     } catch (error) {
