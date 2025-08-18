@@ -43,6 +43,32 @@ export const useGoals = () => {
   });
 };
 
+export const useArchiveGoal = () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  
+  return useMutation({
+    mutationFn: async (goalId: string) => {
+      const { error } = await supabase.rpc('archive_goal', { p_goal_id: goalId });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      toast({
+        title: "Goal archived",
+        description: "Goal archived successfully"
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to archive goal",
+        variant: "destructive"
+      });
+    }
+  });
+};
+
 export const useUpdateGoalStatus = () => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -50,11 +76,8 @@ export const useUpdateGoalStatus = () => {
   return useMutation({
     mutationFn: async ({ goalId, status }: { goalId: string; status: 'active' | 'archived' | 'completed' }) => {
       if (status === 'archived') {
-        // Use the archive flag for archiving
-        const { error } = await supabase
-          .from('goals')
-          .update({ is_archived: true })
-          .eq('id', goalId);
+        // Use the dedicated archive function
+        const { error } = await supabase.rpc('archive_goal', { p_goal_id: goalId });
         if (error) throw error;
       } else if (status === 'active') {
         // Reactivate by setting archive flag to false
@@ -83,35 +106,40 @@ export const useUpdateGoalStatus = () => {
   });
 };
 
+export const usePermanentlyDeleteGoal = () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  
+  return useMutation({
+    mutationFn: async (goalId: string) => {
+      const { error } = await supabase.rpc('permanently_delete_goal', { p_goal_id: goalId });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      toast({
+        title: "Goal permanently deleted",
+        description: "Goal and all associated data permanently deleted"
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to permanently delete goal",
+        variant: "destructive"
+      });
+    }
+  });
+};
+
 export const useDeleteGoal = () => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   
   return useMutation({
     mutationFn: async (goalId: string) => {
-      // First delete all tasks for this goal
-      const { error: tasksError } = await supabase
-        .from('tasks')
-        .delete()
-        .eq('goal_id', goalId);
-      
-      if (tasksError) throw tasksError;
-      
-      // Then delete all milestones for this goal
-      const { error: milestonesError } = await supabase
-        .from('milestones')
-        .delete()
-        .eq('goal_id', goalId);
-      
-      if (milestonesError) throw milestonesError;
-      
-      // Finally delete the goal
-      const { error: goalError } = await supabase
-        .from('goals')
-        .delete()
-        .eq('id', goalId);
-      
-      if (goalError) throw goalError;
+      const { error } = await supabase.rpc('permanently_delete_goal', { p_goal_id: goalId });
+      if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });

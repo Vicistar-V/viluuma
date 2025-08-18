@@ -4,11 +4,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
-import { useGoals, useUpdateGoalStatus, useDeleteGoal } from '@/hooks/useGoals';
+import { useGoals, useUpdateGoalStatus, useDeleteGoal, usePermanentlyDeleteGoal } from '@/hooks/useGoals';
 import { useToast } from '@/hooks/use-toast';
 import { Target, Plus, TrendingUp, CheckCircle, Archive } from 'lucide-react';
 import { GoalCard } from '@/components/goals/GoalCard';
 import { GoalFiltersComponent, GoalFilters } from '@/components/goals/GoalFilters';
+import { ArchivedGoalsSection } from '@/components/goals/ArchivedGoalsSection';
 import ThemeToggle from '@/components/ThemeToggle';
 import { BottomNav } from '@/components/BottomNav';
 
@@ -19,6 +20,7 @@ const GoalsScreen = () => {
   const { data: goals, isLoading: goalsLoading } = useGoals();
   const updateGoalStatus = useUpdateGoalStatus();
   const deleteGoal = useDeleteGoal();
+  const permanentlyDeleteGoal = usePermanentlyDeleteGoal();
   
   const [filters, setFilters] = useState<GoalFilters>({
     search: '',
@@ -32,10 +34,30 @@ const GoalsScreen = () => {
     }
   }, [user, loading, navigate]);
   
-  const filteredGoals = useMemo(() => {
-    if (!goals) return [];
+  const { activeGoals, archivedGoals, filteredGoals, showingArchivedOnly } = useMemo(() => {
+    if (!goals) return { activeGoals: [], archivedGoals: [], filteredGoals: [], showingArchivedOnly: false };
     
-    return goals.filter(goal => {
+    const activeGoals = goals.filter(goal => goal.status !== 'archived');
+    const archivedGoals = goals.filter(goal => goal.status === 'archived');
+    const showingArchivedOnly = filters.status === 'archived';
+    
+    // If specifically filtering for archived goals, show archived goals with filters applied
+    if (showingArchivedOnly) {
+      const filteredArchivedGoals = archivedGoals.filter(goal => {
+        const matchesSearch = !filters.search || 
+          goal.title.toLowerCase().includes(filters.search.toLowerCase()) ||
+          goal.description?.toLowerCase().includes(filters.search.toLowerCase());
+        
+        const matchesModality = filters.modality === 'all' || goal.modality === filters.modality;
+        
+        return matchesSearch && matchesModality;
+      });
+      
+      return { activeGoals, archivedGoals, filteredGoals: filteredArchivedGoals, showingArchivedOnly: true };
+    }
+    
+    // Otherwise, filter active goals normally
+    const filteredGoals = activeGoals.filter(goal => {
       const matchesSearch = !filters.search || 
         goal.title.toLowerCase().includes(filters.search.toLowerCase()) ||
         goal.description?.toLowerCase().includes(filters.search.toLowerCase());
@@ -45,6 +67,8 @@ const GoalsScreen = () => {
       
       return matchesSearch && matchesStatus && matchesModality;
     });
+    
+    return { activeGoals, archivedGoals, filteredGoals, showingArchivedOnly: false };
   }, [goals, filters]);
   
   // BLAZING FAST: Client-side stats calculation (no database aggregation queries needed)
@@ -65,6 +89,14 @@ const GoalsScreen = () => {
   
   const handleDelete = (goalId: string) => {
     deleteGoal.mutate(goalId);
+  };
+
+  const handleUnarchive = (goalId: string) => {
+    updateGoalStatus.mutate({ goalId, status: 'active' });
+  };
+
+  const handlePermanentDelete = (goalId: string) => {
+    permanentlyDeleteGoal.mutate(goalId);
   };
 
   if (loading || goalsLoading) {
@@ -183,38 +215,83 @@ const GoalsScreen = () => {
           {/* Goals List */}
           {goals && goals.length > 0 ? (
             <div className="space-y-6">
-              <GoalFiltersComponent
-                filters={filters}
-                onFiltersChange={setFilters}
-                totalCount={goals.length}
-                filteredCount={filteredGoals.length}
-              />
-              
-              {filteredGoals.length > 0 ? (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {filteredGoals.map((goal) => (
-                    <GoalCard
-                      key={goal.id}
-                      goal={goal}
-                      onStatusChange={handleStatusChange}
-                      onDelete={handleDelete}
+                <GoalFiltersComponent
+                  filters={filters}
+                  onFiltersChange={setFilters}
+                  totalCount={showingArchivedOnly ? archivedGoals.length : activeGoals.length}
+                  filteredCount={filteredGoals.length}
+                />
+                
+                {showingArchivedOnly ? (
+                  // Showing archived goals as main content when filtered
+                  filteredGoals.length > 0 ? (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 px-1">
+                        <Archive className="h-5 w-5 text-muted-foreground" />
+                        <h2 className="text-lg font-semibold text-muted-foreground">Archived Goals</h2>
+                      </div>
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {filteredGoals.map((goal) => (
+                          <GoalCard
+                            key={goal.id}
+                            goal={goal}
+                            onStatusChange={handleStatusChange}
+                            onDelete={handlePermanentDelete}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <Card>
+                      <CardContent className="p-8 text-center">
+                        <Archive className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                        <h3 className="text-lg font-semibold mb-2">No archived goals match your filters</h3>
+                        <p className="text-muted-foreground mb-4">
+                          Try adjusting your search or filter criteria.
+                        </p>
+                        <Button variant="outline" onClick={() => setFilters({ search: '', status: 'all', modality: 'all' })}>
+                          Clear Filters
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  )
+                ) : (
+                  // Normal view showing active goals + archived section
+                  <>
+                    {filteredGoals.length > 0 ? (
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {filteredGoals.map((goal) => (
+                          <GoalCard
+                            key={goal.id}
+                            goal={goal}
+                            onStatusChange={handleStatusChange}
+                            onDelete={handleDelete}
+                          />
+                        ))}
+                      </div>
+                    ) : (
+                      <Card>
+                        <CardContent className="p-8 text-center">
+                          <Target className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                          <h3 className="text-lg font-semibold mb-2">No active goals match your filters</h3>
+                          <p className="text-muted-foreground mb-4">
+                            Try adjusting your search or filter criteria.
+                          </p>
+                          <Button variant="outline" onClick={() => setFilters({ search: '', status: 'all', modality: 'all' })}>
+                            Clear Filters
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    )}
+                    
+                    {/* Archived Goals Section - only show when not specifically filtering for archived */}
+                    <ArchivedGoalsSection
+                      archivedGoals={archivedGoals}
+                      onUnarchive={handleUnarchive}
+                      onPermanentDelete={handlePermanentDelete}
                     />
-                  ))}
-                </div>
-              ) : (
-                <Card>
-                  <CardContent className="p-8 text-center">
-                    <Target className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">No goals match your filters</h3>
-                    <p className="text-muted-foreground mb-4">
-                      Try adjusting your search or filter criteria.
-                    </p>
-                    <Button variant="outline" onClick={() => setFilters({ search: '', status: 'all', modality: 'all' })}>
-                      Clear Filters
-                    </Button>
-                  </CardContent>
-                </Card>
-              )}
+                  </>
+                )}
             </div>
           ) : (
             <Card>

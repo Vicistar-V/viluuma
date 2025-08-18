@@ -422,6 +422,10 @@ export type Database = {
         Args: { p_milestone_id: string }
         Returns: boolean
       }
+      permanently_delete_goal: {
+        Args: { p_goal_id: string }
+        Returns: undefined
+      }
       priority_order: {
         Args: { p_priority: string }
         Returns: number
