@@ -10,6 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { CalendarIcon, CheckIcon, Loader2Icon, Anchor, RotateCcwIcon, TrashIcon } from "lucide-react";
+import { TaskReminderButton } from "@/components/notifications/TaskReminderButton";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
@@ -154,12 +155,17 @@ const TaskDetailModal = ({ taskId, onOpenChange, goalModality, goalStatus = 'act
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            {goalModality === 'project' ? '📅 Project Task' : '✅ Checklist Item'}
-            {isReadOnly && (
-              <Badge variant="outline" className="text-xs">
-                Read Only
-              </Badge>
+          <DialogTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              {goalModality === 'project' ? '📅 Project Task' : '✅ Checklist Item'}
+              {isReadOnly && (
+                <Badge variant="outline" className="text-xs">
+                  Read Only
+                </Badge>
+              )}
+            </div>
+            {!isReadOnly && taskId && (
+              <TaskReminderButton taskId={taskId} taskTitle={title} />
             )}
           </DialogTitle>
           {goalModality === 'checklist' && (

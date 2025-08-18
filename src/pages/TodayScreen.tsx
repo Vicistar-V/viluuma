@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTodayData } from '@/hooks/useTodayData';
 import { useAuth } from '@/hooks/useAuth';
+import { useNotifications } from '@/hooks/useNotifications';
 import TodayHeader from '@/components/today/TodayHeader';
 import TodayTaskItem from '@/components/today/TodayTaskItem';
 import OverdueTasksAccordion from '@/components/today/OverdueTasksAccordion';
 import TodayLoadingSkeleton from '@/components/today/TodayLoadingSkeleton';
+import { CoachingNudgeToast } from '@/components/notifications/CoachingNudgeToast';
 import { BottomNav } from '@/components/BottomNav';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent } from '@/components/ui/card';
@@ -14,6 +16,21 @@ import { Navigate } from 'react-router-dom';
 const TodayScreen: React.FC = () => {
   const { user } = useAuth();
   const { data: todayData, isLoading, isError, error } = useTodayData();
+  const { syncAndSchedule, acknowledgeMessage } = useNotifications();
+  const [currentNudge, setCurrentNudge] = useState<any>(null);
+
+  // Sync notifications when app loads or user changes
+  useEffect(() => {
+    if (user) {
+      const performSync = async () => {
+        const nudge = await syncAndSchedule();
+        if (nudge) {
+          setCurrentNudge(nudge);
+        }
+      };
+      performSync();
+    }
+  }, [user, syncAndSchedule]);
 
   // Redirect to welcome page if not authenticated
   if (!user) {
@@ -142,6 +159,15 @@ const TodayScreen: React.FC = () => {
       </div>
       
       <BottomNav />
+      
+      {/* Coaching Nudge Toast */}
+      {currentNudge && (
+        <CoachingNudgeToast
+          nudge={currentNudge}
+          onAcknowledge={acknowledgeMessage}
+          onDismiss={() => setCurrentNudge(null)}
+        />
+      )}
     </div>
   );
 };

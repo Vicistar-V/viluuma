@@ -235,6 +235,39 @@ export type Database = {
           },
         ]
       }
+      user_messages: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          message_type: string
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          message_type: string
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          message_type?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       goals_with_computed_status: {
@@ -349,6 +382,10 @@ export type Database = {
       }
     }
     Functions: {
+      acknowledge_message: {
+        Args: { p_message_id: string }
+        Returns: undefined
+      }
       archive_excess_goals: {
         Args: Record<PropertyKey, never>
         Returns: undefined
@@ -390,6 +427,10 @@ export type Database = {
         Args: { p_task_id: string }
         Returns: undefined
       }
+      detect_and_queue_slumps: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       execute_plan_update: {
         Args: { p_task_id_to_delete?: string; p_tasks_to_update?: Json }
         Returns: undefined
@@ -402,7 +443,24 @@ export type Database = {
         Args: { goal_uuid: string }
         Returns: Json
       }
+      get_next_pending_message: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          body: string
+          created_at: string
+          id: string
+          message_type: string
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+        }[]
+      }
       get_today_page_payload: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
+      get_today_tasks_summary: {
         Args: Record<PropertyKey, never>
         Returns: Json
       }

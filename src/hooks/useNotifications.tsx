@@ -1,0 +1,188 @@
+import { useEffect } from 'react';
+import { LocalNotifications } from '@capacitor/local-notifications';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/hooks/use-toast';
+
+interface DailyDigest {
+  taskCount: number;
+  firstTaskTitle: string;
+  generatedAt: string;
+}
+
+interface CoachingNudge {
+  id: string;
+  message_type: string;
+  title: string;
+  body: string;
+  created_at: string;
+}
+
+interface IntelligencePayload {
+  dailyDigest: DailyDigest;
+  coachingNudge: CoachingNudge | null;
+  timestamp: string;
+}
+
+export const useNotifications = () => {
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  // Request permissions when the hook is first used
+  useEffect(() => {
+    if (user) {
+      requestPermissions();
+    }
+  }, [user]);
+
+  const requestPermissions = async () => {
+    try {
+      const permissions = await LocalNotifications.requestPermissions();
+      console.log('Notification permissions:', permissions);
+      
+      if (permissions.display === 'denied') {
+        toast({
+          title: "Notifications disabled",
+          description: "Enable notifications in settings to get daily updates and reminders.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error requesting notification permissions:', error);
+    }
+  };
+
+  const syncAndSchedule = async (): Promise<CoachingNudge | null> => {
+    try {
+      console.log('Syncing and scheduling notifications...');
+
+      // Get the intelligence payload from our backend
+      const { data: payload, error } = await supabase.functions.invoke('get-intelligence-payload');
+      
+      if (error) {
+        console.error('Error getting intelligence payload:', error);
+        return null;
+      }
+
+      const intelligencePayload = payload as IntelligencePayload;
+      console.log('Received intelligence payload:', intelligencePayload);
+
+      // Clear yesterday's scheduled digest to prevent duplicates
+      await LocalNotifications.cancel({ notifications: [{ id: 1 }] });
+
+      // Schedule TOMORROW'S morning digest
+      const tomorrowAt8AM = new Date();
+      tomorrowAt8AM.setDate(tomorrowAt8AM.getDate() + 1);
+      tomorrowAt8AM.setHours(8, 0, 0, 0);
+
+      if (intelligencePayload.dailyDigest && intelligencePayload.dailyDigest.taskCount > 0) {
+        await LocalNotifications.schedule({
+          notifications: [{
+            id: 1, // Static ID for daily digest
+            title: "Your Viluuma Daily Digest ☀️",
+            body: `You have ${intelligencePayload.dailyDigest.taskCount} tasks today, starting with "${intelligencePayload.dailyDigest.firstTaskTitle}"`,
+            schedule: { at: tomorrowAt8AM },
+          }]
+        });
+        console.log('Scheduled daily digest for tomorrow 8AM');
+      }
+
+      // Return any coaching nudge for immediate display
+      return intelligencePayload.coachingNudge;
+
+    } catch (error) {
+      console.error('Error in syncAndSchedule:', error);
+      return null;
+    }
+  };
+
+  const acknowledgeMessage = async (messageId: string) => {
+    try {
+      const { error } = await supabase.rpc('acknowledge_message', { 
+        p_message_id: messageId 
+      });
+      
+      if (error) {
+        console.error('Error acknowledging message:', error);
+        throw error;
+      }
+      
+      console.log('Message acknowledged:', messageId);
+    } catch (error) {
+      console.error('Error acknowledging message:', error);
+      toast({
+        title: "Error",
+        description: "Failed to acknowledge message.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const scheduleTaskReminder = async (taskId: string, taskTitle: string, reminderTime: Date) => {
+    try {
+      // Use the task ID as the notification ID (convert to number)
+      const notificationId = parseInt(taskId.substring(0, 8), 16); // Convert part of UUID to number
+      
+      await LocalNotifications.schedule({
+        notifications: [{
+          id: notificationId,
+          title: "Task Reminder 📋",
+          body: `Time to work on: ${taskTitle}`,
+          schedule: { at: reminderTime },
+        }]
+      });
+
+      toast({
+        title: "Reminder set",
+        description: `Reminder set for ${reminderTime.toLocaleTimeString()}`,
+      });
+
+      console.log('Scheduled task reminder:', { taskId, reminderTime });
+    } catch (error) {
+      console.error('Error scheduling task reminder:', error);
+      toast({
+        title: "Error",
+        description: "Failed to set reminder.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const cancelTaskReminder = async (taskId: string) => {
+    try {
+      const notificationId = parseInt(taskId.substring(0, 8), 16);
+      
+      await LocalNotifications.cancel({ notifications: [{ id: notificationId }] });
+      
+      toast({
+        title: "Reminder cancelled",
+        description: "Task reminder has been removed.",
+      });
+
+      console.log('Cancelled task reminder:', taskId);
+    } catch (error) {
+      console.error('Error cancelling task reminder:', error);
+    }
+  };
+
+  const checkTaskReminderExists = async (taskId: string): Promise<boolean> => {
+    try {
+      const notificationId = parseInt(taskId.substring(0, 8), 16);
+      const { notifications } = await LocalNotifications.getPending();
+      
+      return notifications.some(n => n.id === notificationId);
+    } catch (error) {
+      console.error('Error checking task reminder:', error);
+      return false;
+    }
+  };
+
+  return {
+    syncAndSchedule,
+    acknowledgeMessage,
+    scheduleTaskReminder,
+    cancelTaskReminder,
+    checkTaskReminderExists,
+    requestPermissions,
+  };
+};
