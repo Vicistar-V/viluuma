@@ -77,14 +77,7 @@ export const useCompleteTask = () => {
 
   return useMutation({
     mutationFn: async (taskId: string) => {
-      const { error } = await supabase
-        .from('tasks')
-        .update({ 
-          status: 'completed',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', taskId);
-      
+      const { error } = await supabase.rpc('complete_task' as any, { p_task_id: taskId });
       if (error) throw error;
       return taskId;
     },
@@ -123,14 +116,7 @@ export const useUncompleteTask = () => {
 
   return useMutation({
     mutationFn: async (taskId: string) => {
-      const { error } = await supabase
-        .from('tasks')
-        .update({ 
-          status: 'pending',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', taskId);
-      
+      const { error } = await supabase.rpc('uncomplete_task' as any, { p_task_id: taskId });
       if (error) throw error;
     },
     onSuccess: () => {

@@ -106,15 +106,17 @@ const TaskDetailModal = ({ taskId, onOpenChange, goalModality, goalStatus = 'act
     
     setSaveState('saving');
     try {
-      const payload: any = { title, description, priority };
-      if (goalModality === 'project') {
-        payload.duration_hours = duration ?? null;
-        payload.is_anchored = anchored;
-        payload.start_date = start ? format(start, 'yyyy-MM-dd') : null;
-        payload.end_date = end ? format(end, 'yyyy-MM-dd') : null;
-      }
+      const { error } = await supabase.rpc('update_task_details' as any, {
+        p_task_id: taskId,
+        p_title: title,
+        p_description: description || null,
+        p_priority: priority || null,
+        p_duration_hours: goalModality === 'project' ? (duration ?? null) : null,
+        p_is_anchored: goalModality === 'project' ? anchored : false,
+        p_start_date: goalModality === 'project' && start ? format(start, 'yyyy-MM-dd') : null,
+        p_end_date: goalModality === 'project' && end ? format(end, 'yyyy-MM-dd') : null
+      });
       
-      const { error } = await supabase.from('tasks').update(payload).eq('id', taskId);
       if (error) {
         toast({ title: 'Save failed', description: error.message, variant: 'destructive' });
         setSaveState('idle');

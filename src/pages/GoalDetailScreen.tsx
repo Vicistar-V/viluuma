@@ -228,12 +228,13 @@ const GoalDetailScreen = () => {
   };
 
   const toggleTask = async (task: Task): Promise<void> => {
-    const next = task.status === 'pending' ? 'completed' : 'pending';
-    const { error } = await supabase.from('tasks').update({ status: next }).eq('id', task.id);
+    const { error } = await supabase.rpc('toggle_task_status' as any, { p_task_id: task.id });
     if (error) {
       toast({ title: 'Error', description: error.message });
       return;
     }
+    
+    const next = task.status === 'pending' ? 'completed' : 'pending';
     
     // Haptic feedback based on task completion
     if (next === 'completed') {
