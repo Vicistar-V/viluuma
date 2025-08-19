@@ -29,24 +29,34 @@ export const TaskReminderButton = ({ taskId, taskTitle }: TaskReminderButtonProp
   const handleSetReminder = async () => {
     if (!reminderTime) return;
 
-    const [hours, minutes] = reminderTime.split(':');
-    const reminderDate = new Date();
-    reminderDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+    try {
+      const [hours, minutes] = reminderTime.split(':');
+      const reminderDate = new Date();
+      reminderDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
 
-    // If the time is in the past, set it for tomorrow
-    if (reminderDate < new Date()) {
-      reminderDate.setDate(reminderDate.getDate() + 1);
+      // If the time is in the past, set it for tomorrow
+      if (reminderDate < new Date()) {
+        reminderDate.setDate(reminderDate.getDate() + 1);
+      }
+
+      await scheduleTaskReminder(taskId, taskTitle, reminderDate);
+      setHasReminder(true);
+      setIsOpen(false);
+    } catch (error) {
+      console.error('Error setting reminder:', error);
+      // Error handling is done in scheduleTaskReminder
     }
-
-    await scheduleTaskReminder(taskId, taskTitle, reminderDate);
-    setHasReminder(true);
-    setIsOpen(false);
   };
 
   const handleCancelReminder = async () => {
-    await cancelTaskReminder(taskId);
-    setHasReminder(false);
-    setIsOpen(false);
+    try {
+      await cancelTaskReminder(taskId);
+      setHasReminder(false);
+      setIsOpen(false);
+    } catch (error) {
+      console.error('Error cancelling reminder:', error);
+      // Error handling is done in cancelTaskReminder
+    }
   };
 
   const getCurrentTime = () => {

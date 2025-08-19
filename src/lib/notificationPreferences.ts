@@ -72,7 +72,8 @@ export const getPreferredDigestTime = (preferences: NotificationPreferences): { 
 
 export const shouldShowNotification = (
   preferences: NotificationPreferences, 
-  notificationType: keyof Pick<NotificationPreferences, 'dailyDigest' | 'coachingNudges' | 'deadlineWarnings' | 'momentumBoosters'>
+  notificationType: keyof Pick<NotificationPreferences, 'dailyDigest' | 'coachingNudges' | 'deadlineWarnings' | 'momentumBoosters'>,
+  targetTime?: Date
 ): boolean => {
-  return preferences[notificationType] && !isWithinQuietHours(preferences);
+  return preferences[notificationType] && !isWithinQuietHours(preferences, targetTime);
 };

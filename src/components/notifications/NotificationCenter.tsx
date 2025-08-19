@@ -8,6 +8,7 @@ import { Bell, Clock, CheckCircle, Trash2, RefreshCw } from 'lucide-react';
 import { notificationService } from '@/lib/notifications';
 import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow } from 'date-fns';
+import { getNotificationTypeFromId } from '@/lib/notificationIds';
 
 interface PendingNotification {
   id: number;
@@ -64,10 +65,7 @@ export const NotificationCenter = () => {
     loadPendingNotifications();
   }, []);
 
-  const getNotificationTypeFromId = (id: number): string => {
-    if (id === 1) return 'Daily Digest';
-    return 'Task Reminder';
-  };
+  // Use the imported function from notificationIds.ts
 
   const formatScheduledTime = (date: Date | string): string => {
     const scheduledDate = typeof date === 'string' ? new Date(date) : date;

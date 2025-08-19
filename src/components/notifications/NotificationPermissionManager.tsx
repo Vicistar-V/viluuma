@@ -16,7 +16,7 @@ export const NotificationPermissionManager = () => {
 
   const checkPermissionStatus = async () => {
     try {
-      const permissions = await notificationService.requestPermissions();
+      const permissions = await notificationService.checkPermissions();
       setPermissionStatus(permissions.display as PermissionStatus);
     } catch (error) {
       console.error('Error checking permissions:', error);

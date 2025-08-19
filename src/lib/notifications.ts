@@ -1,6 +1,5 @@
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
-import { BackgroundTask } from '@capawesome/capacitor-background-task';
 import { App } from '@capacitor/app';
 
 // Mobile-first notification service using Capacitor LocalNotifications with background task support
