@@ -5,26 +5,31 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { CalendarIcon, Sparkles } from "lucide-react";
+import { CalendarIcon, Sparkles, Crown, ArrowLeft } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
 import ThemeToggle from "@/components/ThemeToggle";
 import { useAuth } from "@/hooks/useAuth";
+import { useSubscription } from "@/hooks/useSubscription";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { PaywallModal } from "@/components/paywall/PaywallModal";
+import { UpgradePrompt } from "@/components/paywall/UpgradePrompt";
 
 const CreateManualGoalScreen = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const subscription = useSubscription();
 
   const [showForm, setShowForm] = useState(false);
   const [title, setTitle] = useState("");
   const [modality, setModality] = useState<"project" | "checklist">("project");
   const [date, setDate] = useState<Date | undefined>();
+  const [showPaywall, setShowPaywall] = useState(false);
 
   useEffect(() => {
     document.title = "Create Goal | Manual Mode";
@@ -68,6 +73,26 @@ const CreateManualGoalScreen = () => {
       </header>
 
       <main className="container mx-auto px-4 py-6 pb-28 space-y-6">
+        {/* Subscription Status */}
+        {subscription.entitlement === 'free' && (
+          <Card className="border-primary/20 bg-primary/5">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-medium text-sm">Free Plan</h3>
+                  <p className="text-xs text-muted-foreground">
+                    {subscription.activeGoalCount}/2 goals used
+                  </p>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => setShowPaywall(true)}>
+                  <Crown className="h-3 w-3 mr-1" />
+                  Upgrade
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         <Card className="animate-fade-in">
           <CardHeader>
             <CardTitle>Choose how to start</CardTitle>
@@ -137,6 +162,14 @@ const CreateManualGoalScreen = () => {
           </Card>
         )}
       </main>
+
+      <PaywallModal
+        isOpen={showPaywall}
+        onClose={() => setShowPaywall(false)}
+        trigger="goal_limit"
+        title="Goal Limit Reached"
+        description="You've reached your 2-goal limit. Upgrade to Pro for unlimited goals and advanced features."
+      />
 
       <BottomNav />
     </div>

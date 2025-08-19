@@ -7,6 +7,7 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { useAppLifecycle } from "@/hooks/useAppLifecycle";
 import { useMobileNotificationHandlers } from "@/hooks/useMobileNotificationHandlers";
+import { useRevenueCatInit } from "@/hooks/useRevenueCatInit";
 import Index from "./pages/Index";
 import LoginScreen from "./pages/LoginScreen";
 import SignUpScreen from "./pages/SignUpScreen";
@@ -27,6 +28,7 @@ const queryClient = new QueryClient();
 function AppLayout({ children }: { children: React.ReactNode }) {
   useAppLifecycle(); // This handles all mobile app lifecycle and background sync
   useMobileNotificationHandlers(); // This handles notification tap actions
+  useRevenueCatInit(); // Initialize RevenueCat for subscription management
   return <>{children}</>;
 }
 

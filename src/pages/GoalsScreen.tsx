@@ -10,7 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Target, Plus, TrendingUp, CheckCircle, Archive, Crown, Lock } from 'lucide-react';
 import { GoalCard } from '@/components/goals/GoalCard';
 import { GoalFiltersComponent, GoalFilters } from '@/components/goals/GoalFilters';
-import { ArchivedGoalsSection } from '@/components/goals/ArchivedGoalsSection';
+import { SmartArchivedGoalsSection } from '@/components/goals/SmartArchivedGoalsSection';
 import { UpgradePrompt } from '@/components/paywall/UpgradePrompt';
 import ThemeToggle from '@/components/ThemeToggle';
 import { BottomNav } from '@/components/BottomNav';
@@ -235,6 +235,17 @@ const GoalsScreen = () => {
             </Card>
           </div>
 
+          {/* System Archived Goals Upgrade Prompt */}
+          {systemArchivedGoals.length > 0 && subscription.entitlement === 'free' && (
+            <UpgradePrompt
+              variant="banner"
+              trigger="archive_limit"
+              title="Goals Locked 🔒"
+              description={`${systemArchivedGoals.length} goals were archived due to plan limits. Upgrade to Pro to unlock them instantly.`}
+              className="mb-6"
+            />
+          )}
+
           {/* Goals List */}
           {goals && goals.length > 0 ? (
             <div className="space-y-6">
@@ -308,8 +319,9 @@ const GoalsScreen = () => {
                     )}
                     
                     {/* Archived Goals Section - only show when not specifically filtering for archived */}
-                    <ArchivedGoalsSection
-                      archivedGoals={archivedGoals}
+                    <SmartArchivedGoalsSection
+                      userArchivedGoals={userArchivedGoals}
+                      systemArchivedGoals={systemArchivedGoals}
                       onUnarchive={handleUnarchive}
                       onPermanentDelete={handlePermanentDelete}
                     />
