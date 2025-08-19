@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, Clock, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
 import { useNotificationMonitoring } from '@/hooks/useNotificationMonitoring';
+import { NotificationTestButton } from './NotificationTestButton';
 
 export const NotificationMonitoringDashboard = () => {
   const { cronStatus, metrics, loading, checkCronJobHealth } = useNotificationMonitoring();
@@ -121,6 +122,19 @@ export const NotificationMonitoringDashboard = () => {
               ))
             )}
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Test Notifications */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Test Notifications</CardTitle>
+          <CardDescription>
+            Test your local notification system to ensure it's working properly
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <NotificationTestButton />
         </CardContent>
       </Card>
 
