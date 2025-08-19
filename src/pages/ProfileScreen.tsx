@@ -110,12 +110,16 @@ const ProfileScreen = () => {
                   <div className="flex items-center space-x-3">
                     <Bell className="h-4 w-4 text-muted-foreground" />
                     <div>
-                      <p className="text-sm font-medium">Notifications</p>
-                      <p className="text-xs text-muted-foreground">Manage push notifications</p>
+                      <p className="text-sm font-medium">Notification System</p>
+                      <p className="text-xs text-muted-foreground">Advanced debugging & monitoring</p>
                     </div>
                   </div>
-                  <Button variant="outline" size="sm">
-                    Configure
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => navigate('/notifications')}
+                  >
+                    Debug Dashboard
                   </Button>
                 </div>
                 
