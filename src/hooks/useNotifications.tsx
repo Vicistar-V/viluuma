@@ -27,7 +27,7 @@ interface CoachingNudge {
 
 interface IntelligencePayload {
   dailyDigest: DailyDigest;
-  coachingNudge: CoachingNudge | null;
+  unacknowledgedMessages: CoachingNudge[];
   timestamp: string;
 }
 
@@ -114,37 +114,50 @@ export const useNotifications = () => {
         }
       }
 
-      // Handle coaching nudge with re-engagement backup - respect user preferences
-      if (intelligencePayload.coachingNudge && shouldShowNotification(preferences, 'coachingNudges')) {
-        const nudge = intelligencePayload.coachingNudge;
+      // Handle unacknowledged messages with intelligent priority system
+      let priorityMessage: CoachingNudge | null = null;
+      
+      if (intelligencePayload.unacknowledgedMessages?.length > 0 && shouldShowNotification(preferences, 'coachingNudges')) {
+        // Priority system: deadline_warning > slump_detector > momentum_booster
+        const messageTypesPriority = ['deadline_warning', 'slump_detector', 'momentum_booster'];
         
-        // Schedule a backup notification for 10 minutes later (re-engagement trick)
-        // But respect quiet hours
-        const backupTime = new Date();
-        backupTime.setMinutes(backupTime.getMinutes() + 10);
-        
-        if (!isWithinQuietHours(preferences, backupTime)) {
-          const backupId = parseInt(nudge.id.substring(0, 8), 16);
-          
-          await notificationService.schedule({
-            notifications: [{
-              id: backupId,
-              title: nudge.title,
-              body: nudge.body + " (Tap to open Viluuma)",
-              schedule: { at: backupTime },
-            }]
-          });
-          
-          console.log('Scheduled backup coaching nudge for 10 minutes');
-        } else {
-          console.log('Skipped backup coaching nudge due to quiet hours');
+        for (const messageType of messageTypesPriority) {
+          priorityMessage = intelligencePayload.unacknowledgedMessages.find(msg => msg.message_type === messageType) || null;
+          if (priorityMessage) break;
         }
-      } else if (intelligencePayload.coachingNudge && !shouldShowNotification(preferences, 'coachingNudges')) {
-        console.log('Skipped coaching nudge due to user preferences');
+        
+        // If no priority message found, take the oldest one
+        if (!priorityMessage) {
+          priorityMessage = intelligencePayload.unacknowledgedMessages[0];
+        }
+        
+        // Schedule backup notifications for ALL unacknowledged messages (spaced apart)
+        for (let i = 0; i < intelligencePayload.unacknowledgedMessages.length; i++) {
+          const message = intelligencePayload.unacknowledgedMessages[i];
+          const backupTime = new Date();
+          backupTime.setMinutes(backupTime.getMinutes() + 10 + (i * 120)); // Space them 2 hours apart
+          
+          if (!isWithinQuietHours(preferences, backupTime)) {
+            const backupId = parseInt(message.id.substring(0, 8), 16);
+            
+            await notificationService.schedule({
+              notifications: [{
+                id: backupId,
+                title: message.title,
+                body: message.body + " (Tap to open Viluuma)",
+                schedule: { at: backupTime },
+              }]
+            });
+          }
+        }
+        
+        console.log(`Scheduled backup notifications for ${intelligencePayload.unacknowledgedMessages.length} messages`);
+      } else if (intelligencePayload.unacknowledgedMessages?.length > 0 && !shouldShowNotification(preferences, 'coachingNudges')) {
+        console.log('Skipped coaching messages due to user preferences');
       }
 
-      // Return any coaching nudge for immediate display
-      return intelligencePayload.coachingNudge || null;
+      // Return the priority message for immediate display (only ONE per session)
+      return priorityMessage;
 
     } catch (error) {
       console.error('Error in syncAndSchedule:', error);

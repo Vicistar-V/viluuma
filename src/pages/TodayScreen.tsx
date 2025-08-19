@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useTodayData } from '@/hooks/useTodayData';
 import { useAuth } from '@/hooks/useAuth';
 import { useNotifications } from '@/hooks/useNotifications';
+import { useUserMessages } from '@/hooks/useUserMessages';
 import TodayHeader from '@/components/today/TodayHeader';
 import TodayTaskItem from '@/components/today/TodayTaskItem';
 import OverdueTasksAccordion from '@/components/today/OverdueTasksAccordion';
@@ -16,19 +17,15 @@ import { Navigate } from 'react-router-dom';
 const TodayScreen: React.FC = () => {
   const { user } = useAuth();
   const { data: todayData, isLoading, isError, error } = useTodayData();
-  const { syncAndSchedule, acknowledgeMessage } = useNotifications();
-  const [currentNudge, setCurrentNudge] = useState<any>(null);
+  const { syncAndSchedule } = useNotifications();
+  const { displayedMessage, acknowledgeMessage, dismissMessage } = useUserMessages();
 
-  // Sync notifications when app loads or user changes
+  // Sync notifications when app loads (for daily digest and push notifications)
   useEffect(() => {
     if (user) {
-      const performSync = async () => {
-        const nudge = await syncAndSchedule();
-        if (nudge) {
-          setCurrentNudge(nudge);
-        }
-      };
-      performSync();
+      // Still run syncAndSchedule for daily digest and push notification scheduling
+      // but the in-app message display is now handled by useUserMessages
+      syncAndSchedule();
     }
   }, [user, syncAndSchedule]);
 
@@ -160,12 +157,12 @@ const TodayScreen: React.FC = () => {
       
       <BottomNav />
       
-      {/* Coaching Nudge Toast */}
-      {currentNudge && (
+      {/* Coaching Nudge Toast - New Human-Centric System */}
+      {displayedMessage && (
         <CoachingNudgeToast
-          nudge={currentNudge}
+          nudge={displayedMessage}
           onAcknowledge={acknowledgeMessage}
-          onDismiss={() => setCurrentNudge(null)}
+          onDismiss={dismissMessage}
         />
       )}
     </div>

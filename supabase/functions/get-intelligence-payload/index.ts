@@ -23,19 +23,19 @@ Deno.serve(async (req) => {
       }
     );
 
-    console.log('Getting intelligence payload for user...');
+    console.log('Getting intelligence payload for user (human-centric system)...');
 
     // Execute both queries in parallel for maximum performance
-    const [dailyDigestResult, coachingNudgeResult] = await Promise.all([
+    const [dailyDigestResult, messagesResult] = await Promise.all([
       // Get today's task summary for the morning digest
       supabase.rpc('get_today_tasks_summary'),
       
-      // Get and claim the next pending message (atomic operation)
-      supabase.rpc('get_next_pending_message')
+      // Get all unacknowledged messages (no auto-marking as delivered)
+      supabase.rpc('get_unacknowledged_messages')
     ]);
 
     console.log('Daily digest result:', dailyDigestResult);
-    console.log('Coaching nudge result:', coachingNudgeResult);
+    console.log('Unacknowledged messages result:', messagesResult);
 
     // Handle any errors from the database calls
     if (dailyDigestResult.error) {
@@ -43,21 +43,19 @@ Deno.serve(async (req) => {
       throw dailyDigestResult.error;
     }
 
-    if (coachingNudgeResult.error) {
-      console.error('Error getting coaching nudge:', coachingNudgeResult.error);
-      throw coachingNudgeResult.error;
+    if (messagesResult.error) {
+      console.error('Error getting messages:', messagesResult.error);
+      throw messagesResult.error;
     }
 
-    // Build the complete intelligence payload
+    // Build the simplified, human-centric payload
     const payload = {
       dailyDigest: dailyDigestResult.data || {
         taskCount: 0,
         firstTaskTitle: 'No tasks scheduled',
         generatedAt: new Date().toISOString()
       },
-      coachingNudge: coachingNudgeResult.data && coachingNudgeResult.data.length > 0 
-        ? coachingNudgeResult.data[0] 
-        : null,
+      unacknowledgedMessages: messagesResult.data || [],
       timestamp: new Date().toISOString()
     };
 

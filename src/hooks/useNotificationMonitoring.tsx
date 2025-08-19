@@ -57,10 +57,10 @@ export const useNotificationMonitoring = () => {
 
   const getNotificationMetrics = useCallback(async () => {
     try {
-      // Get message counts from last 7 days
+      // Get message counts from last 7 days using new schema
       const { data: messageStats, error } = await supabase
         .from('user_messages')
-        .select('message_type, status, created_at')
+        .select('message_type, is_acknowledged, created_at')
         .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
 
       if (error) {
@@ -82,8 +82,8 @@ export const useNotificationMonitoring = () => {
 
       if (stats) {
         const totalSent = stats.dailyDigestsSent + stats.coachingNudgesSent;
-        const delivered = messageStats?.filter(m => m.status === 'delivered').length || 0;
-        stats.deliveryRate = totalSent > 0 ? (delivered / totalSent) * 100 : 100;
+        const acknowledged = messageStats?.filter(m => m.is_acknowledged).length || 0;
+        stats.deliveryRate = totalSent > 0 ? (acknowledged / totalSent) * 100 : 100;
         
         setMetrics(stats);
       }

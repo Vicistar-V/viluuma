@@ -489,6 +489,21 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: Json
       }
+      get_unacknowledged_messages: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          acknowledged_at: string | null
+          body: string
+          created_at: string
+          id: string
+          is_acknowledged: boolean
+          message_type: string
+          title: string
+          updated_at: string
+          user_id: string
+          user_snooze_until: string | null
+        }[]
+      }
       get_user_data: {
         Args: { user_uuid?: string }
         Returns: Json
