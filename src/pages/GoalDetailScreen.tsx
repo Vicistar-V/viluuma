@@ -28,7 +28,7 @@ interface Goal {
   created_at: string;
   updated_at: string;
   completed_at?: string | null;
-  is_archived: boolean;
+  archive_status: 'active' | 'user_archived' | 'system_archived';
 }
 interface Milestone { 
   id: string; 
@@ -155,15 +155,15 @@ const GoalDetailScreen = () => {
     if (!goal) return;
     
     if (status === 'archived') {
-      // Use the archive flag for archiving
-      const { error } = await supabase.from('goals').update({ is_archived: true }).eq('id', goal.id);
+      // Use the archive status for archiving
+      const { error } = await supabase.from('goals').update({ archive_status: 'user_archived' }).eq('id', goal.id);
       if (error) {
         toast({ title: 'Error', description: error.message });
         return;
       }
     } else if (status === 'active') {
-      // Reactivate by setting archive flag to false
-      const { error } = await supabase.from('goals').update({ is_archived: false }).eq('id', goal.id);
+      // Reactivate by setting archive status to active
+      const { error } = await supabase.from('goals').update({ archive_status: 'active' }).eq('id', goal.id);
       if (error) {
         toast({ title: 'Error', description: error.message });
         return;

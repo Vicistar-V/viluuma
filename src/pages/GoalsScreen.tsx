@@ -5,19 +5,23 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
 import { useGoals, useUpdateGoalStatus, useDeleteGoal, usePermanentlyDeleteGoal } from '@/hooks/useGoals';
+import { useSubscription } from '@/hooks/useSubscription';
 import { useToast } from '@/hooks/use-toast';
-import { Target, Plus, TrendingUp, CheckCircle, Archive } from 'lucide-react';
+import { Target, Plus, TrendingUp, CheckCircle, Archive, Crown, Lock } from 'lucide-react';
 import { GoalCard } from '@/components/goals/GoalCard';
 import { GoalFiltersComponent, GoalFilters } from '@/components/goals/GoalFilters';
 import { ArchivedGoalsSection } from '@/components/goals/ArchivedGoalsSection';
+import { UpgradePrompt } from '@/components/paywall/UpgradePrompt';
 import ThemeToggle from '@/components/ThemeToggle';
 import { BottomNav } from '@/components/BottomNav';
 
 const GoalsScreen = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
   // BLAZING FAST: Direct table read - triggers handle all progress calculations
   const { data: goals, isLoading: goalsLoading } = useGoals();
+  const subscription = useSubscription();
   const updateGoalStatus = useUpdateGoalStatus();
   const deleteGoal = useDeleteGoal();
   const permanentlyDeleteGoal = usePermanentlyDeleteGoal();
@@ -28,17 +32,28 @@ const GoalsScreen = () => {
     modality: 'all'
   });
 
+  const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
+
   useEffect(() => {
     if (!loading && !user) {
       navigate('/login');
     }
   }, [user, loading, navigate]);
   
-  const { activeGoals, archivedGoals, filteredGoals, showingArchivedOnly } = useMemo(() => {
-    if (!goals) return { activeGoals: [], archivedGoals: [], filteredGoals: [], showingArchivedOnly: false };
+  const { activeGoals, archivedGoals, filteredGoals, showingArchivedOnly, systemArchivedGoals, userArchivedGoals } = useMemo(() => {
+    if (!goals) return { 
+      activeGoals: [], 
+      archivedGoals: [], 
+      filteredGoals: [], 
+      showingArchivedOnly: false, 
+      systemArchivedGoals: [], 
+      userArchivedGoals: [] 
+    };
     
     const activeGoals = goals.filter(goal => goal.status !== 'archived');
     const archivedGoals = goals.filter(goal => goal.status === 'archived');
+    const systemArchivedGoals = goals.filter(goal => goal.archive_status === 'system_archived');
+    const userArchivedGoals = goals.filter(goal => goal.archive_status === 'user_archived');
     const showingArchivedOnly = filters.status === 'archived';
     
     // If specifically filtering for archived goals, show archived goals with filters applied
@@ -68,7 +83,7 @@ const GoalsScreen = () => {
       return matchesSearch && matchesStatus && matchesModality;
     });
     
-    return { activeGoals, archivedGoals, filteredGoals, showingArchivedOnly: false };
+    return { activeGoals, archivedGoals, filteredGoals, showingArchivedOnly: false, systemArchivedGoals, userArchivedGoals };
   }, [goals, filters]);
   
   // BLAZING FAST: Client-side stats calculation (no database aggregation queries needed)
@@ -87,6 +102,14 @@ const GoalsScreen = () => {
     updateGoalStatus.mutate({ goalId, status });
   };
   
+  const handleNewGoal = () => {
+    if (!subscription.canCreateGoals) {
+      setShowUpgradePrompt(true);
+      return;
+    }
+    navigate('/goals/new');
+  };
+
   const handleDelete = (goalId: string) => {
     deleteGoal.mutate(goalId);
   };
@@ -99,7 +122,7 @@ const GoalsScreen = () => {
     permanentlyDeleteGoal.mutate(goalId);
   };
 
-  if (loading || goalsLoading) {
+  if (loading || goalsLoading || subscription.isLoading) {
     return (
       <div className="min-h-screen bg-background">
         <header className="border-b bg-card">
@@ -109,9 +132,9 @@ const GoalsScreen = () => {
               <h1 className="text-xl font-semibold">Goals</h1>
             </div>
             <div className="flex items-center gap-2">
-              <Button asChild size="sm">
-                <Link to="/goals/new"><span className="inline-flex items-center"><Plus className="mr-1 h-4 w-4" /> New Goal</span></Link>
-              </Button>
+            <Button onClick={handleNewGoal} size="sm">
+              <Plus className="mr-1 h-4 w-4" /> New Goal
+            </Button>
               <ThemeToggle />
             </div>
           </div>
@@ -150,8 +173,8 @@ const GoalsScreen = () => {
             <h1 className="text-xl font-semibold">Goals</h1>
           </div>
           <div className="flex items-center gap-2">
-            <Button asChild size="sm">
-              <Link to="/goals/new"><span className="inline-flex items-center"><Plus className="mr-1 h-4 w-4" /> New Goal</span></Link>
+            <Button onClick={handleNewGoal} size="sm">
+              <Plus className="mr-1 h-4 w-4" /> New Goal
             </Button>
             <ThemeToggle />
           </div>
@@ -301,11 +324,9 @@ const GoalsScreen = () => {
                 <p className="text-muted-foreground mb-6">
                   Start your journey by creating your first goal. Set milestones, track progress, and achieve your dreams.
                 </p>
-                <Button asChild size="lg">
-                  <Link to="/goals/new">
-                    <Plus className="mr-2 h-5 w-5" />
-                    Create Your First Goal
-                  </Link>
+                <Button onClick={handleNewGoal} size="lg">
+                  <Plus className="mr-2 h-5 w-5" />
+                  Create Your First Goal
                 </Button>
               </CardContent>
             </Card>

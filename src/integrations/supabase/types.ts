@@ -16,14 +16,13 @@ export type Database = {
     Tables: {
       goals: {
         Row: {
+          archive_status: Database["public"]["Enums"]["archive_status_enum"]
           completed_at: string | null
           completed_tasks: number
           created_at: string
           description: string | null
           id: string
-          is_archived: boolean | null
           modality: string
-          status: string
           target_date: string | null
           title: string
           total_tasks: number
@@ -32,14 +31,13 @@ export type Database = {
           weekly_hours: number | null
         }
         Insert: {
+          archive_status?: Database["public"]["Enums"]["archive_status_enum"]
           completed_at?: string | null
           completed_tasks?: number
           created_at?: string
           description?: string | null
           id?: string
-          is_archived?: boolean | null
           modality: string
-          status?: string
           target_date?: string | null
           title: string
           total_tasks?: number
@@ -48,14 +46,13 @@ export type Database = {
           weekly_hours?: number | null
         }
         Update: {
+          archive_status?: Database["public"]["Enums"]["archive_status_enum"]
           completed_at?: string | null
           completed_tasks?: number
           created_at?: string
           description?: string | null
           id?: string
-          is_archived?: boolean | null
           modality?: string
-          status?: string
           target_date?: string | null
           title?: string
           total_tasks?: number
@@ -127,22 +124,28 @@ export type Database = {
       profiles: {
         Row: {
           created_at: string
+          current_entitlement: string
           display_name: string | null
           id: string
+          revenuecat_id: string | null
           signed_up_at: string
           updated_at: string
         }
         Insert: {
           created_at?: string
+          current_entitlement?: string
           display_name?: string | null
           id: string
+          revenuecat_id?: string | null
           signed_up_at?: string
           updated_at?: string
         }
         Update: {
           created_at?: string
+          current_entitlement?: string
           display_name?: string | null
           id?: string
+          revenuecat_id?: string | null
           signed_up_at?: string
           updated_at?: string
         }
@@ -278,12 +281,14 @@ export type Database = {
     Views: {
       goals_with_computed_status: {
         Row: {
+          archive_status:
+            | Database["public"]["Enums"]["archive_status_enum"]
+            | null
           completed_at: string | null
           completed_tasks: number | null
           created_at: string | null
           description: string | null
           id: string | null
-          is_archived: boolean | null
           modality: string | null
           status: string | null
           target_date: string | null
@@ -294,12 +299,14 @@ export type Database = {
           weekly_hours: number | null
         }
         Insert: {
+          archive_status?:
+            | Database["public"]["Enums"]["archive_status_enum"]
+            | null
           completed_at?: string | null
           completed_tasks?: number | null
           created_at?: string | null
           description?: string | null
           id?: string | null
-          is_archived?: boolean | null
           modality?: string | null
           status?: never
           target_date?: string | null
@@ -310,12 +317,14 @@ export type Database = {
           weekly_hours?: number | null
         }
         Update: {
+          archive_status?:
+            | Database["public"]["Enums"]["archive_status_enum"]
+            | null
           completed_at?: string | null
           completed_tasks?: number | null
           created_at?: string | null
           description?: string | null
           id?: string | null
-          is_archived?: boolean | null
           modality?: string | null
           status?: never
           target_date?: string | null
@@ -396,9 +405,17 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      archive_excess_goals_for_user: {
+        Args: { p_user_id: string }
+        Returns: undefined
+      }
       archive_goal: {
         Args: { p_goal_id: string }
         Returns: undefined
+      }
+      can_create_new_goal: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
       }
       create_manual_goal: {
         Args: { p_modality: string; p_target_date?: string; p_title: string }
@@ -542,13 +559,17 @@ export type Database = {
         Args: { p_task_id: string }
         Returns: boolean
       }
+      unarchive_system_goals_for_user: {
+        Args: { p_user_id: string }
+        Returns: undefined
+      }
       update_milestone_title: {
         Args: { p_milestone_id: string; p_title: string }
         Returns: undefined
       }
     }
     Enums: {
-      [_ in never]: never
+      archive_status_enum: "active" | "user_archived" | "system_archived"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -675,6 +696,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      archive_status_enum: ["active", "user_archived", "system_archived"],
+    },
   },
 } as const

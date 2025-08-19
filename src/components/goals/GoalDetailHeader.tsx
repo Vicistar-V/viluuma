@@ -11,7 +11,7 @@ interface Goal {
   title: string;
   status: 'active' | 'archived' | 'completed';
   modality: 'project' | 'checklist';
-  is_archived: boolean;
+  archive_status: 'active' | 'user_archived' | 'system_archived';
 }
 
 interface GoalDetailHeaderProps {

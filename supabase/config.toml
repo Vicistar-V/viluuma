@@ -17,3 +17,9 @@ verify_jwt = true
 
 [functions.get-intelligence-payload]
 verify_jwt = true
+
+[functions.revenuecat-webhook]
+verify_jwt = false
+
+[functions.sync-revenuecat-subscription]
+verify_jwt = true

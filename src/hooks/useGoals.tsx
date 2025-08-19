@@ -17,7 +17,7 @@ export interface Goal {
   updated_at: string;
   completed_at: string | null;
   user_id: string;
-  is_archived: boolean;
+  archive_status: 'active' | 'user_archived' | 'system_archived';
 }
 
 const QUERY_KEY = 'goals';
@@ -80,10 +80,10 @@ export const useUpdateGoalStatus = () => {
         const { error } = await supabase.rpc('archive_goal', { p_goal_id: goalId });
         if (error) throw error;
       } else if (status === 'active') {
-        // Reactivate by setting archive flag to false
+        // Reactivate by setting archive status to active
         const { error } = await supabase
           .from('goals')
-          .update({ is_archived: false })
+          .update({ archive_status: 'active' })
           .eq('id', goalId);
         if (error) throw error;
       }
