@@ -6,7 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { useAppLifecycle } from "@/hooks/useAppLifecycle";
-import { useNotificationActions } from "@/hooks/useNotificationActions";
+import { useMobileNotificationHandlers } from "@/hooks/useMobileNotificationHandlers";
 import Index from "./pages/Index";
 import LoginScreen from "./pages/LoginScreen";
 import SignUpScreen from "./pages/SignUpScreen";
@@ -25,7 +25,7 @@ const queryClient = new QueryClient();
 // App Layout component that handles lifecycle
 function AppLayout({ children }: { children: React.ReactNode }) {
   useAppLifecycle(); // This handles all app-level notification sync
-  useNotificationActions(); // This handles notification tap actions
+  useMobileNotificationHandlers(); // This handles notification tap actions
   return <>{children}</>;
 }
 
