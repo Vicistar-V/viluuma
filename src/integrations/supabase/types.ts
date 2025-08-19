@@ -237,34 +237,40 @@ export type Database = {
       }
       user_messages: {
         Row: {
+          acknowledged_at: string | null
           body: string
           created_at: string
           id: string
+          is_acknowledged: boolean
           message_type: string
-          status: string
           title: string
           updated_at: string
           user_id: string
+          user_snooze_until: string | null
         }
         Insert: {
+          acknowledged_at?: string | null
           body: string
           created_at?: string
           id?: string
+          is_acknowledged?: boolean
           message_type: string
-          status?: string
           title: string
           updated_at?: string
           user_id: string
+          user_snooze_until?: string | null
         }
         Update: {
+          acknowledged_at?: string | null
           body?: string
           created_at?: string
           id?: string
+          is_acknowledged?: boolean
           message_type?: string
-          status?: string
           title?: string
           updated_at?: string
           user_id?: string
+          user_snooze_until?: string | null
         }
         Relationships: []
       }
@@ -463,14 +469,16 @@ export type Database = {
       get_next_pending_message: {
         Args: Record<PropertyKey, never>
         Returns: {
+          acknowledged_at: string | null
           body: string
           created_at: string
           id: string
+          is_acknowledged: boolean
           message_type: string
-          status: string
           title: string
           updated_at: string
           user_id: string
+          user_snooze_until: string | null
         }[]
       }
       get_today_page_payload: {
