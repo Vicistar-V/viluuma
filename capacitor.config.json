@@ -1,11 +1,7 @@
 {
-  "appId": "app.lovable.be90748d9eb2423e8629af106fe98bf4",
-  "appName": "viluuma",
+  "appId": "com.viluuma.app",
+  "appName": "ViluumaApp",
   "webDir": "dist",
-  "server": {
-    "url": "https://be90748d-9eb2-423e-8629-af106fe98bf4.lovableproject.com?forceHideBadge=true",
-    "cleartext": true
-  },
   "plugins": {
     "LocalNotifications": {
       "smallIcon": "ic_stat_icon_config_sample",
@@ -16,12 +12,10 @@
       "attachmentsEnabled": false
     },
     "BackgroundTask": {
-      "label": "com.yourcompany.yourapp.background",
+      "label": "com.viluuma.app.background",
       "src": "background.js"
     },
-    "App": {
-      "launchUrl": "https://be90748d-9eb2-423e-8629-af106fe98bf4.lovableproject.com"
-    }
+    "App": {}
   },
   "ios": {
     "contentInset": "automatic"
