@@ -39,9 +39,47 @@ class MobileNotificationService {
         return { notifications: [] };
       }
 
-      // Use Capacitor's native scheduling - works when app is closed/backgrounded
-      const result = await LocalNotifications.schedule({ notifications });
-      console.log('Notifications scheduled successfully:', result);
+      // Enhanced notifications with high visibility settings
+      const enhancedNotifications = notifications.map(notification => ({
+        ...notification,
+        // High importance for pop-up visibility
+        importance: 5, // Maximum importance on Android
+        priority: 2, // High priority on iOS
+        // Visual settings
+        sound: 'default',
+        vibrate: true,
+        // Channel settings for Android
+        channelId: 'viluuma-notifications',
+        // Additional visibility settings
+        ongoing: false,
+        autoCancel: true,
+        largeBody: notification.body,
+        summaryText: 'Viluuma App',
+        // Make sure it shows as heads-up notification
+        category: 'reminder',
+        threadIdentifier: 'viluuma-main'
+      }));
+
+      // Create notification channel for Android (ensures proper visibility)
+      if (Capacitor.getPlatform() === 'android') {
+        await LocalNotifications.createChannel({
+          id: 'viluuma-notifications',
+          name: 'Viluuma Notifications',
+          description: 'Important notifications from Viluuma',
+          importance: 5, // Maximum importance
+          visibility: 1, // Public visibility
+          sound: 'default',
+          vibration: true,
+          lights: true,
+          lightColor: '#4F46E5'
+        });
+      }
+
+      // Use Capacitor's native scheduling with enhanced settings
+      const result = await LocalNotifications.schedule({ 
+        notifications: enhancedNotifications 
+      });
+      console.log('Enhanced notifications scheduled successfully:', result);
       return result;
     } catch (error) {
       console.error('Error scheduling notifications:', error);

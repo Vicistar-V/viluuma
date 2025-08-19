@@ -5,11 +5,16 @@
   "plugins": {
     "LocalNotifications": {
       "smallIcon": "ic_stat_icon_config_sample",
-      "iconColor": "#488AFF",
-      "sound": "beep.wav",
+      "iconColor": "#4F46E5",
+      "sound": "default",
       "androidForegroundService": true,
       "requestPermissions": true,
-      "attachmentsEnabled": false
+      "attachmentsEnabled": false,
+      "androidChannelId": "viluuma-notifications",
+      "androidChannelName": "Viluuma Notifications",
+      "androidChannelDescription": "Important notifications from Viluuma",
+      "androidImportance": 5,
+      "androidVisibility": 1
     },
     "BackgroundTask": {
       "label": "com.viluuma.app.background"
