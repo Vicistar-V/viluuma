@@ -19,9 +19,9 @@ const getRevenueCatApiKey = (): string => {
   } else if (platform === 'android') {
     return REVENUECAT_API_KEYS.android;
   } else {
-    // Web fallback - use iOS key for development
-    console.log('Using web platform, defaulting to iOS key');
-    return REVENUECAT_API_KEYS.ios;
+    // Web fallback - use Android key for development
+    console.log('Using web platform, defaulting to Android key');
+    return REVENUECAT_API_KEYS.android;
   }
 };
 
