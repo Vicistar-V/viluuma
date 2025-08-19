@@ -41,53 +41,133 @@ async function verifyWebhookSignature(body: string, signature: string): Promise<
 }
 
 serve(async (req) => {
+  const startTime = Date.now();
+  const requestId = crypto.randomUUID().substring(0, 8);
+  
+  console.log(`[${requestId}] ==> WEBHOOK REQUEST START`);
+  console.log(`[${requestId}] Method: ${req.method}`);
+  console.log(`[${requestId}] URL: ${req.url}`);
+  console.log(`[${requestId}] User-Agent: ${req.headers.get('user-agent') || 'Unknown'}`);
+  
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
+    console.log(`[${requestId}] CORS preflight request - responding with headers`);
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    console.log('RevenueCat webhook received');
+    console.log(`[${requestId}] Processing RevenueCat webhook...`);
+    
+    // Log all headers for debugging
+    console.log(`[${requestId}] REQUEST HEADERS:`);
+    req.headers.forEach((value, key) => {
+      // Don't log sensitive headers completely, just indicate presence
+      if (key.toLowerCase().includes('authorization') || key.toLowerCase().includes('secret')) {
+        console.log(`[${requestId}]   ${key}: [REDACTED - ${value.length} chars]`);
+      } else {
+        console.log(`[${requestId}]   ${key}: ${value}`);
+      }
+    });
     
     // Get the raw body and signature
     const body = await req.text();
     const signature = req.headers.get('revenuecat-signature');
+    const contentType = req.headers.get('content-type');
+    
+    console.log(`[${requestId}] Body length: ${body.length} bytes`);
+    console.log(`[${requestId}] Content-Type: ${contentType || 'Not specified'}`);
+    console.log(`[${requestId}] Signature header: ${signature ? `Present (${signature.substring(0, 16)}...)` : 'MISSING'}`);
+    console.log(`[${requestId}] Raw body preview: ${body.substring(0, 200)}${body.length > 200 ? '...' : ''}`);
 
-    console.log('Signature header:', signature ? 'Present' : 'Missing');
+    // Environment check
+    console.log(`[${requestId}] REVENUECAT_WEBHOOK_SECRET configured: ${REVENUECAT_WEBHOOK_SECRET ? 'YES' : 'NO'}`);
 
-    // Verify the webhook signature
-    if (!signature || !await verifyWebhookSignature(body, signature.replace('sha256=', ''))) {
-      console.error('Invalid webhook signature');
-      return new Response('Unauthorized', { 
+    // Signature verification with detailed logging
+    if (!signature) {
+      console.error(`[${requestId}] ❌ SIGNATURE MISSING - RevenueCat signature header not found`);
+      return new Response('Unauthorized: Missing signature', { 
         status: 401, 
         headers: corsHeaders 
       });
     }
 
-    // Parse the webhook event
-    const event = JSON.parse(body);
-    console.log('Event type:', event.type);
-    console.log('App user ID:', event.app_user_id);
+    const cleanSignature = signature.replace('sha256=', '');
+    console.log(`[${requestId}] Cleaned signature: ${cleanSignature.substring(0, 16)}...`);
+    
+    const signatureValid = await verifyWebhookSignature(body, cleanSignature);
+    console.log(`[${requestId}] Signature verification: ${signatureValid ? '✅ VALID' : '❌ INVALID'}`);
+    
+    if (!signatureValid) {
+      console.error(`[${requestId}] ❌ SIGNATURE VERIFICATION FAILED`);
+      console.error(`[${requestId}] Expected signature format: sha256=<hex>`);
+      console.error(`[${requestId}] Received signature: ${signature}`);
+      return new Response('Unauthorized: Invalid signature', { 
+        status: 401, 
+        headers: corsHeaders 
+      });
+    }
+
+    // Parse and validate JSON
+    let event;
+    try {
+      event = JSON.parse(body);
+      console.log(`[${requestId}] ✅ JSON parsed successfully`);
+    } catch (parseError) {
+      console.error(`[${requestId}] ❌ JSON PARSE ERROR:`, parseError);
+      console.error(`[${requestId}] Raw body: ${body}`);
+      return new Response('Bad Request: Invalid JSON', { 
+        status: 400, 
+        headers: corsHeaders 
+      });
+    }
+
+    // Log event details
+    console.log(`[${requestId}] EVENT ANALYSIS:`);
+    console.log(`[${requestId}]   Type: ${event.type || 'UNKNOWN'}`);
+    console.log(`[${requestId}]   App User ID: ${event.app_user_id || 'MISSING'}`);
+    console.log(`[${requestId}]   Event Timestamp: ${event.event_timestamp_ms || 'N/A'}`);
+    console.log(`[${requestId}]   Environment: ${event.environment || 'N/A'}`);
+    
+    // Log full event structure for debugging
+    console.log(`[${requestId}] FULL EVENT STRUCTURE:`, JSON.stringify(event, null, 2));
 
     if (!event.app_user_id) {
-      console.error('No app_user_id in webhook event');
+      console.error(`[${requestId}] ❌ MISSING app_user_id in webhook event`);
+      console.error(`[${requestId}] Available event keys:`, Object.keys(event));
       return new Response('Bad Request: Missing app_user_id', { 
         status: 400, 
         headers: corsHeaders 
       });
     }
 
-    // Determine if user has pro entitlement
+    // Detailed entitlement analysis
+    console.log(`[${requestId}] ENTITLEMENT ANALYSIS:`);
+    if (!event.entitlements) {
+      console.log(`[${requestId}]   No entitlements object found`);
+    } else {
+      console.log(`[${requestId}]   Entitlements found: ${Object.keys(event.entitlements).length}`);
+      Object.entries(event.entitlements).forEach(([key, entitlement]: [string, any]) => {
+        console.log(`[${requestId}]   Entitlement "${key}":`);
+        console.log(`[${requestId}]     Product ID: ${entitlement.product_identifier || 'N/A'}`);
+        console.log(`[${requestId}]     Expires: ${entitlement.expires_date || 'N/A'}`);
+        console.log(`[${requestId}]     Is Active: ${entitlement.expires_date ? new Date(entitlement.expires_date) > new Date() : 'N/A'}`);
+      });
+    }
+
+    // Determine if user has pro entitlement with detailed logging
     const hasProEntitlement = event.entitlements && 
-                              Object.values(event.entitlements).some((entitlement: any) => 
-                                entitlement.product_identifier === 'pro' && 
-                                new Date(entitlement.expires_date) > new Date()
-                              );
+                              Object.values(event.entitlements).some((entitlement: any) => {
+                                const isPro = entitlement.product_identifier === 'pro';
+                                const isActive = entitlement.expires_date && new Date(entitlement.expires_date) > new Date();
+                                console.log(`[${requestId}]   Checking entitlement: product=${entitlement.product_identifier}, isPro=${isPro}, isActive=${isActive}`);
+                                return isPro && isActive;
+                              });
 
-    console.log('Has pro entitlement:', hasProEntitlement);
+    console.log(`[${requestId}] 🏆 PRO ENTITLEMENT STATUS: ${hasProEntitlement ? '✅ ACTIVE' : '❌ INACTIVE'}`);
 
-    // Update user's entitlement in profiles table
+    // Database update with detailed logging
     const newEntitlement = hasProEntitlement ? 'pro' : 'free';
+    console.log(`[${requestId}] 💾 UPDATING DATABASE: ${event.app_user_id} -> ${newEntitlement}`);
     
     const { error: profileError } = await supabaseAdmin
       .from('profiles')
@@ -98,48 +178,76 @@ serve(async (req) => {
       .eq('id', event.app_user_id);
 
     if (profileError) {
-      console.error('Error updating profile:', profileError);
-      return new Response('Internal Server Error', { 
+      console.error(`[${requestId}] ❌ DATABASE UPDATE ERROR:`, profileError);
+      console.error(`[${requestId}] Error details:`, {
+        code: profileError.code,
+        message: profileError.message,
+        details: profileError.details,
+        hint: profileError.hint
+      });
+      return new Response('Internal Server Error: Database update failed', { 
         status: 500, 
         headers: corsHeaders 
       });
     }
 
-    console.log(`Updated user ${event.app_user_id} entitlement to ${newEntitlement}`);
+    console.log(`[${requestId}] ✅ Database updated successfully: ${event.app_user_id} -> ${newEntitlement}`);
 
-    // Handle subscription state changes
+    // Handle subscription state changes with detailed logging
+    console.log(`[${requestId}] 🎯 GOAL MANAGEMENT:`);
     if (hasProEntitlement) {
-      // User upgraded to pro - unarchive system-archived goals
-      console.log('Unarchiving system goals for user');
+      console.log(`[${requestId}]   User upgraded to PRO - unarchiving system goals`);
       const { error: unarchiveError } = await supabaseAdmin
         .rpc('unarchive_system_goals_for_user', { p_user_id: event.app_user_id });
 
       if (unarchiveError) {
-        console.error('Error unarchiving goals:', unarchiveError);
+        console.error(`[${requestId}]   ❌ Error unarchiving goals:`, unarchiveError);
+      } else {
+        console.log(`[${requestId}]   ✅ System goals unarchived successfully`);
       }
     } else {
-      // User lost pro access - archive excess goals
-      console.log('Archiving excess goals for user');
+      console.log(`[${requestId}]   User downgraded to FREE - archiving excess goals`);
       const { error: archiveError } = await supabaseAdmin
         .rpc('archive_excess_goals_for_user', { p_user_id: event.app_user_id });
 
       if (archiveError) {
-        console.error('Error archiving goals:', archiveError);
+        console.error(`[${requestId}]   ❌ Error archiving goals:`, archiveError);
+      } else {
+        console.log(`[${requestId}]   ✅ Excess goals archived successfully`);
       }
     }
 
-    console.log('Webhook processed successfully');
+    const processingTime = Date.now() - startTime;
+    console.log(`[${requestId}] ✅ WEBHOOK PROCESSED SUCCESSFULLY`);
+    console.log(`[${requestId}] Processing time: ${processingTime}ms`);
+    console.log(`[${requestId}] <== WEBHOOK REQUEST END`);
     
     return new Response('OK', { 
       status: 200, 
-      headers: corsHeaders 
+      headers: {
+        ...corsHeaders,
+        'X-Processing-Time': `${processingTime}ms`,
+        'X-Request-ID': requestId
+      }
     });
 
   } catch (error) {
-    console.error('Error processing webhook:', error);
+    const processingTime = Date.now() - startTime;
+    console.error(`[${requestId}] ❌ CRITICAL ERROR in webhook processing:`, error);
+    console.error(`[${requestId}] Error name: ${error.name}`);
+    console.error(`[${requestId}] Error message: ${error.message}`);
+    console.error(`[${requestId}] Error stack: ${error.stack}`);
+    console.error(`[${requestId}] Processing time before error: ${processingTime}ms`);
+    console.error(`[${requestId}] <== WEBHOOK REQUEST FAILED`);
+    
     return new Response('Internal Server Error', { 
       status: 500, 
-      headers: corsHeaders 
+      headers: {
+        ...corsHeaders,
+        'X-Processing-Time': `${processingTime}ms`,
+        'X-Request-ID': requestId,
+        'X-Error': 'true'
+      }
     });
   }
 });
