@@ -12,8 +12,7 @@
       "attachmentsEnabled": false
     },
     "BackgroundTask": {
-      "label": "com.viluuma.app.background",
-      "src": "background.js"
+      "label": "com.viluuma.app.background"
     },
     "App": {}
   },
