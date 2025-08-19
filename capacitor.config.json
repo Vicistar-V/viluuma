@@ -11,6 +11,21 @@
       "smallIcon": "ic_stat_icon_config_sample",
       "iconColor": "#488AFF",
       "sound": "beep.wav"
+    },
+    "BackgroundMode": {
+      "enabled": true,
+      "title": "Viluuma Background Sync",
+      "text": "Keeping your tasks and notifications up to date",
+      "silent": true
+    },
+    "App": {
+      "launchUrl": "https://be90748d-9eb2-423e-8629-af106fe98bf4.lovableproject.com"
     }
+  },
+  "ios": {
+    "contentInset": "automatic"
+  },
+  "android": {
+    "allowMixedContent": true
   }
 }

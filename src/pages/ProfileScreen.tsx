@@ -14,8 +14,8 @@ import { NotificationPermissionManager } from '@/components/notifications/Notifi
 import { NotificationCenter } from '@/components/notifications/NotificationCenter';
 
 const ProfileScreen = () => {
-  const { user, signOut, loading } = useAuth();
   const navigate = useNavigate();
+  const { user, signOut, loading } = useAuth();
   const { toast } = useToast();
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 

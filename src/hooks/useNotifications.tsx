@@ -3,6 +3,13 @@ import { notificationService } from '@/lib/notifications';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { 
+  loadNotificationPreferences, 
+  shouldShowNotification, 
+  getPreferredDigestTime,
+  isWithinQuietHours,
+  type NotificationPreferences 
+} from '@/lib/notificationPreferences';
 
 interface DailyDigest {
   taskCount: number;
@@ -56,6 +63,9 @@ export const useNotifications = () => {
     try {
       console.log('Syncing and scheduling notifications...');
 
+      // Load user preferences
+      const preferences = loadNotificationPreferences();
+
       // Get the intelligence payload from our backend
       const { data: payload, error } = await supabase.functions.invoke('get-intelligence-payload');
       
@@ -70,61 +80,71 @@ export const useNotifications = () => {
       // Clear yesterday's scheduled digest to prevent duplicates
       await notificationService.cancel({ notifications: [{ id: 1 }] });
 
-      // Schedule TOMORROW'S morning digest with enhanced personalization
-      const tomorrowAt8AM = new Date();
-      tomorrowAt8AM.setDate(tomorrowAt8AM.getDate() + 1);
-      tomorrowAt8AM.setHours(8, 0, 0, 0);
+      // Schedule daily digest only if user has enabled it
+      if (shouldShowNotification(preferences, 'dailyDigest') && intelligencePayload.dailyDigest) {
+        const { hour, minute } = getPreferredDigestTime(preferences);
+        const tomorrowAtPreferredTime = new Date();
+        tomorrowAtPreferredTime.setDate(tomorrowAtPreferredTime.getDate() + 1);
+        tomorrowAtPreferredTime.setHours(hour, minute, 0, 0);
 
-      if (intelligencePayload.dailyDigest && intelligencePayload.dailyDigest.taskCount > 0) {
-        const personalizedBody = intelligencePayload.dailyDigest.taskCount === 1 
-          ? `Your focus task today: "${intelligencePayload.dailyDigest.firstTaskTitle}"`
-          : `You have ${intelligencePayload.dailyDigest.taskCount} tasks today, starting with "${intelligencePayload.dailyDigest.firstTaskTitle}"`;
+        if (intelligencePayload.dailyDigest.taskCount > 0) {
+          const personalizedBody = intelligencePayload.dailyDigest.taskCount === 1 
+            ? `Your focus task today: "${intelligencePayload.dailyDigest.firstTaskTitle}"`
+            : `You have ${intelligencePayload.dailyDigest.taskCount} tasks today, starting with "${intelligencePayload.dailyDigest.firstTaskTitle}"`;
 
-        await notificationService.schedule({
-          notifications: [{
-            id: 1, // Static ID for daily digest
-            title: "Your Viluuma Daily Digest ☀️",
-            body: personalizedBody,
-            schedule: { at: tomorrowAt8AM },
-          }]
-        });
-        console.log('Scheduled daily digest for tomorrow 8AM');
-      } else if (intelligencePayload.dailyDigest && intelligencePayload.dailyDigest.taskCount === 0) {
-        // Schedule a motivational message for days with no tasks
-        await notificationService.schedule({
-          notifications: [{
-            id: 1,
-            title: "Good morning! ✨",
-            body: "No tasks scheduled for today. A perfect day to plan your next big move or take a well-deserved break!",
-            schedule: { at: tomorrowAt8AM },
-          }]
-        });
+          await notificationService.schedule({
+            notifications: [{
+              id: 1, // Static ID for daily digest
+              title: "Your Viluuma Daily Digest ☀️",
+              body: personalizedBody,
+              schedule: { at: tomorrowAtPreferredTime },
+            }]
+          });
+          console.log(`Scheduled daily digest for tomorrow ${hour}:${minute.toString().padStart(2, '0')}`);
+        } else {
+          // Schedule a motivational message for days with no tasks
+          await notificationService.schedule({
+            notifications: [{
+              id: 1,
+              title: "Good morning! ✨",
+              body: "No tasks scheduled for today. A perfect day to plan your next big move or take a well-deserved break!",
+              schedule: { at: tomorrowAtPreferredTime },
+            }]
+          });
+        }
       }
 
-      // Handle coaching nudge with re-engagement backup
-      if (intelligencePayload.coachingNudge) {
+      // Handle coaching nudge with re-engagement backup - respect user preferences
+      if (intelligencePayload.coachingNudge && shouldShowNotification(preferences, 'coachingNudges')) {
         const nudge = intelligencePayload.coachingNudge;
         
         // Schedule a backup notification for 10 minutes later (re-engagement trick)
+        // But respect quiet hours
         const backupTime = new Date();
         backupTime.setMinutes(backupTime.getMinutes() + 10);
         
-        const backupId = parseInt(nudge.id.substring(0, 8), 16);
-        
-        await notificationService.schedule({
-          notifications: [{
-            id: backupId,
-            title: nudge.title,
-            body: nudge.body + " (Tap to open Viluuma)",
-            schedule: { at: backupTime },
-          }]
-        });
-        
-        console.log('Scheduled backup coaching nudge for 10 minutes');
+        if (!isWithinQuietHours(preferences, backupTime)) {
+          const backupId = parseInt(nudge.id.substring(0, 8), 16);
+          
+          await notificationService.schedule({
+            notifications: [{
+              id: backupId,
+              title: nudge.title,
+              body: nudge.body + " (Tap to open Viluuma)",
+              schedule: { at: backupTime },
+            }]
+          });
+          
+          console.log('Scheduled backup coaching nudge for 10 minutes');
+        } else {
+          console.log('Skipped backup coaching nudge due to quiet hours');
+        }
+      } else if (intelligencePayload.coachingNudge && !shouldShowNotification(preferences, 'coachingNudges')) {
+        console.log('Skipped coaching nudge due to user preferences');
       }
 
       // Return any coaching nudge for immediate display
-      return intelligencePayload.coachingNudge;
+      return intelligencePayload.coachingNudge || null;
 
     } catch (error) {
       console.error('Error in syncAndSchedule:', error);
@@ -160,6 +180,26 @@ export const useNotifications = () => {
 
   const scheduleTaskReminder = async (taskId: string, taskTitle: string, reminderTime: Date) => {
     try {
+      // Check user preferences before scheduling
+      const preferences = loadNotificationPreferences();
+      
+      if (isWithinQuietHours(preferences, reminderTime)) {
+        toast({
+          title: "Reminder adjusted",
+          description: "Reminder moved outside quiet hours",
+          variant: "default",
+        });
+        
+        // Adjust time to end of quiet hours
+        const [endHour, endMinute] = preferences.quietHours.end.split(':').map(Number);
+        reminderTime.setHours(endHour, endMinute, 0, 0);
+        
+        // If that's in the past, move to next day
+        if (reminderTime < new Date()) {
+          reminderTime.setDate(reminderTime.getDate() + 1);
+        }
+      }
+
       // Use the task ID as the notification ID (convert to number)
       const notificationId = parseInt(taskId.substring(0, 8), 16); // Convert part of UUID to number
       

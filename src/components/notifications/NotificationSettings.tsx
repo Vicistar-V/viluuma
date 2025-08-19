@@ -4,54 +4,29 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Bell, Clock, MessageCircle, Target, Zap } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { 
+  loadNotificationPreferences, 
+  saveNotificationPreferences,
+  type NotificationPreferences 
+} from '@/lib/notificationPreferences';
 
-interface NotificationPreferences {
-  dailyDigest: boolean;
-  digestTime: string;
-  coachingNudges: boolean;
-  deadlineWarnings: boolean;
-  momentumBoosters: boolean;
-  quietHours: {
-    enabled: boolean;
-    start: string;
-    end: string;
-  };
-}
+// Interface imported from lib
 
 export const NotificationSettings = () => {
-  const [preferences, setPreferences] = useState<NotificationPreferences>({
-    dailyDigest: true,
-    digestTime: '08:00',
-    coachingNudges: true,
-    deadlineWarnings: true,
-    momentumBoosters: true,
-    quietHours: {
-      enabled: false,
-      start: '22:00',
-      end: '07:00',
-    },
-  });
+  const [preferences, setPreferences] = useState<NotificationPreferences>(loadNotificationPreferences());
   const { toast } = useToast();
 
   // Load preferences from localStorage
   useEffect(() => {
-    const saved = localStorage.getItem('notification-preferences');
-    if (saved) {
-      try {
-        setPreferences(JSON.parse(saved));
-      } catch (error) {
-        console.error('Error loading notification preferences:', error);
-      }
-    }
+    setPreferences(loadNotificationPreferences());
   }, []);
 
   const savePreferences = (newPreferences: NotificationPreferences) => {
     setPreferences(newPreferences);
-    localStorage.setItem('notification-preferences', JSON.stringify(newPreferences));
+    saveNotificationPreferences(newPreferences);
     toast({
       title: "Settings saved",
       description: "Your notification preferences have been updated.",

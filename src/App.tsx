@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { useAppLifecycle } from "@/hooks/useAppLifecycle";
+import { useNotificationActions } from "@/hooks/useNotificationActions";
 import Index from "./pages/Index";
 import LoginScreen from "./pages/LoginScreen";
 import SignUpScreen from "./pages/SignUpScreen";
@@ -16,6 +17,7 @@ import CreateManualGoalScreen from "./pages/CreateManualGoalScreen";
 import GoalDetailScreen from "./pages/GoalDetailScreen";
 import PlanReviewScreen from "./pages/PlanReviewScreen";
 import AIOnboardingWizard from "./pages/AIOnboardingWizard";
+import NotificationDashboard from "./pages/NotificationDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -23,6 +25,7 @@ const queryClient = new QueryClient();
 // App Layout component that handles lifecycle
 function AppLayout({ children }: { children: React.ReactNode }) {
   useAppLifecycle(); // This handles all app-level notification sync
+  useNotificationActions(); // This handles notification tap actions
   return <>{children}</>;
 }
 
@@ -46,6 +49,7 @@ const App = () => (
                 <Route path="/plan-review" element={<PlanReviewScreen />} />
                 <Route path="/goals/:id" element={<GoalDetailScreen />} />
                 <Route path="/profile" element={<ProfileScreen />} />
+                <Route path="/notifications" element={<NotificationDashboard />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
