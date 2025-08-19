@@ -10,41 +10,30 @@ export const useMobileNotificationHandlers = () => {
 
   useEffect(() => {
     const setupNotificationHandlers = async () => {
-      if (Capacitor.isNativePlatform()) {
-        // Mobile platform - use Capacitor LocalNotifications
-        const actionListener = await LocalNotifications.addListener(
-          'localNotificationActionPerformed',
-          (notification) => {
-            console.log('Mobile notification tapped:', notification);
-            handleNotificationTap(notification.notification);
-          }
-        );
+      console.log('Setting up mobile notification handlers');
+      
+      // Mobile-first: Always use Capacitor LocalNotifications
+      const actionListener = await LocalNotifications.addListener(
+        'localNotificationActionPerformed',
+        (notification) => {
+          console.log('Mobile notification tapped:', notification);
+          handleNotificationTap(notification.notification);
+        }
+      );
 
-        const receivedListener = await LocalNotifications.addListener(
-          'localNotificationReceived',
-          (notification) => {
-            console.log('Mobile notification received:', notification);
-            // Handle notification received while app is open
-          }
-        );
+      const receivedListener = await LocalNotifications.addListener(
+        'localNotificationReceived',
+        (notification) => {
+          console.log('Mobile notification received while app is open:', notification);
+          // Handle notification received while app is open
+        }
+      );
 
-        return () => {
-          actionListener.remove();
-          receivedListener.remove();
-        };
-      } else {
-        // Web platform - use custom event listener
-        const handleWebNotificationClick = (event: any) => {
-          console.log('Web notification clicked:', event.detail);
-          handleNotificationTap(event.detail.notification);
-        };
-
-        window.addEventListener('notification-clicked', handleWebNotificationClick);
-        
-        return () => {
-          window.removeEventListener('notification-clicked', handleWebNotificationClick);
-        };
-      }
+      return () => {
+        console.log('Cleaning up notification listeners');
+        actionListener.remove();
+        receivedListener.remove();
+      };
     };
 
     const cleanup = setupNotificationHandlers();

@@ -1,109 +1,60 @@
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 
-// Enhanced mobile-first notification service
+// Mobile-first notification service using Capacitor LocalNotifications
 class MobileNotificationService {
-  private pendingNotifications: Map<number, any> = new Map();
-  private webNotifications: Map<number, Notification> = new Map();
-
   async requestPermissions() {
-    if (!('Notification' in window)) {
+    console.log('Mobile-first notification service: Requesting permissions');
+    try {
+      // Use Capacitor's LocalNotifications for permission request
+      const permission = await LocalNotifications.requestPermissions();
+      console.log('Notification permissions:', permission);
+      return permission;
+    } catch (error) {
+      console.error('Error requesting notification permissions:', error);
       return { display: 'denied' };
     }
-
-    const permission = await Notification.requestPermission();
-    return { display: permission };
   }
 
   async schedule({ notifications }: { notifications: any[] }) {
-    console.log('Mobile notification service: Scheduling notifications:', notifications);
+    console.log('Mobile-first notification service: Scheduling notifications:', notifications);
     
-    for (const notification of notifications) {
-      this.pendingNotifications.set(notification.id, {
-        ...notification,
-        scheduled: true
-      });
-
-      // For web, use Web Notifications API with scheduling simulation
-      if ('Notification' in window && Notification.permission === 'granted') {
-        if (notification.schedule?.at) {
-          const scheduleTime = new Date(notification.schedule.at);
-          const delay = scheduleTime.getTime() - Date.now();
-          
-          if (delay > 0) {
-            setTimeout(() => {
-              const webNotification = new Notification(notification.title, {
-                body: notification.body,
-                icon: '/favicon.ico',
-                badge: '/favicon.ico',
-                tag: `notification-${notification.id}`,
-                requireInteraction: true,
-                silent: false
-              });
-
-              this.webNotifications.set(notification.id, webNotification);
-              
-              webNotification.onclick = () => {
-                window.focus();
-                webNotification.close();
-                // Trigger notification click event
-                window.dispatchEvent(new CustomEvent('notification-clicked', {
-                  detail: { notification }
-                }));
-              };
-            }, delay);
-          }
-        } else {
-          // Immediate notification
-          const webNotification = new Notification(notification.title, {
-            body: notification.body,
-            icon: '/favicon.ico',
-            badge: '/favicon.ico',
-            tag: `notification-${notification.id}`,
-            requireInteraction: true
-          });
-
-          this.webNotifications.set(notification.id, webNotification);
-        }
-      }
+    try {
+      // Use Capacitor's native scheduling - works when app is closed/backgrounded
+      const result = await LocalNotifications.schedule({ notifications });
+      console.log('Notifications scheduled successfully:', result);
+      return result;
+    } catch (error) {
+      console.error('Error scheduling notifications:', error);
+      return { notifications: [] };
     }
-
-    return { notifications };
   }
 
   async cancel({ notifications }: { notifications: { id: number }[] }) {
-    console.log('Mobile notification service: Cancelling notifications:', notifications);
+    console.log('Mobile-first notification service: Cancelling notifications:', notifications);
     
-    for (const { id } of notifications) {
-      this.pendingNotifications.delete(id);
-      
-      // Cancel web notification if exists
-      const webNotification = this.webNotifications.get(id);
-      if (webNotification) {
-        webNotification.close();
-        this.webNotifications.delete(id);
-      }
+    try {
+      const result = await LocalNotifications.cancel({ notifications });
+      console.log('Notifications cancelled successfully');
+      return result;
+    } catch (error) {
+      console.error('Error cancelling notifications:', error);
+      return {};
     }
-    
-    return {};
   }
 
   async getPending() {
-    const notifications = Array.from(this.pendingNotifications.values())
-      .filter(n => n.scheduled);
-    
-    console.log('Mobile notification service: Getting pending notifications:', notifications);
-    return { notifications };
+    try {
+      const result = await LocalNotifications.getPending();
+      console.log('Mobile-first notification service: Getting pending notifications:', result.notifications);
+      return result;
+    } catch (error) {
+      console.error('Error getting pending notifications:', error);
+      return { notifications: [] };
+    }
   }
 }
 
-// Create a unified notification service that works on web and mobile
-export const createNotificationService = () => {
-  if (Capacitor.isNativePlatform()) {
-    return LocalNotifications;
-  } else {
-    return new MobileNotificationService();
-  }
-};
-
-export const notificationService = createNotificationService();
+// Mobile-first notification service - always use LocalNotifications
+// This is a mobile app, not a web app, so we always use native capabilities
+export const notificationService = new MobileNotificationService();

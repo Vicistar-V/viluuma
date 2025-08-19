@@ -14,7 +14,9 @@ interface PendingNotification {
   title: string;
   body: string;
   schedule?: {
-    at: Date;
+    at?: Date | string;
+    repeats?: boolean;
+    every?: string;
   };
 }
 
@@ -67,10 +69,11 @@ export const NotificationCenter = () => {
     return 'Task Reminder';
   };
 
-  const formatScheduledTime = (date: Date): string => {
+  const formatScheduledTime = (date: Date | string): string => {
+    const scheduledDate = typeof date === 'string' ? new Date(date) : date;
     const now = new Date();
-    if (date < now) return 'Overdue';
-    return formatDistanceToNow(date, { addSuffix: true });
+    if (scheduledDate < now) return 'Overdue';
+    return formatDistanceToNow(scheduledDate, { addSuffix: true });
   };
 
   return (

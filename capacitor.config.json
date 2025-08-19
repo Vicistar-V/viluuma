@@ -11,7 +11,9 @@
       "smallIcon": "ic_stat_icon_config_sample",
       "iconColor": "#488AFF",
       "sound": "beep.wav",
-      "androidForegroundService": true
+      "androidForegroundService": true,
+      "requestPermissions": true,
+      "attachmentsEnabled": false
     },
     "App": {
       "launchUrl": "https://be90748d-9eb2-423e-8629-af106fe98bf4.lovableproject.com"

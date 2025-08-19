@@ -28,37 +28,25 @@ export const useAppLifecycle = () => {
   }, [user, syncAndSchedule]);
 
   useEffect(() => {
-    if (!Capacitor.isNativePlatform()) {
-      // Web platform - use visibility API
-      const handleVisibilityChange = () => {
-        if (!document.hidden && user) {
-          console.log('Web app became visible, syncing notifications...');
-          syncAndSchedule();
-        }
-      };
-
-      document.addEventListener('visibilitychange', handleVisibilityChange);
-      
-      return () => {
-        document.removeEventListener('visibilitychange', handleVisibilityChange);
-      };
-    } else {
-      // Native platform - use Capacitor App plugin
-      let stateListener: any;
-      let resumeListener: any;
-      
-      const setupListeners = async () => {
-        stateListener = await App.addListener('appStateChange', handleAppStateChange);
-        resumeListener = await App.addListener('resume', handleAppResumed);
-      };
-      
-      setupListeners();
-      
-      return () => {
-        if (stateListener) stateListener.remove();
-        if (resumeListener) resumeListener.remove();
-      };
-    }
+    console.log('Setting up mobile app lifecycle listeners');
+    
+    // Mobile-first: Always use Capacitor App plugin
+    let stateListener: any;
+    let resumeListener: any;
+    
+    const setupListeners = async () => {
+      console.log('Setting up native app state listeners');
+      stateListener = await App.addListener('appStateChange', handleAppStateChange);
+      resumeListener = await App.addListener('resume', handleAppResumed);
+    };
+    
+    setupListeners();
+    
+    return () => {
+      console.log('Cleaning up app lifecycle listeners');
+      if (stateListener) stateListener.remove();
+      if (resumeListener) resumeListener.remove();
+    };
   }, [user, handleAppStateChange, handleAppResumed, syncAndSchedule]);
 
   // Initial sync when hook is first used
