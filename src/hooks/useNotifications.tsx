@@ -53,9 +53,26 @@ export const useNotifications = () => {
     }
   };
 
+  const checkPermissions = async () => {
+    try {
+      const permission = await notificationService.checkPermissions();
+      return permission;
+    } catch (error) {
+      console.error('Error checking notification permissions:', error);
+      return { display: 'denied' };
+    }
+  };
+
   const syncAndSchedule = useCallback(async (): Promise<CoachingNudge | null> => {
     try {
       console.log('Syncing and scheduling notifications...');
+
+      // Check permissions before proceeding
+      const permission = await checkPermissions();
+      if (permission.display !== 'granted') {
+        console.log('Notifications not permitted, skipping sync');
+        return null;
+      }
 
       // Load user preferences
       const preferences = loadNotificationPreferences();
@@ -271,5 +288,6 @@ export const useNotifications = () => {
     cancelTaskReminder,
     checkTaskReminderExists,
     requestPermissions,
+    checkPermissions,
   };
 };

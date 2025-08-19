@@ -9,11 +9,14 @@ export const useMobileNotificationHandlers = () => {
   const { acknowledgeMessage } = useNotifications();
 
   useEffect(() => {
+    let actionListener: any;
+    let receivedListener: any;
+    
     const setupNotificationHandlers = async () => {
       console.log('Setting up mobile notification handlers');
       
       // Mobile-first: Always use Capacitor LocalNotifications
-      const actionListener = await LocalNotifications.addListener(
+      actionListener = await LocalNotifications.addListener(
         'localNotificationActionPerformed',
         (notification) => {
           console.log('Mobile notification tapped:', notification);
@@ -21,25 +24,21 @@ export const useMobileNotificationHandlers = () => {
         }
       );
 
-      const receivedListener = await LocalNotifications.addListener(
+      receivedListener = await LocalNotifications.addListener(
         'localNotificationReceived',
         (notification) => {
           console.log('Mobile notification received while app is open:', notification);
           // Handle notification received while app is open
         }
       );
-
-      return () => {
-        console.log('Cleaning up notification listeners');
-        actionListener.remove();
-        receivedListener.remove();
-      };
     };
 
-    const cleanup = setupNotificationHandlers();
+    setupNotificationHandlers();
     
     return () => {
-      cleanup.then(cleanupFn => cleanupFn && cleanupFn());
+      console.log('Cleaning up notification listeners');
+      if (actionListener) actionListener.remove();
+      if (receivedListener) receivedListener.remove();
     };
   }, [navigate, acknowledgeMessage]);
 
@@ -61,10 +60,8 @@ export const useMobileNotificationHandlers = () => {
       navigate('/');
     }
 
-    // If this is a coaching message, acknowledge it
-    if (notification.id && typeof notification.id === 'string' && notification.id.length > 8) {
-      acknowledgeMessage(notification.id);
-    }
+    // Note: Coaching messages are now auto-acknowledged by useUserMessages
+    // No need to double-acknowledge here to prevent conflicts
   };
 
   return {

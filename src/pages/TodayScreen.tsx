@@ -17,17 +17,10 @@ import { Navigate } from 'react-router-dom';
 const TodayScreen: React.FC = () => {
   const { user } = useAuth();
   const { data: todayData, isLoading, isError, error } = useTodayData();
-  const { syncAndSchedule } = useNotifications();
   const { displayedMessage, acknowledgeMessage, dismissMessage } = useUserMessages();
 
-  // Sync notifications when app loads (for daily digest and push notifications)
-  useEffect(() => {
-    if (user) {
-      // Still run syncAndSchedule for daily digest and push notification scheduling
-      // but the in-app message display is now handled by useUserMessages
-      syncAndSchedule();
-    }
-  }, [user, syncAndSchedule]);
+  // Note: Notification sync is now handled entirely by useAppLifecycle hook
+  // This eliminates duplicate execution and ensures proper mobile lifecycle management
 
   // Redirect to welcome page if not authenticated
   if (!user) {

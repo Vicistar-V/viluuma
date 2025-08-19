@@ -18,10 +18,28 @@ class MobileNotificationService {
     }
   }
 
+  async checkPermissions() {
+    try {
+      const permission = await LocalNotifications.checkPermissions();
+      console.log('Current notification permission status:', permission);
+      return permission;
+    } catch (error) {
+      console.error('Error checking notification permissions:', error);
+      throw error;
+    }
+  }
+
   async schedule({ notifications }: { notifications: any[] }) {
     console.log('Mobile-first notification service: Scheduling notifications:', notifications);
     
     try {
+      // Double-check permissions before scheduling
+      const permission = await this.checkPermissions();
+      if (permission.display !== 'granted') {
+        console.warn('Cannot schedule notifications - permission not granted');
+        return { notifications: [] };
+      }
+
       // Use Capacitor's native scheduling - works when app is closed/backgrounded
       const result = await LocalNotifications.schedule({ notifications });
       console.log('Notifications scheduled successfully:', result);
