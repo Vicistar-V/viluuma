@@ -6,8 +6,8 @@ import { useQueryClient } from "@tanstack/react-query";
 
 // RevenueCat PUBLIC API keys (these are safe to embed in client code)
 const REVENUECAT_API_KEYS = {
-  ios: 'appl_YOUR_IOS_PUBLIC_KEY_HERE', // Replace with actual iOS public key from RevenueCat
-  android: 'goog_YOUR_ANDROID_PUBLIC_KEY_HERE', // Replace with actual Android public key from RevenueCat
+  ios: 'Ios_sjnw77whbsjsjisjsjbbsywyesuu',
+  android: 'goog_bHyOcOrATCKArScZlSXFfOtooAk',
 };
 
 // Get platform-specific RevenueCat PUBLIC API key
