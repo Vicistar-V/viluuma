@@ -3,6 +3,9 @@
 echo "Pulling latest git changes..."
 git pull
 
+echo "Installing dependencies..."
+npm install --legacy-peer-deps
+
 echo "Building web assets..."
 npm run build
 
