@@ -1,9 +1,46 @@
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { Purchases } from "@revenuecat/purchases-capacitor";
+import { Capacitor } from "@capacitor/core";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 import { useToast } from "./use-toast";
+
+// Get platform-specific RevenueCat API key
+const getRevenueCatApiKey = async (): Promise<string> => {
+  const platform = Capacitor.getPlatform();
+  
+  if (platform === 'ios') {
+    const { data, error } = await supabase.functions.invoke('get-secret', {
+      body: { name: 'REVENUECAT_IOS_API_KEY' }
+    });
+    if (error || !data?.value) {
+      console.error('Failed to get iOS RevenueCat key:', error);
+      return 'YOUR_REVENUECAT_IOS_API_KEY'; // Fallback
+    }
+    return data.value;
+  } else if (platform === 'android') {
+    const { data, error } = await supabase.functions.invoke('get-secret', {
+      body: { name: 'REVENUECAT_ANDROID_API_KEY' }
+    });
+    if (error || !data?.value) {
+      console.error('Failed to get Android RevenueCat key:', error);
+      return 'YOUR_REVENUECAT_ANDROID_API_KEY'; // Fallback
+    }
+    return data.value;
+  } else {
+    // Web fallback - use iOS key for development
+    console.log('Using web platform, defaulting to iOS key');
+    const { data, error } = await supabase.functions.invoke('get-secret', {
+      body: { name: 'REVENUECAT_IOS_API_KEY' }
+    });
+    if (error || !data?.value) {
+      console.error('Failed to get iOS RevenueCat key for web:', error);
+      return 'YOUR_REVENUECAT_IOS_API_KEY'; // Fallback
+    }
+    return data.value;
+  }
+};
 
 export interface SubscriptionState {
   entitlement: 'free' | 'pro';
@@ -93,10 +130,14 @@ export const useRevenueCat = () => {
 
       try {
         console.log('Initializing RevenueCat...');
+        console.log('Platform:', Capacitor.getPlatform());
         
-        // Configure RevenueCat with public API key
+        // Get platform-specific API key
+        const apiKey = await getRevenueCatApiKey();
+        
+        // Configure RevenueCat with platform-specific public API key
         await Purchases.configure({
-          apiKey: "YOUR_REVENUECAT_PUBLIC_API_KEY", // This will be set in production
+          apiKey,
           appUserID: user.id
         });
 
