@@ -46,28 +46,10 @@ export const useNotifications = () => {
     try {
       const permissions = await notificationService.requestPermissions();
       console.log('Mobile notification permissions:', permissions);
-      
-      if (permissions.display === 'denied') {
-        toast({
-          title: "Notifications disabled",
-          description: "Enable notifications in your device settings to get daily updates and reminders.",
-          variant: "destructive",
-          duration: 6000,
-        });
-      } else if (permissions.display === 'granted') {
-        toast({
-          title: "Notifications enabled",
-          description: "You'll receive daily digests and coaching messages.",
-          duration: 3000,
-        });
-      }
+      return permissions;
     } catch (error) {
       console.error('Error requesting mobile notification permissions:', error);
-      toast({
-        title: "Permission error",
-        description: "Unable to request notification permissions. Please check your device settings.",
-        variant: "destructive",
-      });
+      return { display: 'denied' };
     }
   };
 

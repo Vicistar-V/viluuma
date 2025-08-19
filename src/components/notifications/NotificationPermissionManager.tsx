@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Bell, BellOff, Settings, CheckCircle } from 'lucide-react';
 import { notificationService } from '@/lib/notifications';
 import { useToast } from '@/hooks/use-toast';
+import { NotificationTestButton } from './NotificationTestButton';
 
 type PermissionStatus = 'granted' | 'denied' | 'default' | 'unknown';
 
@@ -83,16 +84,16 @@ export const NotificationPermissionManager = () => {
         return {
           title: "Notifications Active",
           description: "You'll receive daily digests and helpful coaching messages to stay on track with your goals.",
-          action: null,
+          action: <NotificationTestButton />,
         };
       case 'denied':
         return {
           title: "Notifications Disabled",
           description: "Enable notifications to get daily summaries and motivational nudges when you need them most.",
           action: (
-            <Button onClick={openSettings} variant="outline" className="w-full">
-              <Settings className="w-4 h-4 mr-2" />
-              Open Settings
+            <Button onClick={requestPermissions} disabled={isRequesting} variant="outline" className="w-full">
+              <Bell className="w-4 h-4 mr-2" />
+              {isRequesting ? 'Requesting...' : 'Enable Notifications'}
             </Button>
           ),
         };
