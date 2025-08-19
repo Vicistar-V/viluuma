@@ -7,6 +7,7 @@ import { TodayTask, useCompleteTask, useUncompleteTask } from '@/hooks/useTodayD
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
+import { haptics } from '@/lib/haptics';
 
 interface TodayTaskItemProps {
   task: TodayTask;
@@ -219,6 +220,12 @@ const TodayTaskItem: React.FC<TodayTaskItemProps> = ({ task }) => {
               onCheckedChange={handleCheckboxChange}
               disabled={completeTaskMutation.isPending || uncompleteTaskMutation.isPending}
               className="mt-1 data-[state=checked]:bg-success data-[state=checked]:border-success"
+              onClick={() => {
+                // Immediate haptic feedback on tap for responsiveness
+                if (!isCompleted) {
+                  haptics.light();
+                }
+              }}
             />
             {isCompleted && (
               <CheckCircle className="w-4 h-4 text-success absolute -top-0.5 -right-0.5 bg-background rounded-full p-0.5" />

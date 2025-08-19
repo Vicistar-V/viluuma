@@ -235,6 +235,15 @@ const GoalDetailScreen = () => {
       return;
     }
     
+    // Haptic feedback based on task completion
+    if (next === 'completed') {
+      const { haptics } = await import('@/lib/haptics');
+      await haptics.taskComplete();
+    } else {
+      const { haptics } = await import('@/lib/haptics');
+      await haptics.light();
+    }
+    
     // Clean up task reminder if task was completed
     if (next === 'completed') {
       const { cleanupTaskReminder } = await import('@/lib/taskReminderCleanup');

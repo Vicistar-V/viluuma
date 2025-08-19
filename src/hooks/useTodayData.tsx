@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { cleanupTaskReminder } from '@/lib/taskReminderCleanup';
+import { haptics } from '@/lib/haptics';
 
 export interface TodayTask {
   id: string;
@@ -88,6 +89,9 @@ export const useCompleteTask = () => {
       return taskId;
     },
     onSuccess: async (taskId) => {
+      // Haptic feedback for task completion satisfaction
+      await haptics.taskComplete();
+      
       // Clean up any task reminders first
       await cleanupTaskReminder(taskId);
       
@@ -130,6 +134,9 @@ export const useUncompleteTask = () => {
       if (error) throw error;
     },
     onSuccess: () => {
+      // Light haptic feedback for unchecking
+      haptics.light();
+      
       // Invalidate all related queries
       queryClient.invalidateQueries({ queryKey: ['todayPayload'] });
       queryClient.invalidateQueries({ queryKey: ['overdueTasks'] });

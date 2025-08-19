@@ -19,6 +19,7 @@
     "BackgroundTask": {
       "label": "com.viluuma.app.background"
     },
+    "Haptics": {},
     "App": {}
   },
   "ios": {
