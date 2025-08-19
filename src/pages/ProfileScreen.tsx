@@ -12,7 +12,7 @@ import { BottomNav } from '@/components/BottomNav';
 import { DeleteAccountModal } from '@/components/account/DeleteAccountModal';
 import { NotificationPermissionManager } from '@/components/notifications/NotificationPermissionManager';
 import { NotificationCenter } from '@/components/notifications/NotificationCenter';
-import { NotificationTestButton } from '@/components/notifications/NotificationTestButton';
+
 
 const ProfileScreen = () => {
   const navigate = useNavigate();
@@ -79,19 +79,6 @@ const ProfileScreen = () => {
             <NotificationPermissionManager />
             <NotificationCenter />
           </div>
-
-          {/* Notification Testing */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Test Notifications</CardTitle>
-              <CardDescription>
-                Test your local notification system to ensure it's working properly
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <NotificationTestButton />
-            </CardContent>
-          </Card>
 
           {/* Account Settings */}
           <Card>
