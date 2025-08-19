@@ -1,5 +1,8 @@
 project_id = "ilemfubbtpmfzjtcniel"
 
+[functions.get-secret]
+verify_jwt = true
+
 [functions.onboard-goal]
 verify_jwt = true
 

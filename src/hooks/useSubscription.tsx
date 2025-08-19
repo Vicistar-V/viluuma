@@ -16,7 +16,7 @@ const getRevenueCatApiKey = async (): Promise<string> => {
     });
     if (error || !data?.value) {
       console.error('Failed to get iOS RevenueCat key:', error);
-      return 'YOUR_REVENUECAT_IOS_API_KEY'; // Fallback
+      throw new Error(`Failed to get iOS RevenueCat API key: ${error?.message || 'No key found'}`);
     }
     return data.value;
   } else if (platform === 'android') {
@@ -25,7 +25,7 @@ const getRevenueCatApiKey = async (): Promise<string> => {
     });
     if (error || !data?.value) {
       console.error('Failed to get Android RevenueCat key:', error);
-      return 'YOUR_REVENUECAT_ANDROID_API_KEY'; // Fallback
+      throw new Error(`Failed to get Android RevenueCat API key: ${error?.message || 'No key found'}`);
     }
     return data.value;
   } else {
@@ -36,7 +36,7 @@ const getRevenueCatApiKey = async (): Promise<string> => {
     });
     if (error || !data?.value) {
       console.error('Failed to get iOS RevenueCat key for web:', error);
-      return 'YOUR_REVENUECAT_IOS_API_KEY'; // Fallback
+      throw new Error(`Failed to get iOS RevenueCat API key for web: ${error?.message || 'No key found'}`);
     }
     return data.value;
   }
