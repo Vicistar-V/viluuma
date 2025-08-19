@@ -4,7 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { useSubscription, useRevenueCat } from '@/hooks/useSubscription';
 import { useAuth } from '@/hooks/useAuth';
-import { Loader2, Shield, Zap, Crown } from 'lucide-react';
+import { Loader2, Shield, Zap, Crown, Package } from 'lucide-react';
+import { OfferingsDebugPanel } from './OfferingsDebugPanel';
 
 export const RevenueCatTestPanel = () => {
   const { user } = useAuth();
@@ -36,16 +37,17 @@ export const RevenueCatTestPanel = () => {
   };
 
   return (
-    <Card className="w-full max-w-2xl mx-auto">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Shield className="h-5 w-5" />
-          RevenueCat Integration Test Panel
-        </CardTitle>
-        <CardDescription>
-          Test and debug RevenueCat functionality in development
-        </CardDescription>
-      </CardHeader>
+    <div className="space-y-6">
+      <Card className="w-full max-w-2xl mx-auto">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Shield className="h-5 w-5" />
+            RevenueCat Integration Test Panel
+          </CardTitle>
+          <CardDescription>
+            Test and debug RevenueCat functionality in development
+          </CardDescription>
+        </CardHeader>
       <CardContent className="space-y-6">
         {/* Status Section */}
         <div className="grid grid-cols-2 gap-4">
@@ -139,5 +141,9 @@ export const RevenueCatTestPanel = () => {
         )}
       </CardContent>
     </Card>
+    
+    {/* Offerings Debug Panel */}
+    <OfferingsDebugPanel />
+  </div>
   );
 };
