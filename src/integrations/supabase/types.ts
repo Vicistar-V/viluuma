@@ -417,6 +417,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      complete_task: {
+        Args: { p_task_id: string }
+        Returns: undefined
+      }
       create_manual_goal: {
         Args: { p_modality: string; p_target_date?: string; p_title: string }
         Returns: string
@@ -559,12 +563,33 @@ export type Database = {
         Args: { p_task_id: string }
         Returns: boolean
       }
+      toggle_task_status: {
+        Args: { p_task_id: string }
+        Returns: undefined
+      }
       unarchive_system_goals_for_user: {
         Args: { p_user_id: string }
         Returns: undefined
       }
+      uncomplete_task: {
+        Args: { p_task_id: string }
+        Returns: undefined
+      }
       update_milestone_title: {
         Args: { p_milestone_id: string; p_title: string }
+        Returns: undefined
+      }
+      update_task_details: {
+        Args: {
+          p_description?: string
+          p_duration_hours?: number
+          p_end_date?: string
+          p_is_anchored?: boolean
+          p_priority?: string
+          p_start_date?: string
+          p_task_id: string
+          p_title: string
+        }
         Returns: undefined
       }
     }
