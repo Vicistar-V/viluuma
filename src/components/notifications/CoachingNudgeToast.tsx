@@ -13,27 +13,21 @@ interface CoachingNudge {
 
 interface CoachingNudgeToastProps {
   nudge: CoachingNudge;
-  onAcknowledge: (messageId: string) => void;
   onDismiss: () => void;
 }
 
-export const CoachingNudgeToast = ({ nudge, onAcknowledge, onDismiss }: CoachingNudgeToastProps) => {
+export const CoachingNudgeToast = ({ nudge, onDismiss }: CoachingNudgeToastProps) => {
   useEffect(() => {
-    // Auto-dismiss after 10 seconds if not interacted with
+    // Auto-dismiss after 5 seconds (shorter since acknowledgment is automatic)
     const timer = setTimeout(() => {
       onDismiss();
-    }, 10000);
+    }, 5000);
 
     return () => clearTimeout(timer);
   }, [onDismiss]);
 
-  const handleAcknowledge = () => {
-    onAcknowledge(nudge.id);
-    onDismiss();
-  };
-
   return (
-    <Card className="fixed top-4 left-4 right-4 z-50 shadow-lg border-primary/20 bg-background/95 backdrop-blur-sm">
+    <Card className="fixed top-4 left-4 right-4 z-50 shadow-lg border-primary/30 bg-background/95 backdrop-blur-sm animate-in slide-in-from-top-2 duration-300">
       <CardContent className="p-4">
         <div className="flex items-start gap-3">
           <div className="flex-shrink-0 mt-0.5">
@@ -44,25 +38,20 @@ export const CoachingNudgeToast = ({ nudge, onAcknowledge, onDismiss }: Coaching
             <h4 className="font-medium text-foreground mb-1">
               {nudge.title}
             </h4>
-            <p className="text-sm text-muted-foreground leading-relaxed">
+            <p className="text-sm text-muted-foreground leading-relaxed mb-2">
               {nudge.body}
+            </p>
+            <p className="text-xs text-muted-foreground/70 italic">
+              ✓ Acknowledged automatically
             </p>
           </div>
 
-          <div className="flex gap-2 flex-shrink-0">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleAcknowledge}
-              className="text-primary hover:text-primary/80"
-            >
-              Got it
-            </Button>
+          <div className="flex-shrink-0">
             <Button
               variant="ghost"
               size="sm"
               onClick={onDismiss}
-              className="p-1 h-auto"
+              className="p-1 h-auto opacity-60 hover:opacity-100"
             >
               <X className="h-4 w-4" />
             </Button>

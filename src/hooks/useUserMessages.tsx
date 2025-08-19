@@ -89,6 +89,27 @@ export const useUserMessages = () => {
       
       console.log('Message auto-acknowledged on display:', messageId);
       
+      // Cancel any pending push notifications for this message
+      try {
+        const { LocalNotifications } = await import('@capacitor/local-notifications');
+        const { notifications } = await LocalNotifications.getPending();
+        
+        // Find and cancel notifications related to this message
+        const relatedNotifications = notifications.filter(notification => 
+          notification.extra?.messageId === messageId || 
+          notification.id.toString().includes(messageId)
+        );
+        
+        if (relatedNotifications.length > 0) {
+          await LocalNotifications.cancel({
+            notifications: relatedNotifications.map(n => ({ id: n.id }))
+          });
+          console.log(`Cancelled ${relatedNotifications.length} pending notifications for message ${messageId}`);
+        }
+      } catch (notificationError) {
+        console.warn('Could not cancel pending notifications:', notificationError);
+      }
+      
       // Remove from local state
       setAllUnacknowledgedMessages(prev => prev.filter(msg => msg.id !== messageId));
       
@@ -102,13 +123,7 @@ export const useUserMessages = () => {
     setDisplayedMessage(null);
   }, []);
 
-  // Manual acknowledge (user clicks "Got it")
-  const acknowledgeMessage = useCallback(async (messageId: string) => {
-    // Message is already acknowledged automatically on display
-    // This is just for UI purposes (dismiss the toast)
-    setDisplayedMessage(null);
-    console.log('Message manually dismissed by user:', messageId);
-  }, []);
+  // No longer needed - remove the acknowledgeMessage function since auto-acknowledgment handles everything
 
   // Fetch messages on mount and when user changes
   useEffect(() => {
@@ -130,6 +145,5 @@ export const useUserMessages = () => {
     hasShownMessageThisSession,
     fetchUnacknowledgedMessages,
     dismissMessage,
-    acknowledgeMessage,
   };
 };

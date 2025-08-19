@@ -17,7 +17,7 @@ import { Navigate } from 'react-router-dom';
 const TodayScreen: React.FC = () => {
   const { user } = useAuth();
   const { data: todayData, isLoading, isError, error } = useTodayData();
-  const { displayedMessage, acknowledgeMessage, dismissMessage } = useUserMessages();
+  const { displayedMessage, dismissMessage } = useUserMessages();
 
   // Note: Notification sync is now handled entirely by useAppLifecycle hook
   // This eliminates duplicate execution and ensures proper mobile lifecycle management
@@ -150,11 +150,10 @@ const TodayScreen: React.FC = () => {
       
       <BottomNav />
       
-      {/* Coaching Nudge Toast - New Human-Centric System */}
+      {/* Coaching Nudge Toast - Enhanced Human-Centric System */}
       {displayedMessage && (
         <CoachingNudgeToast
           nudge={displayedMessage}
-          onAcknowledge={acknowledgeMessage}
           onDismiss={dismissMessage}
         />
       )}
