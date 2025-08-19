@@ -18,6 +18,7 @@ import GoalDetailScreen from "./pages/GoalDetailScreen";
 import PlanReviewScreen from "./pages/PlanReviewScreen";
 import AIOnboardingWizard from "./pages/AIOnboardingWizard";
 import NotificationDashboard from "./pages/NotificationDashboard";
+import TaskReminderManagerScreen from "./pages/TaskReminderManagerScreen";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -50,6 +51,7 @@ const App = () => (
                 <Route path="/goals/:id" element={<GoalDetailScreen />} />
                 <Route path="/profile" element={<ProfileScreen />} />
                 <Route path="/notifications" element={<NotificationDashboard />} />
+                <Route path="/reminders" element={<TaskReminderManagerScreen />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

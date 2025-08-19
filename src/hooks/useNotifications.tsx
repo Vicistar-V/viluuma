@@ -10,7 +10,7 @@ import {
   isWithinQuietHours,
   type NotificationPreferences 
 } from '@/lib/notificationPreferences';
-import { generateNotificationId, releaseNotificationId } from '@/lib/notificationIds';
+import { generateNotificationId, releaseNotificationId, NotificationIdRanges } from '@/lib/notificationIds';
 
 interface DailyDigest {
   taskCount: number;
@@ -334,12 +334,74 @@ export const useNotifications = () => {
     }
   };
 
+  // Cleanup function for task completion
+  const cleanupTaskReminderOnCompletion = async (taskId: string) => {
+    try {
+      const hasReminder = await checkTaskReminderExists(taskId);
+      if (hasReminder) {
+        await cancelTaskReminder(taskId);
+        console.log(`[useNotifications] Cleaned up reminder for completed task: ${taskId}`);
+      }
+    } catch (error) {
+      console.error(`[useNotifications] Failed to cleanup reminder for task ${taskId}:`, error);
+    }
+  };
+
+  // Bulk function to get all active task reminders
+  const getAllActiveTaskReminders = async () => {
+    try {
+      const pending = await notificationService.getPending();
+      const taskReminders = pending.notifications?.filter(notification => 
+        notification.id >= NotificationIdRanges.TASK_REMINDERS.start && 
+        notification.id <= NotificationIdRanges.TASK_REMINDERS.end
+      ) || [];
+      
+      // Get stored reminder details from localStorage
+      const storedReminders = Object.keys(localStorage)
+        .filter(key => key.startsWith('task-reminder-'))
+        .map(key => {
+          try {
+            const data = JSON.parse(localStorage.getItem(key) || '{}');
+            return {
+              taskId: key.replace('task-reminder-', ''),
+              ...data
+            };
+          } catch {
+            return null;
+          }
+        })
+        .filter(Boolean);
+
+      return storedReminders;
+    } catch (error) {
+      console.error('[useNotifications] Failed to get active task reminders:', error);
+      return [];
+    }
+  };
+
+  // Bulk function to cancel all task reminders
+  const cancelAllTaskReminders = async () => {
+    try {
+      const activeReminders = await getAllActiveTaskReminders();
+      for (const reminder of activeReminders) {
+        await cancelTaskReminder(reminder.taskId);
+      }
+      return activeReminders.length;
+    } catch (error) {
+      console.error('[useNotifications] Failed to cancel all task reminders:', error);
+      return 0;
+    }
+  };
+
   return {
     syncAndSchedule,
     acknowledgeMessage,
     scheduleTaskReminder,
     cancelTaskReminder,
     checkTaskReminderExists,
+    cleanupTaskReminderOnCompletion,
+    getAllActiveTaskReminders,
+    cancelAllTaskReminders,
     requestPermissions,
     checkPermissions,
   };

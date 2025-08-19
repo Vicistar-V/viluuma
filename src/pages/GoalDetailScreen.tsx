@@ -234,10 +234,21 @@ const GoalDetailScreen = () => {
       toast({ title: 'Error', description: error.message });
       return;
     }
+    
+    // Clean up task reminder if task was completed
+    if (next === 'completed') {
+      const { cleanupTaskReminder } = await import('@/lib/taskReminderCleanup');
+      await cleanupTaskReminder(task.id);
+    }
+    
     refresh();
   };
 
   const removeTask = async (task: Task): Promise<void> => {
+    // Clean up task reminder before deletion
+    const { cleanupTaskReminder } = await import('@/lib/taskReminderCleanup');
+    await cleanupTaskReminder(task.id);
+
     const { error } = await supabase.rpc('delete_task', { p_task_id: task.id });
     if (error) {
       toast({ title: 'Error', description: error.message });

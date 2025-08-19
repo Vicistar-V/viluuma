@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { cleanupTaskReminder } from '@/lib/taskReminderCleanup';
 
 export interface TodayTask {
   id: string;
@@ -84,8 +85,12 @@ export const useCompleteTask = () => {
         .eq('id', taskId);
       
       if (error) throw error;
+      return taskId;
     },
-    onSuccess: () => {
+    onSuccess: async (taskId) => {
+      // Clean up any task reminders first
+      await cleanupTaskReminder(taskId);
+      
       // Invalidate all related queries to trigger fresh data
       queryClient.invalidateQueries({ queryKey: ['todayPayload'] });
       queryClient.invalidateQueries({ queryKey: ['overdueTasks'] });

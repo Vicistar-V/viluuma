@@ -35,6 +35,12 @@ export const DeleteTaskModal = ({ taskId, taskTitle, onOpenChange, onSuccess }: 
     const success = await commitPlanUpdate(deleteResult.updatedTasks, taskId);
     
     if (success) {
+      // Clean up task reminder after successful deletion
+      if (taskId) {
+        const { cleanupTaskReminder } = await import('@/lib/taskReminderCleanup');
+        await cleanupTaskReminder(taskId);
+      }
+      
       onSuccess();
       onOpenChange(false);
       resetModal();
