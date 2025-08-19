@@ -15,6 +15,10 @@
       "requestPermissions": true,
       "attachmentsEnabled": false
     },
+    "BackgroundTask": {
+      "label": "com.yourcompany.yourapp.background",
+      "src": "background.js"
+    },
     "App": {
       "launchUrl": "https://be90748d-9eb2-423e-8629-af106fe98bf4.lovableproject.com"
     }

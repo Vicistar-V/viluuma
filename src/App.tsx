@@ -7,6 +7,7 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { useAppLifecycle } from "@/hooks/useAppLifecycle";
 import { useMobileNotificationHandlers } from "@/hooks/useMobileNotificationHandlers";
+import { useBackgroundSync } from "@/hooks/useBackgroundSync";
 import Index from "./pages/Index";
 import LoginScreen from "./pages/LoginScreen";
 import SignUpScreen from "./pages/SignUpScreen";
@@ -26,6 +27,7 @@ const queryClient = new QueryClient();
 function AppLayout({ children }: { children: React.ReactNode }) {
   useAppLifecycle(); // This handles all app-level notification sync
   useMobileNotificationHandlers(); // This handles notification tap actions
+  useBackgroundSync(); // This handles background sync when app goes to background
   return <>{children}</>;
 }
 
