@@ -3,21 +3,25 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { LogOut, User, Settings, Camera, Bell, Target, Trash2, AlertTriangle } from 'lucide-react';
+import { useSubscription } from '@/hooks/useSubscription';
+import { LogOut, User, Settings, Camera, Bell, Target, Trash2, AlertTriangle, Crown, Bug, CreditCard } from 'lucide-react';
 import UserProfileCard from '@/components/UserProfileCard';
 import ThemeToggle from '@/components/ThemeToggle';
 import { BottomNav } from '@/components/BottomNav';
 import { DeleteAccountModal } from '@/components/account/DeleteAccountModal';
 import { NotificationPermissionManager } from '@/components/notifications/NotificationPermissionManager';
 import { NotificationCenter } from '@/components/notifications/NotificationCenter';
+import { SubscriptionStatusIndicator } from '@/components/subscription/SubscriptionStatusIndicator';
 
 
 const ProfileScreen = () => {
   const navigate = useNavigate();
   const { user, signOut, loading } = useAuth();
   const { toast } = useToast();
+  const subscription = useSubscription();
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   useEffect(() => {
@@ -74,6 +78,60 @@ const ProfileScreen = () => {
           {/* User Profile Card */}
           <UserProfileCard />
 
+          {/* Subscription Information */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center space-x-2">
+                <CreditCard className="h-5 w-5 text-primary" />
+                <CardTitle>Subscription</CardTitle>
+              </div>
+              <CardDescription>
+                Your current subscription status and limits
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <Crown className="h-5 w-5 text-amber-500" />
+                    <div>
+                      <p className="text-sm font-medium">Current Plan</p>
+                      <p className="text-xs text-muted-foreground">Your subscription tier</p>
+                    </div>
+                  </div>
+                  <SubscriptionStatusIndicator variant="badge" />
+                </div>
+
+                {!subscription.isLoading && (
+                  <div className="grid grid-cols-2 gap-4 p-3 bg-muted/50 rounded-lg">
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground">Active Goals</p>
+                      <p className="text-lg font-semibold">{subscription.activeGoalCount}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground">Goal Limit</p>
+                      <p className="text-lg font-semibold">
+                        {subscription.maxGoals === Infinity ? '∞' : subscription.maxGoals}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium">Can Create Goals</p>
+                    <p className="text-xs text-muted-foreground">
+                      {subscription.canCreateGoals ? 'Yes, you can create new goals' : 'Goal limit reached'}
+                    </p>
+                  </div>
+                  <Badge variant={subscription.canCreateGoals ? 'default' : 'secondary'}>
+                    {subscription.canCreateGoals ? 'Available' : 'Limit Reached'}
+                  </Badge>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Notification Management */}
           <div className="grid gap-6 md:grid-cols-2">
             <NotificationPermissionManager />
@@ -107,6 +165,23 @@ const ProfileScreen = () => {
                     onClick={() => navigate('/notifications')}
                   >
                     Debug Dashboard
+                  </Button>
+                </div>
+
+                <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <Bug className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <p className="text-sm font-medium">RevenueCat Integration</p>
+                      <p className="text-xs text-muted-foreground">Test subscription & purchase flows</p>
+                    </div>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => navigate('/revenuecat-test')}
+                  >
+                    Test Panel
                   </Button>
                 </div>
                 
