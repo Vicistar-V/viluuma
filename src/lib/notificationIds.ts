@@ -11,8 +11,30 @@ export const NotificationIdRanges = {
   SYSTEM_TEST: { start: 999999, end: 999999 },
 } as const;
 
-// Track used IDs to prevent collisions
-const usedIds = new Set<number>();
+// Track used IDs to prevent collisions - now persistent across app restarts
+const STORAGE_KEY = 'notification-used-ids';
+
+const loadUsedIds = (): Set<number> => {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      return new Set(JSON.parse(stored));
+    }
+  } catch (error) {
+    console.warn('Failed to load used notification IDs:', error);
+  }
+  return new Set<number>();
+};
+
+const saveUsedIds = (usedIds: Set<number>): void => {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([...usedIds]));
+  } catch (error) {
+    console.warn('Failed to save used notification IDs:', error);
+  }
+};
+
+let usedIds = loadUsedIds();
 
 /**
  * Generate a unique ID within the specified range
@@ -28,6 +50,7 @@ export const generateNotificationId = (type: keyof typeof NotificationIdRanges):
   for (let id = range.start; id <= range.end; id++) {
     if (!usedIds.has(id)) {
       usedIds.add(id);
+      saveUsedIds(usedIds);
       return id;
     }
   }
@@ -42,6 +65,7 @@ export const generateNotificationId = (type: keyof typeof NotificationIdRanges):
  */
 export const releaseNotificationId = (id: number): void => {
   usedIds.delete(id);
+  saveUsedIds(usedIds);
 };
 
 /**
@@ -68,4 +92,5 @@ export const getNotificationTypeFromId = (id: number): string => {
  */
 export const clearAllNotificationIds = (): void => {
   usedIds.clear();
+  saveUsedIds(usedIds);
 };

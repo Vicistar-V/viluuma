@@ -143,27 +143,31 @@ export const useNotifications = () => {
           priorityMessage = intelligencePayload.unacknowledgedMessages[0];
         }
         
-        // Schedule backup notifications for ALL unacknowledged messages (spaced apart) - only if coaching nudges enabled
-        if (shouldShowNotification(preferences, 'coachingNudges')) {
-          for (let i = 0; i < intelligencePayload.unacknowledgedMessages.length; i++) {
-            const message = intelligencePayload.unacknowledgedMessages[i];
-            const backupTime = new Date();
-            backupTime.setMinutes(backupTime.getMinutes() + 10 + (i * 120)); // Space them 2 hours apart
-            
-            if (shouldShowNotification(preferences, 'coachingNudges', backupTime)) {
-              const backupId = generateNotificationId('COACHING_NUDGES');
-              
-              await notificationService.schedule({
-                notifications: [{
-                  id: backupId,
-                  title: message.title,
-                  body: message.body + " (Tap to open Viluuma)",
-                  schedule: { at: backupTime },
-                }]
-              });
+            // Schedule backup notifications for ALL unacknowledged messages (spaced apart) - only if coaching nudges enabled
+            if (shouldShowNotification(preferences, 'coachingNudges')) {
+              for (let i = 0; i < intelligencePayload.unacknowledgedMessages.length; i++) {
+                const message = intelligencePayload.unacknowledgedMessages[i];
+                const backupTime = new Date();
+                backupTime.setMinutes(backupTime.getMinutes() + 10 + (i * 120)); // Space them 2 hours apart
+                
+                if (shouldShowNotification(preferences, 'coachingNudges', backupTime)) {
+                  const backupId = generateNotificationId('COACHING_NUDGES');
+                  
+                  await notificationService.schedule({
+                    notifications: [{
+                      id: backupId,
+                      title: message.title,
+                      body: message.body + " (Tap to open Viluuma)",
+                      schedule: { at: backupTime },
+                      extra: {
+                        messageId: message.id,
+                        type: 'coaching_backup'
+                      }
+                    }]
+                  });
+                }
+              }
             }
-          }
-        }
         
         console.log(`Scheduled backup notifications for ${intelligencePayload.unacknowledgedMessages.length} messages`);
       }
@@ -178,39 +182,31 @@ export const useNotifications = () => {
   }, []);
 
   const acknowledgeMessage = useCallback(async (messageId: string) => {
+    console.log('Acknowledging coaching message (backup cleanup only):', messageId);
+    
     try {
-      // Cancel any backup notifications for this message
-      const pendingNotifications = await notificationService.getPending();
-      const relatedNotifications = pendingNotifications.notifications.filter(n => 
-        n.body.includes(messageId.substring(0, 8)) || n.title.includes('coaching')
+      // Only cancel backup notifications - don't acknowledge in backend
+      // The useUserMessages hook handles backend acknowledgement to prevent conflicts
+      const pending = await notificationService.getPending();
+      const messageNotifications = pending.notifications.filter(notification => 
+        notification.extra?.messageId === messageId
       );
       
-      if (relatedNotifications.length > 0) {
+      if (messageNotifications.length > 0) {
         await notificationService.cancel({ 
-          notifications: relatedNotifications.map(n => ({ id: n.id }))
+          notifications: messageNotifications.map(n => ({ id: n.id }))
         });
-        relatedNotifications.forEach(n => releaseNotificationId(n.id));
+        
+        // Release the notification IDs
+        messageNotifications.forEach(n => releaseNotificationId(n.id));
+        
+        console.log(`Cancelled ${messageNotifications.length} backup notifications for message ${messageId}`);
       }
       
-      const { error } = await supabase.rpc('acknowledge_message', { 
-        p_message_id: messageId 
-      });
-      
-      if (error) {
-        console.error('Error acknowledging message:', error);
-        throw error;
-      }
-      
-      console.log('Message acknowledged and backup notifications cancelled:', messageId);
     } catch (error) {
-      console.error('Error acknowledging message:', error);
-      toast({
-        title: "Error",
-        description: "Failed to acknowledge message.",
-        variant: "destructive",
-      });
+      console.error('Error in acknowledgeMessage backup cleanup:', error);
     }
-  }, [toast]);
+  }, []);
 
   const scheduleTaskReminder = async (taskId: string, taskTitle: string, reminderTime: Date) => {
     try {
@@ -225,37 +221,45 @@ export const useNotifications = () => {
         return;
       }
 
-      // Check user preferences before scheduling
+      // Check user preferences and quiet hours with proper timezone handling
       const preferences = loadNotificationPreferences();
-      
-      if (isWithinQuietHours(preferences, reminderTime)) {
+      if (!shouldShowNotification(preferences, 'deadlineWarnings', reminderTime)) {
+        console.log('Task reminder blocked by user preferences or quiet hours');
         toast({
-          title: "Reminder adjusted",
-          description: "Reminder moved outside quiet hours",
-          variant: "default",
+          title: "Reminder not set",
+          description: "Reminder time is during your quiet hours. Please choose a different time.",
+          variant: "destructive",
         });
-        
-        // Adjust time to end of quiet hours
-        const [endHour, endMinute] = preferences.quietHours.end.split(':').map(Number);
-        reminderTime.setHours(endHour, endMinute, 0, 0);
-        
-        // If that's in the past, move to next day
-        if (reminderTime < new Date()) {
-          reminderTime.setDate(reminderTime.getDate() + 1);
-        }
+        return;
       }
 
       // Generate proper notification ID for task reminders
       const notificationId = generateNotificationId('TASK_REMINDERS');
       
-      await notificationService.schedule({
-        notifications: [{
-          id: notificationId,
-          title: "Task Reminder 📋",
-          body: `Time to work on: ${taskTitle}`,
-          schedule: { at: reminderTime },
-        }]
-      });
+      const notification = {
+        title: 'Task Reminder',
+        body: `Time to work on: ${taskTitle}`,
+        id: notificationId,
+        schedule: { at: reminderTime },
+        sound: null,
+        attachments: null,
+        actionTypeId: "",
+        extra: {
+          taskId: taskId,
+          type: 'task_reminder'
+        }
+      };
+      
+      // Store reminder info in localStorage for reliable detection
+      const storageKey = `task-reminder-${taskId}`;
+      localStorage.setItem(storageKey, JSON.stringify({
+        notificationId,
+        taskTitle,
+        reminderTime: reminderTime.toISOString(),
+        createdAt: new Date().toISOString()
+      }));
+
+      await notificationService.schedule({ notifications: [notification] });
 
       toast({
         title: "Reminder set",
@@ -275,30 +279,36 @@ export const useNotifications = () => {
 
   const cancelTaskReminder = async (taskId: string) => {
     try {
-      // Find and cancel all task reminders for this task
-      const pendingNotifications = await notificationService.getPending();
-      const taskReminders = pendingNotifications.notifications.filter(n => 
-        n.body.includes(taskId.substring(0, 8)) || (n.id >= 100 && n.id <= 999)
+      const pending = await notificationService.getPending();
+      const taskNotifications = pending.notifications.filter(notification => 
+        notification.extra?.taskId === taskId
       );
       
-      if (taskReminders.length > 0) {
+      if (taskNotifications.length > 0) {
         await notificationService.cancel({ 
-          notifications: taskReminders.map(n => ({ id: n.id }))
+          notifications: taskNotifications.map(n => ({ id: n.id }))
         });
-        taskReminders.forEach(n => releaseNotificationId(n.id));
         
-        toast({
-          title: "Reminder cancelled",
-          description: "Task reminder has been removed.",
-        });
+        // Release the notification IDs
+        taskNotifications.forEach(n => releaseNotificationId(n.id));
+        
+        console.log(`Cancelled ${taskNotifications.length} task reminders for task ${taskId}`);
       }
-
-      console.log('Cancelled task reminder:', taskId);
+      
+      // Clean up localStorage
+      const storageKey = `task-reminder-${taskId}`;
+      localStorage.removeItem(storageKey);
+      
+      toast({
+        title: "Reminder cancelled",
+        description: "Task reminder has been removed.",
+      });
+      
     } catch (error) {
       console.error('Error cancelling task reminder:', error);
       toast({
         title: "Error",
-        description: "Failed to cancel reminder.",
+        description: "Failed to cancel reminder. Please try again.",
         variant: "destructive",
       });
     }
@@ -306,16 +316,21 @@ export const useNotifications = () => {
 
   const checkTaskReminderExists = async (taskId: string): Promise<boolean> => {
     try {
-      const { notifications } = await notificationService.getPending();
-      
-      // Check for task reminders in the proper ID range that might be for this task
-      return notifications.some(n => 
-        (n.id >= 100 && n.id <= 999) && 
-        (n.body.includes(taskId.substring(0, 8)) || n.title.includes('Task Reminder'))
+      // Check both pending notifications and local storage for reliability
+      const pending = await notificationService.getPending();
+      const hasPending = pending.notifications.some(notification => 
+        notification.extra?.taskId === taskId
       );
+      
+      // Also check local storage as backup
+      const storageKey = `task-reminder-${taskId}`;
+      const hasStorage = localStorage.getItem(storageKey) !== null;
+      
+      return hasPending || hasStorage;
     } catch (error) {
       console.error('Error checking task reminder:', error);
-      return false;
+      // Fallback to storage check only
+      return localStorage.getItem(`task-reminder-${taskId}`) !== null;
     }
   };
 

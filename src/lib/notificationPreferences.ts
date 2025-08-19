@@ -47,6 +47,7 @@ export const saveNotificationPreferences = (preferences: NotificationPreferences
 export const isWithinQuietHours = (preferences: NotificationPreferences, time: Date = new Date()): boolean => {
   if (!preferences.quietHours.enabled) return false;
 
+  // Use the provided time's timezone context
   const currentHour = time.getHours();
   const currentMinute = time.getMinutes();
   const currentTimeMinutes = currentHour * 60 + currentMinute;
