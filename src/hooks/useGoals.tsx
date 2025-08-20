@@ -20,6 +20,13 @@ export interface Goal {
   archive_status: 'active' | 'user_archived' | 'system_archived';
 }
 
+export interface GoalCompletionStats {
+  goal_id: string;
+  tasks_completed: number;
+  total_tasks: number;
+  completed_at: string;
+}
+
 const QUERY_KEY = 'goals';
 
 export const useGoals = () => {
@@ -73,7 +80,7 @@ export const useUpdateGoalStatus = () => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   
-  return useMutation({
+  return useMutation<GoalCompletionStats | undefined, Error, { goalId: string; status: 'active' | 'archived' | 'completed' }>({
     mutationFn: async ({ goalId, status }: { goalId: string; status: 'active' | 'archived' | 'completed' }) => {
       if (status === 'archived') {
         // Use the dedicated archive function
@@ -86,15 +93,28 @@ export const useUpdateGoalStatus = () => {
           .update({ archive_status: 'active' })
           .eq('id', goalId);
         if (error) throw error;
+      } else if (status === 'completed') {
+        // Use blazing fast batch completion function
+        const { data, error } = await supabase.rpc('complete_all_goal_tasks', { p_goal_id: goalId });
+        if (error) throw error;
+        return data as unknown as GoalCompletionStats;
       }
-      // Completed status is now computed automatically, no manual update needed
+      return undefined;
     },
-    onSuccess: (_, { status }) => {
+    onSuccess: (data, { status }) => {
       queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
-      toast({
-        title: "Goal updated",
-        description: `Goal ${status === 'archived' ? 'archived' : status === 'completed' ? 'completed' : 'reactivated'} successfully`
-      });
+      
+      if (status === 'completed' && data) {
+        toast({
+          title: "Goal completed! 🎉",
+          description: `${data.tasks_completed} tasks marked as complete`
+        });
+      } else {
+        toast({
+          title: "Goal updated",
+          description: `Goal ${status === 'archived' ? 'archived' : status === 'completed' ? 'completed' : 'reactivated'} successfully`
+        });
+      }
     },
     onError: (error) => {
       toast({

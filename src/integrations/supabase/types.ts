@@ -417,6 +417,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      complete_all_goal_tasks: {
+        Args: { p_goal_id: string }
+        Returns: Json
+      }
       complete_task: {
         Args: { p_task_id: string }
         Returns: undefined
