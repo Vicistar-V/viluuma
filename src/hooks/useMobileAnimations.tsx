@@ -1,24 +1,266 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
+import { gsap } from 'gsap';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 
 export const useMobileAnimations = () => {
-  // Mobile-native touch interactions with haptic feedback
-  const addTouchFeedback = (element: HTMLElement) => {
-    const handleTouchStart = async () => {
-      element.style.transform = 'scale(0.98)';
-      element.style.transition = 'transform 0.1s ease-out';
+  // Physics-based liquid morphing effect
+  const createLiquidMorph = useCallback((element: HTMLElement) => {
+    const tl = gsap.timeline({ paused: true });
+    
+    tl.to(element, {
+      scale: 0.95,
+      borderRadius: "50px",
+      duration: 0.2,
+      ease: "power2.out"
+    })
+    .to(element, {
+      scale: 1.05,
+      borderRadius: "20px", 
+      duration: 0.3,
+      ease: "elastic.out(1, 0.3)"
+    })
+    .to(element, {
+      scale: 1,
+      borderRadius: "16px",
+      duration: 0.2,
+      ease: "power2.out"
+    });
+
+    const handleTouch = async () => {
+      try {
+        await Haptics.impact({ style: ImpactStyle.Medium });
+      } catch (e) {}
+      tl.restart();
+    };
+
+    element.addEventListener('touchstart', handleTouch);
+    return () => {
+      element.removeEventListener('touchstart', handleTouch);
+      tl.kill();
+    };
+  }, []);
+
+  // Advanced particle burst system
+  const createParticleBurst = useCallback((container: HTMLElement, color: string) => {
+    const particles: HTMLElement[] = [];
+    const particleCount = 12;
+    
+    for (let i = 0; i < particleCount; i++) {
+      const particle = document.createElement('div');
+      particle.className = 'absolute pointer-events-none';
+      particle.style.cssText = `
+        width: 4px;
+        height: 4px;
+        background: ${color};
+        border-radius: 50%;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+      `;
+      container.appendChild(particle);
+      particles.push(particle);
+    }
+
+    // Complex burst animation with physics
+    particles.forEach((particle, i) => {
+      const angle = (i / particleCount) * Math.PI * 2;
+      const distance = gsap.utils.random(80, 150);
+      const x = Math.cos(angle) * distance;
+      const y = Math.sin(angle) * distance;
       
-      // Provide haptic feedback on touch
+      gsap.timeline()
+        .to(particle, {
+          x,
+          y,
+          scale: gsap.utils.random(0.5, 2),
+          opacity: 0.8,
+          duration: 0.6,
+          ease: "power2.out"
+        })
+        .to(particle, {
+          opacity: 0,
+          scale: 0,
+          duration: 0.4,
+          ease: "power2.in",
+          onComplete: () => particle.remove()
+        }, 0.3);
+    });
+  }, []);
+
+  // Staggered wave entrance with complex easing
+  const animateCardEntrance = useCallback((elements: HTMLElement[], delay = 0) => {
+    const tl = gsap.timeline({ delay });
+    
+    // Set initial state
+    gsap.set(elements, {
+      y: 100,
+      opacity: 0,
+      scale: 0.8,
+      rotationX: 90,
+      transformOrigin: "center bottom"
+    });
+    
+    // Create wave effect
+    tl.to(elements, {
+      y: 0,
+      opacity: 1,
+      scale: 1,
+      rotationX: 0,
+      duration: 0.8,
+      stagger: {
+        amount: 0.6,
+        from: "start",
+        ease: "power2.out"
+      },
+      ease: "back.out(1.7)"
+    })
+    .to(elements, {
+      y: -10,
+      duration: 0.3,
+      stagger: 0.1,
+      ease: "power2.out"
+    }, "-=0.2")
+    .to(elements, {
+      y: 0,
+      duration: 0.4,
+      stagger: 0.1,
+      ease: "bounce.out"
+    });
+  }, []);
+
+  // Organic progress bar with liquid flow
+  const animateProgressBar = useCallback((progressBar: HTMLElement, targetWidth: number) => {
+    // Create liquid flow effect
+    const flowGradient = document.createElement('div');
+    flowGradient.className = 'absolute inset-0 pointer-events-none';
+    flowGradient.style.cssText = `
+      background: linear-gradient(90deg, 
+        transparent 0%, 
+        rgba(255,255,255,0.4) 30%, 
+        rgba(255,255,255,0.6) 50%, 
+        rgba(255,255,255,0.4) 70%, 
+        transparent 100%);
+      transform: translateX(-100%);
+      border-radius: inherit;
+    `;
+    progressBar.appendChild(flowGradient);
+
+    // Animate progress with elastic effect
+    const tl = gsap.timeline();
+    
+    tl.to(progressBar, {
+      width: `${targetWidth}%`,
+      duration: 1.2,
+      ease: "power2.out",
+      onUpdate: function() {
+        // Add subtle morphing during animation
+        const progress = this.progress();
+        progressBar.style.transform = `scaleY(${1 + Math.sin(progress * Math.PI) * 0.1})`;
+      }
+    })
+    .to(flowGradient, {
+      x: '200%',
+      duration: 1.5,
+      ease: "power2.inOut"
+    }, 0.2)
+    .to(progressBar, {
+      transform: 'scaleY(1)',
+      duration: 0.3,
+      ease: "elastic.out(1, 0.3)"
+    });
+  }, []);
+
+  // Success celebration with multiple effects
+  const createSuccessPulse = useCallback((element: HTMLElement) => {
+    // Create ripple effect
+    const ripple = document.createElement('div');
+    ripple.className = 'absolute inset-0 pointer-events-none';
+    ripple.style.cssText = `
+      border: 2px solid rgba(34, 197, 94, 0.6);
+      border-radius: inherit;
+      transform: scale(1);
+      opacity: 0;
+    `;
+    element.appendChild(ripple);
+
+    // Complex celebration timeline
+    const tl = gsap.timeline();
+    
+    tl.to(ripple, {
+      scale: 1.5,
+      opacity: 1,
+      duration: 0.3,
+      ease: "power2.out"
+    })
+    .to(ripple, {
+      scale: 2,
+      opacity: 0,
+      duration: 0.5,
+      ease: "power2.out"
+    }, "-=0.1")
+    .to(element, {
+      scale: 1.05,
+      duration: 0.2,
+      ease: "back.out(2)",
+      yoyo: true,
+      repeat: 1
+    }, 0)
+    .call(() => {
+      createParticleBurst(element, 'rgba(34, 197, 94, 0.8)');
+      ripple.remove();
+    }, [], 0.3);
+  }, [createParticleBurst]);
+
+  // Magnetic field effect for touch interactions
+  const addTouchFeedback = useCallback((element: HTMLElement) => {
+    let isPressed = false;
+    
+    const handleTouchStart = async (e: TouchEvent) => {
+      if (isPressed) return;
+      isPressed = true;
+      
+      const touch = e.touches[0];
+      const rect = element.getBoundingClientRect();
+      const x = touch.clientX - rect.left - rect.width / 2;
+      const y = touch.clientY - rect.top - rect.height / 2;
+      
+      // Magnetic distortion effect
+      gsap.timeline()
+        .to(element, {
+          x: x * 0.1,
+          y: y * 0.1,
+          scale: 0.95,
+          rotationX: y * 0.02,
+          rotationY: x * 0.02,
+          duration: 0.2,
+          ease: "power2.out"
+        })
+        .to(element, {
+          boxShadow: '0 20px 40px rgba(0,0,0,0.15)',
+          duration: 0.2,
+          ease: "power2.out"
+        }, 0);
+
       try {
         await Haptics.impact({ style: ImpactStyle.Light });
-      } catch (error) {
-        // Haptics not available in browser - silent fail
-      }
+      } catch (e) {}
     };
 
     const handleTouchEnd = () => {
-      element.style.transform = 'scale(1)';
-      element.style.transition = 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)';
+      if (!isPressed) return;
+      isPressed = false;
+      
+      gsap.to(element, {
+        x: 0,
+        y: 0,
+        scale: 1,
+        rotationX: 0,
+        rotationY: 0,
+        boxShadow: '0 10px 20px rgba(0,0,0,0.1)',
+        duration: 0.4,
+        ease: "elastic.out(1, 0.3)"
+      });
     };
 
     element.addEventListener('touchstart', handleTouchStart);
@@ -30,48 +272,14 @@ export const useMobileAnimations = () => {
       element.removeEventListener('touchend', handleTouchEnd);
       element.removeEventListener('touchcancel', handleTouchEnd);
     };
-  };
-
-  // Staggered fade-in for card lists
-  const animateCardEntrance = (elements: HTMLElement[], delay = 0) => {
-    elements.forEach((element, index) => {
-      element.style.opacity = '0';
-      element.style.transform = 'translateY(20px)';
-      element.style.transition = 'opacity 0.4s ease-out, transform 0.4s ease-out';
-      
-      setTimeout(() => {
-        element.style.opacity = '1';
-        element.style.transform = 'translateY(0)';
-      }, delay * 1000 + index * 100);
-    });
-  };
-
-  // Simple progress bar animation with CSS
-  const animateProgressBar = (progressBar: HTMLElement, targetWidth: number) => {
-    progressBar.style.width = '0%';
-    progressBar.style.transition = 'width 1s cubic-bezier(0.4, 0, 0.2, 1)';
-    
-    // Use requestAnimationFrame for smooth animation
-    requestAnimationFrame(() => {
-      progressBar.style.width = `${targetWidth}%`;
-    });
-  };
-
-  // Mobile-appropriate success pulse animation
-  const createSuccessPulse = (element: HTMLElement) => {
-    element.classList.add('animate-pulse');
-    element.style.boxShadow = '0 0 20px rgba(34, 197, 94, 0.3)';
-    
-    setTimeout(() => {
-      element.classList.remove('animate-pulse');
-      element.style.boxShadow = '';
-    }, 2000);
-  };
+  }, []);
 
   return {
-    addTouchFeedback,
+    createLiquidMorph,
+    createParticleBurst,
     animateCardEntrance,
     animateProgressBar,
-    createSuccessPulse
+    createSuccessPulse,
+    addTouchFeedback
   };
 };

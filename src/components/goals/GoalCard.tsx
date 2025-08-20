@@ -21,23 +21,27 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   const progressBarRef = useRef<HTMLDivElement>(null);
-  const { addTouchFeedback, animateProgressBar, createSuccessPulse } = useMobileAnimations();
+  const { createLiquidMorph, animateProgressBar, createSuccessPulse, addTouchFeedback } = useMobileAnimations();
   
   const progress = goal.total_tasks > 0 ? (goal.completed_tasks / goal.total_tasks) * 100 : 0;
 
   useEffect(() => {
     if (!cardRef.current) return;
 
-    // Add mobile touch feedback
+    // Add liquid morph touch feedback and success animations
     const cleanupTouch = addTouchFeedback(cardRef.current);
+    const cleanupMorph = createLiquidMorph(cardRef.current);
 
-    // Add success pulse for completed goals
+    // Celebration for completed goals
     if (goal.status === 'completed') {
       createSuccessPulse(cardRef.current);
     }
 
-    return cleanupTouch;
-  }, [goal.status, addTouchFeedback, createSuccessPulse]);
+    return () => {
+      cleanupTouch?.();
+      cleanupMorph?.();
+    };
+  }, [goal.status, addTouchFeedback, createLiquidMorph, createSuccessPulse]);
 
   useEffect(() => {
     if (progressBarRef.current && progress > 0) {
