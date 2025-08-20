@@ -6,9 +6,10 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Calendar, Clock, MoreVertical, Target, CheckCircle, Archive, Trash2, RotateCcw, Layers3, ListChecks, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Goal } from '@/hooks/useGoals';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { useMobileAnimations } from '@/hooks/useMobileAnimations';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface GoalCardProps {
   goal: Goal;
@@ -19,20 +20,23 @@ interface GoalCardProps {
 
 export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalCardProps) => {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isPressed, setIsPressed] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
-  const { handleTouchFeedback, triggerSuccessCelebration } = useMobileAnimations();
+  const { handleTouchFeedback, triggerSuccessCelebration, animateProgressBar } = useMobileAnimations();
+  const { actualTheme } = useTheme();
   
   const progress = goal.total_tasks > 0 ? (goal.completed_tasks / goal.total_tasks) * 100 : 0;
 
-  // Animate progress bar on mount and updates
+  // Animate progress bar on mount and updates with smooth transition
   useEffect(() => {
     if (progressRef.current) {
-      setTimeout(() => {
-        progressRef.current!.style.width = `${Math.min(progress, 100)}%`;
-      }, 100);
+      const timer = setTimeout(() => {
+        animateProgressBar(progressRef.current!, progress);
+      }, 150);
+      return () => clearTimeout(timer);
     }
-  }, [progress]);
+  }, [progress, animateProgressBar]);
 
   // Success celebration for completed goals
   useEffect(() => {
@@ -41,33 +45,39 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
     }
   }, [goal.status, triggerSuccessCelebration]);
 
-  const handleCardTouch = () => {
+  // Enhanced touch handlers with visual feedback
+  const handleCardTouch = useCallback(() => {
     handleTouchFeedback('light');
-  };
+    setIsPressed(true);
+  }, [handleTouchFeedback]);
 
-  const handleActionTouch = (intensity: 'light' | 'medium' | 'heavy' = 'medium') => {
+  const handleCardTouchEnd = useCallback(() => {
+    setIsPressed(false);
+  }, []);
+
+  const handleActionTouch = useCallback((intensity: 'light' | 'medium' | 'heavy' = 'medium') => {
     handleTouchFeedback(intensity);
-  };
+  }, [handleTouchFeedback]);
   
   const getStatusBadge = () => {
     switch (goal.status) {
       case 'completed':
         return (
-          <Badge className="bg-success/10 text-success-foreground border-success/30 shadow-sm">
+          <Badge className="bg-success/10 text-success border-success/20 shadow-sm backdrop-blur-sm">
             <CheckCircle className="w-3 h-3 mr-1.5" />
             Completed
           </Badge>
         );
       case 'archived':
         return (
-          <Badge className="bg-muted/20 text-muted-foreground border-muted shadow-sm">
+          <Badge className="bg-muted/10 text-muted-foreground border-muted/20 shadow-sm backdrop-blur-sm">
             <Archive className="w-3 h-3 mr-1.5" />
             Archived
           </Badge>
         );
       default:
         return (
-          <Badge className="bg-primary/10 text-primary-foreground border-primary/30 shadow-sm">
+          <Badge className="bg-primary/10 text-primary border-primary/20 shadow-sm backdrop-blur-sm">
             <Sparkles className="w-3 h-3 mr-1.5" />
             Active
           </Badge>
@@ -78,7 +88,7 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
   const getModalityBadge = () => {
     const Icon = goal.modality === 'project' ? Layers3 : ListChecks;
     return (
-      <Badge variant="outline" className="bg-accent/10 border-accent shadow-sm">
+      <Badge variant="outline" className="bg-accent/10 border-accent/20 shadow-sm backdrop-blur-sm text-accent-foreground">
         <Icon className="w-3 h-3 mr-1.5" />
         {goal.modality === 'project' ? 'Project' : 'Checklist'}
       </Badge>
@@ -96,32 +106,54 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
       <div 
         ref={cardRef}
         onTouchStart={handleCardTouch}
+        onTouchEnd={handleCardTouchEnd}
         className={cn(
-          "relative overflow-hidden rounded-2xl cursor-pointer",
-          "bg-gradient-to-br from-card via-card/90 to-card/95",
-          "border border-border/50",
-          "shadow-sm shadow-foreground/5",
-          "hover:shadow-md hover:shadow-primary/10",
-          "hover:border-border",
-          "hover:from-card hover:via-card/95 hover:to-card",
-          "transition-all duration-300 cubic-bezier(0.23, 1, 0.32, 1)",
-          "animated-card touch-feedback",
-          "p-4 backdrop-blur-sm",
-          goal.status === 'completed' && "ring-1 ring-success/30 bg-gradient-to-br from-success/5 via-card to-success/5"
+          "relative overflow-hidden rounded-2xl cursor-pointer will-change-transform",
+          // Base theme-aware background
+          "bg-gradient-to-br from-card via-card/95 to-card/90",
+          // Border with theme awareness
+          "border border-border/40",
+          // Theme-aware shadows
+          actualTheme === 'dark' 
+            ? "shadow-lg shadow-background/20" 
+            : "shadow-md shadow-foreground/5",
+          // Enhanced hover states
+          "hover:shadow-xl hover:border-border/60",
+          actualTheme === 'dark'
+            ? "hover:shadow-background/30"
+            : "hover:shadow-primary/15",
+          // Smooth transitions with better easing
+          "transition-all duration-400 cubic-bezier(0.23, 1, 0.32, 1)",
+          // Press state with scale effect
+          isPressed && "scale-[0.98]",
+          // Backdrop blur for glass effect
+          "backdrop-blur-sm",
+          // Completed goal special styling
+          goal.status === 'completed' && cn(
+            "ring-1 ring-success/20",
+            "bg-gradient-to-br from-success/5 via-card/95 to-success/3"
+          ),
+          // Enhanced padding for better touch targets
+          "p-5"
         )}
       >
         
-        {/* Theme-aware subtle overlay */}
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/2 via-transparent to-accent/2 pointer-events-none" />
+        {/* Dynamic theme-aware overlay */}
+        <div className={cn(
+          "absolute inset-0 pointer-events-none",
+          actualTheme === 'dark'
+            ? "bg-gradient-to-br from-primary/3 via-transparent to-accent/3"
+            : "bg-gradient-to-br from-primary/2 via-transparent to-accent/2"
+        )} />
         
-        {/* Header with Compact Badges */}
-        <div className="relative z-10 flex items-start justify-between mb-3">
-          <div className="flex items-center gap-2">
+        {/* Header with Enhanced Badges */}
+        <div className="relative z-10 flex items-start justify-between mb-4">
+          <div className="flex items-center gap-2 flex-wrap">
             {getStatusBadge()}
             {getModalityBadge()}
           </div>
           
-          {/* Ultra Transparent Actions Menu */}
+          {/* Enhanced Actions Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button 
@@ -129,16 +161,21 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
                 size="sm"
                 onTouchStart={() => handleActionTouch('light')}
                 className={cn(
-                  "opacity-50 group-hover:opacity-80 transition-all duration-200",
-                  "h-7 w-7 p-0 rounded-full touch-feedback",
-                  "bg-muted/20 border border-border/30",
-                  "hover:bg-muted/40 hover:border-border/50 active:scale-90"
+                  "opacity-60 group-hover:opacity-100 transition-all duration-300",
+                  "h-8 w-8 p-0 rounded-full min-h-[44px] min-w-[44px]",
+                  "bg-muted/10 border border-border/20",
+                  "hover:bg-muted/20 hover:border-border/40",
+                  "active:scale-95 backdrop-blur-sm",
+                  "shadow-sm hover:shadow-md"
                 )}
               >
-                <MoreVertical className="h-3.5 w-3.5" />
+                <MoreVertical className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-popover/95 backdrop-blur-md border-border z-50">
+            <DropdownMenuContent 
+              align="end" 
+              className="bg-popover/95 backdrop-blur-xl border-border/50 shadow-xl z-50"
+            >
               {goal.status === 'active' && (
                 <>
                   <DropdownMenuItem onClick={() => { handleActionTouch('heavy'); onStatusChange(goal.id, 'completed'); }}>
@@ -175,63 +212,91 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
           </DropdownMenu>
         </div>
 
-        {/* Compact Title and Description */}
-        <div className="relative z-10 mb-4">
-          <h3 className="text-lg font-semibold leading-tight mb-1">
+        {/* Enhanced Title and Description */}
+        <div className="relative z-10 mb-5">
+          <h3 className="text-lg font-semibold leading-tight mb-2">
             <Link 
               to={`/goals/${goal.id}`}
               onTouchStart={() => handleActionTouch('light')}
-              className="text-foreground hover:text-primary transition-all duration-200 line-clamp-2 block touch-feedback"
+              className={cn(
+                "text-foreground hover:text-primary transition-all duration-300",
+                "line-clamp-2 block min-h-[44px] flex items-center",
+                "hover:underline decoration-primary/30 underline-offset-4"
+              )}
             >
               {goal.title}
             </Link>
           </h3>
           
           {goal.description && (
-            <p className="text-muted-foreground/60 text-sm leading-relaxed line-clamp-2">
+            <p className="text-muted-foreground text-sm leading-relaxed line-clamp-2 opacity-80">
               {goal.description}
             </p>
           )}
         </div>
         
-        {/* Ultra Transparent Progress Section */}
-        <div className="relative z-10 mb-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Progress</span>
-            <span className="text-sm font-semibold text-foreground">
+        {/* Enhanced Progress Section */}
+        <div className="relative z-10 mb-5">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Progress</span>
+            <span className={cn(
+              "text-sm font-semibold tabular-nums",
+              goal.status === 'completed' ? "text-success" : "text-foreground"
+            )}>
               {Math.round(progress)}%
             </span>
           </div>
           
-          {/* Theme-aware Progress Bar */}
-          <div className="relative h-2 bg-muted/30 rounded-full overflow-hidden border border-border/20">
+          {/* Enhanced Theme-aware Progress Bar */}
+          <div className={cn(
+            "relative h-3 rounded-full overflow-hidden",
+            actualTheme === 'dark' 
+              ? "bg-muted/20 border border-border/10" 
+              : "bg-muted/30 border border-border/20"
+          )}>
             <div 
               ref={progressRef}
               className={cn(
-                "h-full rounded-full transition-all duration-700 cubic-bezier(0.23, 1, 0.32, 1)",
+                "h-full rounded-full transition-all duration-800 cubic-bezier(0.23, 1, 0.32, 1)",
+                "will-change-transform",
                 goal.status === 'completed' 
-                  ? "bg-gradient-to-r from-success to-success/80 shadow-sm shadow-success/30" 
-                  : "bg-gradient-to-r from-primary to-primary/80 shadow-sm shadow-primary/20"
+                  ? "bg-gradient-to-r from-success via-success/90 to-success/80 shadow-lg shadow-success/20" 
+                  : "bg-gradient-to-r from-primary via-primary/90 to-primary/80 shadow-md shadow-primary/15"
               )}
               style={{ width: '0%' }}
             />
+            {/* Progress glow effect */}
+            <div className={cn(
+              "absolute inset-0 rounded-full opacity-50",
+              goal.status === 'completed'
+                ? "bg-gradient-to-r from-success/20 to-transparent"
+                : "bg-gradient-to-r from-primary/20 to-transparent"
+            )} />
           </div>
         </div>
         
-        {/* Theme-aware Info Pills */}
+        {/* Enhanced Theme-aware Info Pills */}
         <div className="relative z-10 flex items-center gap-2 flex-wrap">
           {/* Task Count Pill */}
-          <div className="px-2.5 py-1 bg-muted/20 rounded-full border border-border/20 flex items-center gap-1.5">
-            <Target className="w-3 h-3 text-primary" />
-            <span className="text-xs font-medium text-muted-foreground">
-              {goal.total_tasks}
+          <div className={cn(
+            "px-3 py-1.5 rounded-full border flex items-center gap-2 backdrop-blur-sm",
+            "bg-muted/15 border-border/20 min-h-[32px]",
+            "hover:bg-muted/25 transition-colors duration-200"
+          )}>
+            <Target className="w-3.5 h-3.5 text-primary" />
+            <span className="text-xs font-medium text-muted-foreground tabular-nums">
+              {goal.total_tasks} {goal.total_tasks === 1 ? 'task' : 'tasks'}
             </span>
           </div>
           
           {/* Due Date Pill */}
           {goal.target_date && (
-            <div className="px-2.5 py-1 bg-muted/20 rounded-full border border-border/20 flex items-center gap-1.5">
-              <Calendar className="w-3 h-3 text-accent-foreground" />
+            <div className={cn(
+              "px-3 py-1.5 rounded-full border flex items-center gap-2 backdrop-blur-sm",
+              "bg-muted/15 border-border/20 min-h-[32px]",
+              "hover:bg-muted/25 transition-colors duration-200"
+            )}>
+              <Calendar className="w-3.5 h-3.5 text-accent-foreground" />
               <span className="text-xs font-medium text-muted-foreground">
                 {formatDate(goal.target_date)}
               </span>
@@ -240,10 +305,14 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
           
           {/* Weekly Hours Pill */}
           {goal.weekly_hours && (
-            <div className="px-2.5 py-1 bg-muted/20 rounded-full border border-border/20 flex items-center gap-1.5">
-              <Clock className="w-3 h-3 text-secondary-foreground" />
-              <span className="text-xs font-medium text-muted-foreground">
-                {goal.weekly_hours}h
+            <div className={cn(
+              "px-3 py-1.5 rounded-full border flex items-center gap-2 backdrop-blur-sm",
+              "bg-muted/15 border-border/20 min-h-[32px]",
+              "hover:bg-muted/25 transition-colors duration-200"
+            )}>
+              <Clock className="w-3.5 h-3.5 text-secondary-foreground" />
+              <span className="text-xs font-medium text-muted-foreground tabular-nums">
+                {goal.weekly_hours}h/week
               </span>
             </div>
           )}
@@ -251,21 +320,22 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
       </div>
       
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent className="bg-popover/95 backdrop-blur-md border-border">
+        <AlertDialogContent className="bg-popover/98 backdrop-blur-xl border-border/50 shadow-2xl">
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Goal</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogTitle className="text-foreground">Delete Goal</AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground">
               Are you sure you want to delete "{goal.title}"? This will permanently delete the goal and all its milestones and tasks. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogFooter className="gap-3">
+            <AlertDialogCancel className="min-h-[44px]">Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
+                handleActionTouch('heavy');
                 onDelete(goal.id);
                 setShowDeleteDialog(false);
               }}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 min-h-[44px]"
             >
               Delete
             </AlertDialogAction>
