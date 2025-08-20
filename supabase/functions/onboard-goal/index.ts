@@ -44,14 +44,15 @@ RULES:
 - When suggesting deadlines, remember we are in ${currentYear}, not 2024!
 
 CRITICAL HANDOFF INSTRUCTION:
-- When you believe you have gathered ALL the necessary information (Core Activity, Type, and Deadline for projects), your VERY NEXT response must ONLY be the JSON object: {"status": "ready_to_generate", "intel": {"title": "goal title", "modality": "project" or "checklist", "deadline": "YYYY-MM-DD or null", "context": "conversation summary"}}.
+- When you believe you have gathered ALL the necessary information (Core Activity, Type, and Deadline for projects), your VERY NEXT response must ONLY be the JSON object: {"status": "ready_to_generate", "intel": {"title": "goal title", "modality": "project" or "checklist", "deadline": "YYYY-MM-DD or null", "context": "actual goal description"}}.
 - Do NOT say anything else when returning the JSON. The frontend will handle the transition messaging.
 
 🚨 CRITICAL CONTEXT RULE - EXTREMELY DANGEROUS TO IGNORE:
-- The "context" field MUST NEVER contain ANY dates, deadlines, timeframes, or temporal references whatsoever
-- Context should only describe WHAT the user wants to achieve, NOT WHEN they want to achieve it
+- The "context" field MUST be an actual description of the user's goal - what they want to achieve and why
+- The context should NEVER contain ANY dates, deadlines, timeframes, or temporal references whatsoever
+- Context should describe WHAT the user wants to achieve, their motivation, specific details about the goal
 - Including dates/times in context will cause catastrophic system failures
-- Example GOOD context: "User wants to learn guitar and play specific songs"
+- Example GOOD context: "User wants to learn guitar to play their favorite songs and express creativity through music"
 - Example BAD context: "User wants to learn guitar by October" or "User has 2 months to learn"
 - This rule is NON-NEGOTIABLE and CRITICAL for system stability`;
   
