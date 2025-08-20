@@ -328,7 +328,7 @@ const TodayTaskItem: React.FC<TodayTaskItemProps> = ({ task }) => {
             {task.description && (
               <p className={cn(
                 'text-sm leading-relaxed mb-3 transition-all duration-300',
-                isCompleted ? 'line-through text-muted-foreground/60' : 'text-foreground/75',
+                isCompleted ? 'line-through text-muted-foreground/60' : 'text-foreground',
                 'line-clamp-2'
               )}>
                 {task.description}
@@ -340,11 +340,11 @@ const TodayTaskItem: React.FC<TodayTaskItemProps> = ({ task }) => {
               {/* Goal Title Pill */}
               <div className={cn(
                 "px-3 py-1.5 rounded-full border flex items-center gap-2",
-                "bg-primary/5 border-primary/20 min-h-[32px]",
-                "hover:bg-primary/10 transition-colors duration-200"
+                "bg-primary/10 border-primary/30 min-h-[32px]",
+                "hover:bg-primary/15 transition-colors duration-200"
               )}>
-                <Target className="w-3.5 h-3.5 text-primary/80" />
-                <span className="text-xs font-medium text-primary/90">
+                <Target className="w-3.5 h-3.5 text-primary" />
+                <span className="text-xs font-medium text-primary">
                   {task.goal_title}
                 </span>
               </div>
@@ -353,18 +353,18 @@ const TodayTaskItem: React.FC<TodayTaskItemProps> = ({ task }) => {
               {(getDateDisplay() || getProgressDisplay()) && (
                 <div className={cn(
                   "px-3 py-1.5 rounded-full border flex items-center gap-2 min-h-[32px]",
-                  "hover:bg-accent/10 transition-colors duration-200",
+                  "hover:bg-accent/15 transition-colors duration-200",
                   isOverdue 
                     ? "bg-destructive/10 border-destructive/30"
-                    : "bg-accent/5 border-accent/20"
+                    : "bg-accent/10 border-accent/30"
                 )}>
                   <Clock className={cn(
                     "w-3.5 h-3.5",
-                    isOverdue ? "text-destructive" : "text-accent-foreground/80"
+                    isOverdue ? "text-destructive" : "text-accent-foreground"
                   )} />
                   <span className={cn(
                     "text-xs font-medium",
-                    isOverdue ? "text-destructive" : "text-accent-foreground/90"
+                    isOverdue ? "text-destructive" : "text-accent-foreground"
                   )}>
                     {getDateDisplay() || getProgressDisplay()}
                   </span>
