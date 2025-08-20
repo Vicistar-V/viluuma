@@ -27,6 +27,25 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
   const { actualTheme } = useTheme();
   
   const progress = goal.total_tasks > 0 ? (goal.completed_tasks / goal.total_tasks) * 100 : 0;
+  
+  // Calculate progressive green background opacity based on progress (0% = no green, 100% = full green)
+  const getProgressiveGreenBackground = () => {
+    if (goal.status === 'archived') return '';
+    
+    // For active goals, gradually increase green background opacity based on progress
+    if (goal.status === 'active' && progress > 0) {
+      // Scale progress to green background opacity (0-15% opacity range)
+      const greenOpacity = Math.min(Math.round((progress / 100) * 15), 15);
+      return `bg-success/${greenOpacity}`;
+    }
+    
+    // Completed goals get full green background
+    if (goal.status === 'completed') {
+      return 'bg-success/15';
+    }
+    
+    return '';
+  };
 
   // Animate progress bar on mount and updates with smooth transition
   useEffect(() => {
@@ -126,11 +145,9 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
           "transition-all duration-300 cubic-bezier(0.23, 1, 0.32, 1)",
           // Press state with scale effect
           isPressed && "scale-[0.98]",
-          // Completed goal special styling
-          goal.status === 'completed' && cn(
-            "ring-1 ring-success/30",
-            "bg-success/15"
-          ),
+          // Progressive green background based on progress
+          getProgressiveGreenBackground(),
+          goal.status === 'completed' && "ring-1 ring-success/30",
           // Enhanced padding for better touch targets
           "p-4"
         )}
@@ -257,7 +274,8 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
               className={cn(
                 "h-full rounded-full transition-all duration-800 cubic-bezier(0.23, 1, 0.32, 1)",
                 "will-change-transform",
-                goal.status === 'completed' 
+                // Progress bar turns green only when completed OR when active goal reaches 100%
+                (goal.status === 'completed' || (goal.status === 'active' && progress >= 100))
                   ? "bg-gradient-to-r from-success via-success/90 to-success/80 shadow-lg shadow-success/30" 
                   : "bg-gradient-to-r from-primary via-primary/90 to-primary/80 shadow-md shadow-primary/15"
               )}
@@ -266,7 +284,7 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
             {/* Progress glow effect */}
             <div className={cn(
               "absolute inset-0 rounded-full opacity-60",
-              goal.status === 'completed'
+              (goal.status === 'completed' || (goal.status === 'active' && progress >= 100))
                 ? "bg-gradient-to-r from-success/30 to-transparent"
                 : "bg-gradient-to-r from-primary/20 to-transparent"
             )} />
