@@ -1,6 +1,4 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { StatusBar, Style } from '@capacitor/status-bar';
-import { Capacitor } from '@capacitor/core';
 
 export type Theme = 'light' | 'dark' | 'system';
 
@@ -28,37 +26,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   };
 
-  // Function to apply theme to document and native status bar
-  const applyTheme = async (resolvedTheme: 'light' | 'dark') => {
+  // Function to apply theme to document
+  const applyTheme = (resolvedTheme: 'light' | 'dark') => {
     const root = window.document.documentElement;
     root.classList.remove('light', 'dark');
     root.classList.add(resolvedTheme);
     setActualTheme(resolvedTheme);
-
-    // Configure status bar theming on native platforms only
-    if (Capacitor.isNativePlatform()) {
-      try {
-        // First ensure overlay is disabled for proper theming
-        await StatusBar.setOverlaysWebView({ overlay: false });
-        
-        // Small delay to ensure overlay setting takes effect
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
-        if (resolvedTheme === 'light') {
-          // Light theme: dark icons/text on light background
-          await StatusBar.setStyle({ style: Style.Dark });
-          await StatusBar.setBackgroundColor({ color: '#FFFFFF' });
-        } else {
-          // Dark theme: light icons/text on dark background  
-          await StatusBar.setStyle({ style: Style.Light });
-          await StatusBar.setBackgroundColor({ color: '#000000' });
-        }
-        
-        console.log(`Status bar updated for ${resolvedTheme} theme`);
-      } catch (error) {
-        console.log('Status bar configuration failed:', error);
-      }
-    }
   };
 
   // Resolve theme based on current setting

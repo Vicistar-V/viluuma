@@ -19,10 +19,6 @@
     "BackgroundTask": {
       "label": "com.viluuma.app.background"
     },
-    "StatusBar": {
-      "style": "DARK",
-      "backgroundColor": "#FFFFFF"
-    },
     "Haptics": {},
     "App": {}
   },
