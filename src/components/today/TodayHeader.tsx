@@ -2,7 +2,9 @@ import React from 'react';
 import { format, getHours } from 'date-fns';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserData } from '@/hooks/useUserData';
-import { AlertTriangle } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, Lightbulb, Calendar } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 interface TodayHeaderProps {
   overdueCount: number;
@@ -25,52 +27,107 @@ const TodayHeader: React.FC<TodayHeaderProps> = ({ overdueCount }) => {
     return `${timeGreeting}, ${firstName}`;
   };
 
-  // Get context-aware message based on overdue count
-  const getContextMessage = () => {
+  // Get status info based on overdue count
+  const getStatusInfo = () => {
     if (overdueCount === 0) {
-      return "Your today tasks are running bug-free";
+      return {
+        message: "All tasks are on track",
+        submessage: "You're crushing it today!",
+        icon: CheckCircle2,
+        variant: "success" as const,
+        bgClass: "bg-gradient-to-br from-success/10 to-success/5",
+        borderClass: "border-success/20"
+      };
     } else if (overdueCount <= 5) {
-      return "A few bugs need fixing, but you've got this";
+      return {
+        message: "A few items need attention",
+        submessage: "Let's knock these out together",
+        icon: Lightbulb,
+        variant: "warning" as const,
+        bgClass: "bg-gradient-to-br from-warning/15 to-warning/5",
+        borderClass: "border-warning/30"
+      };
     } else {
-      return "Multiple bugs detected - let's squash them one by one";
+      return {
+        message: "Priority items detected",
+        submessage: "Focus mode activated - let's tackle these",
+        icon: AlertTriangle,
+        variant: "destructive" as const,
+        bgClass: "bg-gradient-to-br from-destructive/15 to-destructive/5", 
+        borderClass: "border-destructive/30"
+      };
     }
   };
 
-  // Get header visual treatment based on overdue count
-  const getHeaderIcon = () => {
-    if (overdueCount === 0) {
-      return null; // Clean and simple
-    } else if (overdueCount <= 5) {
-      return "💡"; // Gentle, friendly guidance
-    } else {
-      return "⚠️"; // More direct but still warm
-    }
-  };
-
-  const headerIcon = getHeaderIcon();
+  const statusInfo = getStatusInfo();
 
   return (
-    <div className="mb-6 animate-fade-in">
-      {/* Date */}
-      <p className="text-xs text-muted-foreground mb-1">{formattedDate}</p>
-      
-      {/* Greeting Title */}
-      <h1 className="text-xl font-semibold text-foreground mb-2">
-        {getGreeting()}
-      </h1>
-      
-      {/* Context Message */}
-      <div className={`flex items-center gap-2 ${
-        overdueCount > 5 ? 'p-2 bg-warning/5 border border-warning/20 rounded-md' : ''
-      }`}>
-        {headerIcon && (
-          <span className="text-sm" role="img" aria-label="status-icon">
-            {headerIcon}
+    <div className="mb-8 animate-fade-in">
+      {/* Header Card */}
+      <div className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-background to-muted/20 p-6 shadow-sm">
+        {/* Date Badge */}
+        <div className="flex items-center gap-2 mb-3">
+          <Calendar className="w-4 h-4 text-muted-foreground" />
+          <span className="text-sm font-medium text-muted-foreground">
+            {formattedDate}
           </span>
-        )}
-        <p className="text-sm text-muted-foreground">
-          {getContextMessage()}
-        </p>
+        </div>
+        
+        {/* Greeting */}
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold text-foreground mb-2 tracking-tight">
+            {getGreeting()}
+          </h1>
+        </div>
+        
+        {/* Status Card */}
+        <div className={cn(
+          "relative p-4 rounded-xl border transition-all duration-300",
+          statusInfo.bgClass,
+          statusInfo.borderClass
+        )}>
+          <div className="flex items-start justify-between">
+            <div className="flex items-start gap-3 flex-1">
+              <div className={cn(
+                "flex items-center justify-center w-10 h-10 rounded-full",
+                statusInfo.variant === "success" && "bg-success/20",
+                statusInfo.variant === "warning" && "bg-warning/20", 
+                statusInfo.variant === "destructive" && "bg-destructive/20"
+              )}>
+                <statusInfo.icon className={cn(
+                  "w-5 h-5",
+                  statusInfo.variant === "success" && "text-success",
+                  statusInfo.variant === "warning" && "text-warning",
+                  statusInfo.variant === "destructive" && "text-destructive"
+                )} />
+              </div>
+              
+              <div className="flex-1">
+                <h3 className="font-semibold text-foreground mb-1">
+                  {statusInfo.message}
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  {statusInfo.submessage}
+                </p>
+              </div>
+            </div>
+            
+            {/* Overdue Count Badge */}
+            {overdueCount > 0 && (
+              <Badge 
+                variant="secondary"
+                className={cn(
+                  "ml-3 font-semibold min-w-[2rem] h-8 flex items-center justify-center",
+                  statusInfo.variant === "success" && "bg-success/20 text-success border-success/30",
+                  statusInfo.variant === "warning" && "bg-warning/20 text-warning border-warning/30",
+                  statusInfo.variant === "destructive" && "bg-destructive/20 text-destructive border-destructive/30"
+                )}
+              >
+                {overdueCount}
+              </Badge>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
