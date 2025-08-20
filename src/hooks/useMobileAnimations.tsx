@@ -5,87 +5,117 @@ import { Haptics, ImpactStyle } from '@capacitor/haptics';
 export const useMobileAnimations = () => {
   // Physics-based liquid morphing effect
   const createLiquidMorph = useCallback((element: HTMLElement) => {
+    if (!element) return () => {};
+    
     const tl = gsap.timeline({ paused: true });
     
-    tl.to(element, {
-      scale: 0.95,
-      borderRadius: "50px",
-      duration: 0.2,
-      ease: "power2.out"
-    })
-    .to(element, {
-      scale: 1.05,
-      borderRadius: "20px", 
-      duration: 0.3,
-      ease: "elastic.out(1, 0.3)"
-    })
-    .to(element, {
-      scale: 1,
-      borderRadius: "16px",
-      duration: 0.2,
-      ease: "power2.out"
-    });
+    try {
+      tl.to(element, {
+        scale: 0.95,
+        borderRadius: "50px",
+        duration: 0.2,
+        ease: "power2.out"
+      })
+      .to(element, {
+        scale: 1.05,
+        borderRadius: "20px", 
+        duration: 0.3,
+        ease: "elastic.out(1, 0.3)"
+      })
+      .to(element, {
+        scale: 1,
+        borderRadius: "16px",
+        duration: 0.2,
+        ease: "power2.out"
+      });
 
-    const handleTouch = async () => {
-      try {
-        await Haptics.impact({ style: ImpactStyle.Medium });
-      } catch (e) {}
-      tl.restart();
-    };
+      const handleTouch = async () => {
+        try {
+          await Haptics.impact({ style: ImpactStyle.Medium });
+          tl.restart();
+        } catch (e) {
+          console.warn('Animation or haptics failed:', e);
+        }
+      };
 
-    element.addEventListener('touchstart', handleTouch);
-    return () => {
-      element.removeEventListener('touchstart', handleTouch);
-      tl.kill();
-    };
+      element.addEventListener('touchstart', handleTouch);
+      return () => {
+        element.removeEventListener('touchstart', handleTouch);
+        tl.kill();
+      };
+    } catch (error) {
+      console.warn('Failed to create liquid morph animation:', error);
+      return () => {};
+    }
   }, []);
 
   // Advanced particle burst system
-  const createParticleBurst = useCallback((container: HTMLElement, color: string) => {
+  const createParticleBurst = useCallback((container: HTMLElement, color = '#22c55e') => {
+    if (!container || !color) return;
+    
     const particles: HTMLElement[] = [];
     const particleCount = 12;
     
-    for (let i = 0; i < particleCount; i++) {
-      const particle = document.createElement('div');
-      particle.className = 'absolute pointer-events-none';
-      particle.style.cssText = `
-        width: 4px;
-        height: 4px;
-        background: ${color};
-        border-radius: 50%;
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-      `;
-      container.appendChild(particle);
-      particles.push(particle);
-    }
+    try {
+      for (let i = 0; i < particleCount; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'absolute pointer-events-none';
+        particle.style.width = '4px';
+        particle.style.height = '4px';
+        particle.style.backgroundColor = color;
+        particle.style.borderRadius = '50%';
+        particle.style.position = 'absolute';
+        particle.style.top = '50%';
+        particle.style.left = '50%';
+        particle.style.transform = 'translate(-50%, -50%)';
+        particle.style.pointerEvents = 'none';
+        
+        container.appendChild(particle);
+        particles.push(particle);
+      }
 
-    // Complex burst animation with physics
-    particles.forEach((particle, i) => {
-      const angle = (i / particleCount) * Math.PI * 2;
-      const distance = gsap.utils.random(80, 150);
-      const x = Math.cos(angle) * distance;
-      const y = Math.sin(angle) * distance;
-      
-      gsap.timeline()
-        .to(particle, {
-          x,
-          y,
-          scale: gsap.utils.random(0.5, 2),
-          opacity: 0.8,
-          duration: 0.6,
-          ease: "power2.out"
-        })
-        .to(particle, {
-          opacity: 0,
-          scale: 0,
-          duration: 0.4,
-          ease: "power2.in",
-          onComplete: () => particle.remove()
-        }, 0.3);
-    });
+      // Complex burst animation with physics
+      particles.forEach((particle, i) => {
+        const angle = (i / particleCount) * Math.PI * 2;
+        const distance = gsap.utils.random(80, 150);
+        const x = Math.cos(angle) * distance;
+        const y = Math.sin(angle) * distance;
+        
+        try {
+          gsap.timeline()
+            .to(particle, {
+              x,
+              y,
+              scale: gsap.utils.random(0.5, 2),
+              opacity: 0.8,
+              duration: 0.6,
+              ease: "power2.out"
+            })
+            .to(particle, {
+              opacity: 0,
+              scale: 0,
+              duration: 0.4,
+              ease: "power2.in",
+              onComplete: () => {
+                try {
+                  if (particle.parentNode) {
+                    particle.parentNode.removeChild(particle);
+                  }
+                } catch (e) {
+                  console.warn('Failed to remove particle:', e);
+                }
+              }
+            }, 0.3);
+        } catch (error) {
+          console.warn('Failed to animate particle:', error);
+          if (particle.parentNode) {
+            particle.parentNode.removeChild(particle);
+          }
+        }
+      });
+    } catch (error) {
+      console.warn('Failed to create particle burst:', error);
+    }
   }, []);
 
   // Staggered wave entrance with complex easing
@@ -131,85 +161,105 @@ export const useMobileAnimations = () => {
 
   // Organic progress bar with liquid flow
   const animateProgressBar = useCallback((progressBar: HTMLElement, targetWidth: number) => {
-    // Create liquid flow effect
-    const flowGradient = document.createElement('div');
-    flowGradient.className = 'absolute inset-0 pointer-events-none';
-    flowGradient.style.cssText = `
-      background: linear-gradient(90deg, 
-        transparent 0%, 
-        rgba(255,255,255,0.4) 30%, 
-        rgba(255,255,255,0.6) 50%, 
-        rgba(255,255,255,0.4) 70%, 
-        transparent 100%);
-      transform: translateX(-100%);
-      border-radius: inherit;
-    `;
-    progressBar.appendChild(flowGradient);
-
-    // Animate progress with elastic effect
-    const tl = gsap.timeline();
+    if (!progressBar || typeof targetWidth !== 'number') return;
     
-    tl.to(progressBar, {
-      width: `${targetWidth}%`,
-      duration: 1.2,
-      ease: "power2.out",
-      onUpdate: function() {
-        // Add subtle morphing during animation
-        const progress = this.progress();
-        progressBar.style.transform = `scaleY(${1 + Math.sin(progress * Math.PI) * 0.1})`;
-      }
-    })
-    .to(flowGradient, {
-      x: '200%',
-      duration: 1.5,
-      ease: "power2.inOut"
-    }, 0.2)
-    .to(progressBar, {
-      transform: 'scaleY(1)',
-      duration: 0.3,
-      ease: "elastic.out(1, 0.3)"
-    });
+    try {
+      // Create liquid flow effect
+      const flowGradient = document.createElement('div');
+      flowGradient.className = 'absolute inset-0 pointer-events-none';
+      flowGradient.style.background = 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 30%, rgba(255,255,255,0.6) 50%, rgba(255,255,255,0.4) 70%, transparent 100%)';
+      flowGradient.style.transform = 'translateX(-100%)';
+      flowGradient.style.borderRadius = 'inherit';
+      flowGradient.style.pointerEvents = 'none';
+      
+      progressBar.appendChild(flowGradient);
+
+      // Animate progress with elastic effect
+      const tl = gsap.timeline();
+      
+      tl.to(progressBar, {
+        width: `${Math.max(0, Math.min(100, targetWidth))}%`,
+        duration: 1.2,
+        ease: "power2.out",
+        onUpdate: function() {
+          try {
+            // Add subtle morphing during animation
+            const progress = this.progress();
+            progressBar.style.transform = `scaleY(${1 + Math.sin(progress * Math.PI) * 0.1})`;
+          } catch (e) {
+            console.warn('Progress bar update failed:', e);
+          }
+        }
+      })
+      .to(flowGradient, {
+        x: '200%',
+        duration: 1.5,
+        ease: "power2.inOut"
+      }, 0.2)
+      .to(progressBar, {
+        transform: 'scaleY(1)',
+        duration: 0.3,
+        ease: "elastic.out(1, 0.3)"
+      });
+    } catch (error) {
+      console.warn('Failed to animate progress bar:', error);
+      // Fallback to simple CSS animation
+      progressBar.style.width = `${Math.max(0, Math.min(100, targetWidth))}%`;
+      progressBar.style.transition = 'width 1s ease-out';
+    }
   }, []);
 
   // Success celebration with multiple effects
   const createSuccessPulse = useCallback((element: HTMLElement) => {
-    // Create ripple effect
-    const ripple = document.createElement('div');
-    ripple.className = 'absolute inset-0 pointer-events-none';
-    ripple.style.cssText = `
-      border: 2px solid rgba(34, 197, 94, 0.6);
-      border-radius: inherit;
-      transform: scale(1);
-      opacity: 0;
-    `;
-    element.appendChild(ripple);
-
-    // Complex celebration timeline
-    const tl = gsap.timeline();
+    if (!element) return;
     
-    tl.to(ripple, {
-      scale: 1.5,
-      opacity: 1,
-      duration: 0.3,
-      ease: "power2.out"
-    })
-    .to(ripple, {
-      scale: 2,
-      opacity: 0,
-      duration: 0.5,
-      ease: "power2.out"
-    }, "-=0.1")
-    .to(element, {
-      scale: 1.05,
-      duration: 0.2,
-      ease: "back.out(2)",
-      yoyo: true,
-      repeat: 1
-    }, 0)
-    .call(() => {
-      createParticleBurst(element, 'rgba(34, 197, 94, 0.8)');
-      ripple.remove();
-    }, [], 0.3);
+    try {
+      // Create ripple effect
+      const ripple = document.createElement('div');
+      ripple.className = 'absolute inset-0 pointer-events-none';
+      ripple.style.border = '2px solid #22c55e';
+      ripple.style.borderRadius = 'inherit';
+      ripple.style.transform = 'scale(1)';
+      ripple.style.opacity = '0';
+      ripple.style.pointerEvents = 'none';
+      
+      element.appendChild(ripple);
+
+      // Complex celebration timeline
+      const tl = gsap.timeline();
+      
+      tl.to(ripple, {
+        scale: 1.5,
+        opacity: 1,
+        duration: 0.3,
+        ease: "power2.out"
+      })
+      .to(ripple, {
+        scale: 2,
+        opacity: 0,
+        duration: 0.5,
+        ease: "power2.out"
+      }, "-=0.1")
+      .to(element, {
+        scale: 1.05,
+        duration: 0.2,
+        ease: "back.out(2)",
+        yoyo: true,
+        repeat: 1
+      }, 0)
+      .call(() => {
+        createParticleBurst(element, '#22c55e');
+        try {
+          if (ripple.parentNode) {
+            ripple.parentNode.removeChild(ripple);
+          }
+        } catch (e) {
+          console.warn('Failed to remove ripple:', e);
+        }
+      }, [], 0.3);
+    } catch (error) {
+      console.warn('Failed to create success pulse:', error);
+    }
   }, [createParticleBurst]);
 
   // Magnetic field effect for touch interactions
