@@ -27,6 +27,13 @@ export interface GoalCompletionStats {
   completed_at: string;
 }
 
+export interface GoalReopenStats {
+  goal_id: string;
+  tasks_reopened: number;
+  total_tasks: number;
+  reopened_at: string;
+}
+
 const QUERY_KEY = 'goals';
 
 export const useGoals = () => {
@@ -120,6 +127,33 @@ export const useUpdateGoalStatus = () => {
       toast({
         title: "Error",
         description: "Failed to update goal status",
+        variant: "destructive"
+      });
+    }
+  });
+};
+
+export const useReopenGoal = () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  
+  return useMutation({
+    mutationFn: async (goalId: string) => {
+      const { data, error } = await supabase.rpc('uncomplete_all_goal_tasks', { p_goal_id: goalId });
+      if (error) throw error;
+      return data as unknown as GoalReopenStats;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      toast({
+        title: "Goal reopened! 🔄",
+        description: `${data.tasks_reopened} tasks marked as pending`
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to reopen goal",
         variant: "destructive"
       });
     }

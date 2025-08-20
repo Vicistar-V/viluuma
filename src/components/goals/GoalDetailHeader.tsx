@@ -18,10 +18,11 @@ interface GoalDetailHeaderProps {
   goal: Goal;
   onTitleUpdate: (newTitle: string) => Promise<void>;
   onStatusChange: (status: 'active' | 'archived' | 'completed') => Promise<void>;
+  onReopenGoal?: () => Promise<void>;
   onDelete: () => Promise<void>;
 }
 
-export const GoalDetailHeader = ({ goal, onTitleUpdate, onStatusChange, onDelete }: GoalDetailHeaderProps) => {
+export const GoalDetailHeader = ({ goal, onTitleUpdate, onStatusChange, onReopenGoal, onDelete }: GoalDetailHeaderProps) => {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState(goal.title);
 
@@ -142,7 +143,7 @@ export const GoalDetailHeader = ({ goal, onTitleUpdate, onStatusChange, onDelete
                 </DropdownMenuItem>
               )}
               {goal.status === 'completed' && (
-                <DropdownMenuItem onClick={() => onStatusChange('active')}>
+                <DropdownMenuItem onClick={onReopenGoal}>
                   <RotateCcw className="w-4 h-4 mr-2" />
                   Reopen
                 </DropdownMenuItem>

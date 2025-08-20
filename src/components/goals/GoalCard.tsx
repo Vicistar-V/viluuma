@@ -12,10 +12,11 @@ import { useState } from 'react';
 interface GoalCardProps {
   goal: Goal;
   onStatusChange: (goalId: string, status: 'active' | 'archived' | 'completed') => void;
+  onReopenGoal?: (goalId: string) => void;
   onDelete: (goalId: string) => void;
 }
 
-export const GoalCard = ({ goal, onStatusChange, onDelete }: GoalCardProps) => {
+export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalCardProps) => {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   
   const progress = goal.total_tasks > 0 ? (goal.completed_tasks / goal.total_tasks) * 100 : 0;
@@ -94,7 +95,7 @@ export const GoalCard = ({ goal, onStatusChange, onDelete }: GoalCardProps) => {
                 </DropdownMenuItem>
               )}
               {goal.status === 'completed' && (
-                <DropdownMenuItem onClick={() => onStatusChange(goal.id, 'active')}>
+                <DropdownMenuItem onClick={() => onReopenGoal?.(goal.id)}>
                   <RotateCcw className="w-4 h-4 mr-2" />
                   Reopen
                 </DropdownMenuItem>

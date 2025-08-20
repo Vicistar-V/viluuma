@@ -587,6 +587,10 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: undefined
       }
+      uncomplete_all_goal_tasks: {
+        Args: { p_goal_id: string }
+        Returns: Json
+      }
       uncomplete_task: {
         Args: { p_task_id: string }
         Returns: undefined

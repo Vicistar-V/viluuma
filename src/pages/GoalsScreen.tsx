@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
-import { useGoals, useUpdateGoalStatus, useDeleteGoal, usePermanentlyDeleteGoal } from '@/hooks/useGoals';
+import { useGoals, useUpdateGoalStatus, useDeleteGoal, usePermanentlyDeleteGoal, useReopenGoal } from '@/hooks/useGoals';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useToast } from '@/hooks/use-toast';
 import { Target, Plus, TrendingUp, CheckCircle, Archive, Crown, Lock } from 'lucide-react';
@@ -23,6 +23,7 @@ const GoalsScreen = () => {
   const { data: goals, isLoading: goalsLoading } = useGoals();
   const subscription = useSubscription();
   const updateGoalStatus = useUpdateGoalStatus();
+  const reopenGoal = useReopenGoal();
   const deleteGoal = useDeleteGoal();
   const permanentlyDeleteGoal = usePermanentlyDeleteGoal();
   
@@ -100,6 +101,10 @@ const GoalsScreen = () => {
   
   const handleStatusChange = (goalId: string, status: 'active' | 'archived' | 'completed') => {
     updateGoalStatus.mutate({ goalId, status });
+  };
+
+  const handleReopenGoal = (goalId: string) => {
+    reopenGoal.mutate(goalId);
   };
   
   const handleNewGoal = () => {
@@ -265,14 +270,15 @@ const GoalsScreen = () => {
                         <h2 className="text-lg font-semibold text-muted-foreground">Archived Goals</h2>
                       </div>
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        {filteredGoals.map((goal) => (
-                          <GoalCard
-                            key={goal.id}
-                            goal={goal}
-                            onStatusChange={handleStatusChange}
-                            onDelete={handlePermanentDelete}
-                          />
-                        ))}
+                         {filteredGoals.map((goal) => (
+                           <GoalCard
+                             key={goal.id}
+                             goal={goal}
+                             onStatusChange={handleStatusChange}
+                             onReopenGoal={handleReopenGoal}
+                             onDelete={handlePermanentDelete}
+                           />
+                         ))}
                       </div>
                     </div>
                   ) : (
@@ -294,14 +300,15 @@ const GoalsScreen = () => {
                   <>
                     {filteredGoals.length > 0 ? (
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        {filteredGoals.map((goal) => (
-                          <GoalCard
-                            key={goal.id}
-                            goal={goal}
-                            onStatusChange={handleStatusChange}
-                            onDelete={handleDelete}
-                          />
-                        ))}
+                         {filteredGoals.map((goal) => (
+                           <GoalCard
+                             key={goal.id}
+                             goal={goal}
+                             onStatusChange={handleStatusChange}
+                             onReopenGoal={handleReopenGoal}
+                             onDelete={handleDelete}
+                           />
+                         ))}
                       </div>
                     ) : (
                       <Card>

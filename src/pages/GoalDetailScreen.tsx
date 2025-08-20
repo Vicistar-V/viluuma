@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { BottomNav } from "@/components/BottomNav";
 import { useAuth } from "@/hooks/useAuth";
+import { useReopenGoal } from "@/hooks/useGoals";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -59,6 +60,7 @@ const GoalDetailScreen = () => {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
   const { toast } = useToast();
+  const reopenGoal = useReopenGoal();
 
   const [goal, setGoal] = useState<Goal | null>(null);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
@@ -149,6 +151,15 @@ const GoalDetailScreen = () => {
       return;
     }
     setGoal({ ...goal, title: newTitle });
+  };
+
+  const handleReopenGoal = async (): Promise<void> => {
+    if (!goal) return;
+    reopenGoal.mutate(goal.id, {
+      onSuccess: () => {
+        refresh();
+      }
+    });
   };
 
   const handleStatusChange = async (status: 'active' | 'archived' | 'completed'): Promise<void> => {
@@ -282,6 +293,7 @@ const GoalDetailScreen = () => {
         goal={goal}
         onTitleUpdate={handleTitleUpdate}
         onStatusChange={handleStatusChange}
+        onReopenGoal={handleReopenGoal}
         onDelete={handleDelete}
       />
 
