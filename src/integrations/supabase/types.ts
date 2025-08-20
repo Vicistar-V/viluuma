@@ -563,6 +563,7 @@ export type Database = {
       }
       save_goal_plan: {
         Args: {
+          p_description?: string
           p_milestones: Json
           p_modality: string
           p_target_date: string
