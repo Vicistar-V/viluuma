@@ -21,7 +21,7 @@
     },
     "StatusBar": {
       "style": "DARK",
-      "backgroundColor": "#000000"
+      "backgroundColor": "#FFFFFF"
     },
     "Haptics": {},
     "App": {}

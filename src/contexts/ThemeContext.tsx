@@ -35,21 +35,28 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     root.classList.add(resolvedTheme);
     setActualTheme(resolvedTheme);
 
-    // Configure status bar theming on native platforms
+    // Configure status bar theming on native platforms only
     if (Capacitor.isNativePlatform()) {
       try {
+        // First ensure overlay is disabled for proper theming
+        await StatusBar.setOverlaysWebView({ overlay: false });
+        
+        // Small delay to ensure overlay setting takes effect
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
         if (resolvedTheme === 'light') {
-          // Light theme: dark content (icons/text) on light background
+          // Light theme: dark icons/text on light background
           await StatusBar.setStyle({ style: Style.Dark });
           await StatusBar.setBackgroundColor({ color: '#FFFFFF' });
         } else {
-          // Dark theme: light content (icons/text) on dark background
+          // Dark theme: light icons/text on dark background  
           await StatusBar.setStyle({ style: Style.Light });
           await StatusBar.setBackgroundColor({ color: '#000000' });
         }
+        
+        console.log(`Status bar updated for ${resolvedTheme} theme`);
       } catch (error) {
-        // Status bar not available, continue silently
-        console.log('Status bar not available:', error);
+        console.log('Status bar configuration failed:', error);
       }
     }
   };
