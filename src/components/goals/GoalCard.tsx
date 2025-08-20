@@ -82,36 +82,99 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
     switch (goal.status) {
       case 'completed':
         return (
-          <Badge className="bg-success/20 text-success border-success/40 shadow-sm">
+          <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 shadow-md dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/50">
             <CheckCircle className="w-3 h-3 mr-1.5" />
             Completed
           </Badge>
         );
       case 'archived':
         return (
-          <Badge className="bg-muted/15 text-muted-foreground border-muted/30 shadow-sm">
+          <Badge className="bg-slate-100 text-slate-600 border-slate-200 shadow-md dark:bg-slate-800/40 dark:text-slate-400 dark:border-slate-700/50">
             <Archive className="w-3 h-3 mr-1.5" />
             Archived
           </Badge>
         );
       default:
-        return (
-          <Badge className="bg-primary/15 text-primary border-primary/30 shadow-sm">
-            <Sparkles className="w-3 h-3 mr-1.5" />
-            Active
-          </Badge>
-        );
+        // Make active badges more lively based on progress
+        if (progress >= 80) {
+          return (
+            <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200 shadow-md dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800/50">
+              <Sparkles className="w-3 h-3 mr-1.5" />
+              Almost Done!
+            </Badge>
+          );
+        } else if (progress >= 50) {
+          return (
+            <Badge className="bg-blue-50 text-blue-700 border-blue-200 shadow-md dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/50">
+              <Target className="w-3 h-3 mr-1.5" />
+              Making Progress
+            </Badge>
+          );
+        } else if (progress > 0) {
+          return (
+            <Badge className="bg-purple-50 text-purple-700 border-purple-200 shadow-md dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800/50">
+              <Sparkles className="w-3 h-3 mr-1.5" />
+              Getting Started
+            </Badge>
+          );
+        } else {
+          return (
+            <Badge className="bg-orange-50 text-orange-700 border-orange-200 shadow-md dark:bg-orange-950/40 dark:text-orange-300 dark:border-orange-800/50">
+              <Sparkles className="w-3 h-3 mr-1.5" />
+              Ready to Begin
+            </Badge>
+          );
+        }
     }
   };
   
   const getModalityBadge = () => {
     const Icon = goal.modality === 'project' ? Layers3 : ListChecks;
-    return (
-      <Badge variant="outline" className="bg-accent/15 border-accent/30 shadow-sm text-accent-foreground">
-        <Icon className="w-3 h-3 mr-1.5" />
-        {goal.modality === 'project' ? 'Project' : 'Checklist'}
-      </Badge>
-    );
+    
+    if (goal.modality === 'project') {
+      return (
+        <Badge className="bg-cyan-50 text-cyan-700 border-cyan-200 shadow-md dark:bg-cyan-950/40 dark:text-cyan-300 dark:border-cyan-800/50">
+          <Icon className="w-3 h-3 mr-1.5" />
+          Project
+        </Badge>
+      );
+    } else {
+      return (
+        <Badge className="bg-rose-50 text-rose-700 border-rose-200 shadow-md dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/50">
+          <Icon className="w-3 h-3 mr-1.5" />
+          Checklist
+        </Badge>
+      );
+    }
+  };
+
+  const getProgressMomentumBadge = () => {
+    if (goal.status !== 'active' || progress === 0) return null;
+    
+    // Add momentum badges for active goals with progress
+    if (progress >= 75) {
+      return (
+        <Badge className="bg-gradient-to-r from-emerald-50 to-teal-50 text-teal-700 border-teal-200 shadow-md dark:from-emerald-950/30 dark:to-teal-950/30 dark:text-teal-300 dark:border-teal-800/40">
+          <CheckCircle className="w-3 h-3 mr-1.5" />
+          🔥 On Fire!
+        </Badge>
+      );
+    } else if (progress >= 50) {
+      return (
+        <Badge className="bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 border-blue-200 shadow-md dark:from-blue-950/30 dark:to-indigo-950/30 dark:text-blue-300 dark:border-blue-800/40">
+          <Target className="w-3 h-3 mr-1.5" />
+          ⚡ Momentum
+        </Badge>
+      );
+    } else if (progress >= 25) {
+      return (
+        <Badge className="bg-gradient-to-r from-violet-50 to-purple-50 text-violet-700 border-violet-200 shadow-md dark:from-violet-950/30 dark:to-purple-950/30 dark:text-violet-300 dark:border-violet-800/40">
+          <Sparkles className="w-3 h-3 mr-1.5" />
+          💪 Building
+        </Badge>
+      );
+    }
+    return null;
   };
   
   const getDueStatus = () => {
@@ -182,6 +245,7 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
           <div className="flex items-center gap-2 flex-wrap">
             {getStatusBadge()}
             {getModalityBadge()}
+            {getProgressMomentumBadge()}
           </div>
           
           {/* Enhanced Actions Menu */}
@@ -307,21 +371,32 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
           </div>
         </div>
         
-        {/* Enhanced Smart Info Pills */}
+        {/* Enhanced Smart Info Pills with Lively Colors */}
         <div className="relative z-10 flex items-center gap-2 flex-wrap">
-          {/* Task Progress Pill */}
+          {/* Task Progress Pill - Dynamic colors based on progress */}
           <div className={cn(
-            "px-3 py-1.5 rounded-full border flex items-center gap-2",
-            "bg-muted/20 border-border/30 min-h-[32px]",
-            "hover:bg-muted/30 transition-colors duration-200"
+            "px-3 py-1.5 rounded-full border flex items-center gap-2 min-h-[32px]",
+            "hover:bg-opacity-80 transition-colors duration-200",
+            progress >= 75 ? "bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-950/30 dark:border-emerald-800/40 dark:text-emerald-300" :
+            progress >= 50 ? "bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-950/30 dark:border-blue-800/40 dark:text-blue-300" :
+            progress >= 25 ? "bg-violet-50 border-violet-200 text-violet-700 dark:bg-violet-950/30 dark:border-violet-800/40 dark:text-violet-300" :
+            progress > 0 ? "bg-orange-50 border-orange-200 text-orange-700 dark:bg-orange-950/30 dark:border-orange-800/40 dark:text-orange-300" :
+            "bg-slate-50 border-slate-200 text-slate-700 dark:bg-slate-800/30 dark:border-slate-700/40 dark:text-slate-400"
           )}>
-            <Target className="w-3.5 h-3.5 text-primary" />
-            <span className="text-xs font-medium text-muted-foreground">
+            <Target className={cn(
+              "w-3.5 h-3.5",
+              progress >= 75 ? "text-emerald-600 dark:text-emerald-400" :
+              progress >= 50 ? "text-blue-600 dark:text-blue-400" :
+              progress >= 25 ? "text-violet-600 dark:text-violet-400" :
+              progress > 0 ? "text-orange-600 dark:text-orange-400" :
+              "text-slate-500 dark:text-slate-400"
+            )} />
+            <span className="text-xs font-medium">
               {getTaskProgress()}
             </span>
           </div>
           
-          {/* Smart Due Status Pill */}
+          {/* Smart Due Status Pill with enhanced urgency colors */}
           {(() => {
             const dueStatus = getDueStatus();
             if (!dueStatus) return null;
@@ -329,38 +404,35 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
             return (
               <div className={cn(
                 "px-3 py-1.5 rounded-full border flex items-center gap-2 min-h-[32px]",
-                "hover:bg-muted/30 transition-colors duration-200",
-                dueStatus.urgent 
-                  ? "bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800/40"
-                  : "bg-muted/20 border-border/30"
+                "hover:bg-opacity-80 transition-colors duration-200",
+                dueStatus.color === "text-red-600" 
+                  ? "bg-red-50 border-red-200 text-red-700 dark:bg-red-950/30 dark:border-red-800/40 dark:text-red-300"
+                  : dueStatus.urgent 
+                    ? "bg-amber-50 border-amber-200 text-amber-700 dark:bg-amber-950/30 dark:border-amber-800/40 dark:text-amber-300"
+                    : "bg-sky-50 border-sky-200 text-sky-700 dark:bg-sky-950/30 dark:border-sky-800/40 dark:text-sky-300"
               )}>
                 <Calendar className={cn(
                   "w-3.5 h-3.5",
-                  dueStatus.color === "text-red-600" ? "text-red-500" :
-                  dueStatus.color === "text-amber-600" ? "text-amber-500" :
-                  "text-accent-foreground"
-                )} />
-                <span className={cn(
-                  "text-xs font-medium",
                   dueStatus.color === "text-red-600" ? "text-red-600 dark:text-red-400" :
-                  dueStatus.color === "text-amber-600" ? "text-amber-700 dark:text-amber-300" :
-                  "text-muted-foreground"
-                )}>
+                  dueStatus.color === "text-amber-600" ? "text-amber-600 dark:text-amber-400" :
+                  "text-sky-600 dark:text-sky-400"
+                )} />
+                <span className="text-xs font-medium">
                   {dueStatus.text}
                 </span>
               </div>
             );
           })()}
           
-          {/* Weekly Commitment Pill */}
+          {/* Weekly Commitment Pill with teal accent */}
           {goal.weekly_hours && (
             <div className={cn(
-              "px-3 py-1.5 rounded-full border flex items-center gap-2",
-              "bg-muted/20 border-border/30 min-h-[32px]",
-              "hover:bg-muted/30 transition-colors duration-200"
+              "px-3 py-1.5 rounded-full border flex items-center gap-2 min-h-[32px]",
+              "bg-teal-50 border-teal-200 text-teal-700 dark:bg-teal-950/30 dark:border-teal-800/40 dark:text-teal-300",
+              "hover:bg-teal-100 dark:hover:bg-teal-900/40 transition-colors duration-200"
             )}>
-              <Clock className="w-3.5 h-3.5 text-secondary-foreground" />
-              <span className="text-xs font-medium text-muted-foreground tabular-nums">
+              <Clock className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+              <span className="text-xs font-medium tabular-nums">
                 {goal.weekly_hours}h/week
               </span>
             </div>
