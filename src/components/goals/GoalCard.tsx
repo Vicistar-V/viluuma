@@ -23,7 +23,7 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
   const [isPressed, setIsPressed] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
-  const { handleTouchFeedback, triggerSuccessCelebration, animateProgressBar } = useMobileAnimations();
+  const { triggerSuccessCelebration, animateProgressBar } = useMobileAnimations();
   const { actualTheme } = useTheme();
   
   const progress = goal.total_tasks > 0 ? (goal.completed_tasks / goal.total_tasks) * 100 : 0;
@@ -66,17 +66,12 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
 
   // Enhanced touch handlers with visual feedback
   const handleCardTouch = useCallback(() => {
-    handleTouchFeedback('light');
     setIsPressed(true);
-  }, [handleTouchFeedback]);
+  }, []);
 
   const handleCardTouchEnd = useCallback(() => {
     setIsPressed(false);
   }, []);
-
-  const handleActionTouch = useCallback((intensity: 'light' | 'medium' | 'heavy' = 'medium') => {
-    handleTouchFeedback(intensity);
-  }, [handleTouchFeedback]);
   
   const getStatusBadge = () => {
     switch (goal.status) {
@@ -225,7 +220,6 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
               <Button 
                 variant="ghost" 
                 size="sm"
-                onTouchStart={() => handleActionTouch('light')}
                 className={cn(
                   "opacity-60 group-hover:opacity-100 transition-all duration-300",
                   "h-8 w-8 p-0 rounded-full min-h-[44px] min-w-[44px]",
@@ -244,11 +238,11 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
             >
               {goal.status === 'active' && (
                   <>
-                    <DropdownMenuItem onClick={() => { handleActionTouch('light'); onStatusChange(goal.id, 'completed'); }}>
+                    <DropdownMenuItem onClick={() => onStatusChange(goal.id, 'completed')}>
                       <CheckCircle className="w-4 h-4 mr-2" />
                       Mark Complete
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => { handleActionTouch('light'); onStatusChange(goal.id, 'archived'); }}>
+                    <DropdownMenuItem onClick={() => onStatusChange(goal.id, 'archived')}>
                       <Archive className="w-4 h-4 mr-2" />
                       Archive
                     </DropdownMenuItem>
@@ -283,7 +277,6 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
           <h3 className="text-lg font-semibold leading-tight mb-1">
             <Link 
               to={`/goals/${goal.id}`}
-              onTouchStart={() => handleActionTouch('light')}
               className={cn(
                 "text-foreground hover:text-primary transition-all duration-300",
                 "line-clamp-2 block min-h-[44px] flex items-center",
@@ -442,7 +435,6 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
             <AlertDialogCancel className="min-h-[44px]">Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
-                handleActionTouch('light');
                 onDelete(goal.id);
                 setShowDeleteDialog(false);
               }}

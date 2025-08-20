@@ -20,13 +20,12 @@ const TodayTaskItem: React.FC<TodayTaskItemProps> = ({ task }) => {
   const completeTaskMutation = useCompleteTask();
   const uncompleteTaskMutation = useUncompleteTask();
   const cardRef = useRef<HTMLDivElement>(null);
-  const { handleTouchFeedback, triggerSuccessCelebration } = useMobileAnimations();
+  const { triggerSuccessCelebration } = useMobileAnimations();
   const { actualTheme } = useTheme();
 
   const handleCardTouch = useCallback(() => {
-    handleTouchFeedback('light');
     setIsPressed(true);
-  }, [handleTouchFeedback]);
+  }, []);
 
   const handleCardTouchEnd = useCallback(() => {
     setIsPressed(false);
@@ -35,7 +34,7 @@ const TodayTaskItem: React.FC<TodayTaskItemProps> = ({ task }) => {
   const handleCheckboxChange = async (checked: boolean) => {
     if (checked) {
       setIsCompleting(true);
-      handleTouchFeedback('medium');
+      haptics.medium();
       try {
         await completeTaskMutation.mutateAsync(task.id);
         // Trigger celebration animation
@@ -60,7 +59,6 @@ const TodayTaskItem: React.FC<TodayTaskItemProps> = ({ task }) => {
         });
       }
     } else {
-      handleTouchFeedback('light');
       uncompleteTaskMutation.mutate(task.id);
     }
   };
@@ -285,11 +283,6 @@ const TodayTaskItem: React.FC<TodayTaskItemProps> = ({ task }) => {
                 "transition-all duration-200",
                 "hover:border-primary/40"
               )}
-              onClick={() => {
-                if (!isCompleted) {
-                  haptics.light();
-                }
-              }}
             />
             {isCompleted && (
               <CheckCircle className="w-4 h-4 text-success absolute -top-0.5 -right-0.5 bg-background rounded-full p-0.5 shadow-sm" />
