@@ -17,12 +17,13 @@ interface Goal {
 interface GoalDetailHeaderProps {
   goal: Goal;
   onTitleUpdate: (newTitle: string) => Promise<void>;
-  onStatusChange: (status: 'active' | 'archived' | 'completed') => Promise<void>;
+  onStatusChange: (status: 'active' | 'archived') => Promise<void>;
+  onCompleteGoal?: () => Promise<void>;
   onReopenGoal?: () => Promise<void>;
   onDelete: () => Promise<void>;
 }
 
-export const GoalDetailHeader = ({ goal, onTitleUpdate, onStatusChange, onReopenGoal, onDelete }: GoalDetailHeaderProps) => {
+export const GoalDetailHeader = ({ goal, onTitleUpdate, onStatusChange, onCompleteGoal, onReopenGoal, onDelete }: GoalDetailHeaderProps) => {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState(goal.title);
 
@@ -126,7 +127,7 @@ export const GoalDetailHeader = ({ goal, onTitleUpdate, onStatusChange, onReopen
             <DropdownMenuContent align="end" className="w-48">
               {goal.status === 'active' && (
                 <>
-                  <DropdownMenuItem onClick={() => onStatusChange('completed')}>
+                  <DropdownMenuItem onClick={onCompleteGoal}>
                     <CheckCircle className="w-4 h-4 mr-2" />
                     Mark Complete
                   </DropdownMenuItem>

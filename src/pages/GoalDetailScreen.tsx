@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { BottomNav } from "@/components/BottomNav";
 import { useAuth } from "@/hooks/useAuth";
-import { useReopenGoal } from "@/hooks/useGoals";
+import { useReopenGoal, useUpdateGoalStatus } from "@/hooks/useGoals";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -61,6 +61,7 @@ const GoalDetailScreen = () => {
   const { user, loading } = useAuth();
   const { toast } = useToast();
   const reopenGoal = useReopenGoal();
+  const updateGoalStatus = useUpdateGoalStatus();
 
   const [goal, setGoal] = useState<Goal | null>(null);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
@@ -153,6 +154,15 @@ const GoalDetailScreen = () => {
     setGoal({ ...goal, title: newTitle });
   };
 
+  const handleCompleteGoal = async (): Promise<void> => {
+    if (!goal) return;
+    updateGoalStatus.mutate({ goalId: goal.id, status: 'completed' }, {
+      onSuccess: () => {
+        refresh();
+      }
+    });
+  };
+
   const handleReopenGoal = async (): Promise<void> => {
     if (!goal) return;
     reopenGoal.mutate(goal.id, {
@@ -162,7 +172,7 @@ const GoalDetailScreen = () => {
     });
   };
 
-  const handleStatusChange = async (status: 'active' | 'archived' | 'completed'): Promise<void> => {
+  const handleStatusChange = async (status: 'active' | 'archived'): Promise<void> => {
     if (!goal) return;
     
     if (status === 'archived') {
@@ -180,14 +190,9 @@ const GoalDetailScreen = () => {
         return;
       }
     }
-    // Completed status is now computed automatically, no manual update needed
     
     // Refresh to get the computed status
     await refresh();
-    
-    if (status === 'completed') {
-      toast({ title: "🎉 Goal Completed!", description: "Congratulations on your achievement!" });
-    }
   };
 
   const handleDelete = async (): Promise<void> => {
@@ -293,6 +298,7 @@ const GoalDetailScreen = () => {
         goal={goal}
         onTitleUpdate={handleTitleUpdate}
         onStatusChange={handleStatusChange}
+        onCompleteGoal={handleCompleteGoal}
         onReopenGoal={handleReopenGoal}
         onDelete={handleDelete}
       />
