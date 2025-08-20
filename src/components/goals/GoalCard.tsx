@@ -64,22 +64,23 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
 
   return (
     <div className="group relative">
-      {/* Minimalist Glassmorphism Card */}
+      {/* More Transparent Glassmorphism Card */}
       <div className={cn(
         "relative overflow-hidden rounded-2xl",
-        "bg-gradient-to-br from-card/70 via-card/50 to-card/30",
-        "border border-white/15 dark:border-white/8",
+        "bg-gradient-to-br from-card/40 via-card/25 to-card/15",
+        "border border-white/10 dark:border-white/5",
         "shadow-lg shadow-black/5 dark:shadow-black/20",
         "hover:shadow-xl hover:shadow-primary/10 dark:hover:shadow-primary/20",
-        "hover:border-white/25 dark:hover:border-white/15",
+        "hover:border-white/20 dark:hover:border-white/10",
+        "hover:from-card/50 hover:via-card/35 hover:to-card/25",
         "transition-all duration-300 ease-out",
         "hover:scale-[1.01] hover:-translate-y-0.5",
         "p-4",
         "backdrop-blur-none"
       )}>
         
-        {/* Subtle Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/3 via-transparent to-accent/3 pointer-events-none" />
+        {/* Very Subtle Gradient Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/2 via-transparent to-accent/2 pointer-events-none" />
         
         {/* Header with Compact Badges */}
         <div className="relative z-10 flex items-start justify-between mb-3">
@@ -88,23 +89,23 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
             {getModalityBadge()}
           </div>
           
-          {/* Compact Actions Menu */}
+          {/* More Transparent Actions Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button 
                 variant="ghost" 
                 size="sm" 
                 className={cn(
-                  "opacity-60 group-hover:opacity-100 transition-all duration-200",
+                  "opacity-50 group-hover:opacity-80 transition-all duration-200",
                   "h-7 w-7 p-0 rounded-full",
-                  "bg-white/5 dark:bg-white/3 border border-white/10 dark:border-white/5",
-                  "hover:bg-white/15 dark:hover:bg-white/8"
+                  "bg-white/3 dark:bg-white/2 border border-white/8 dark:border-white/4",
+                  "hover:bg-white/10 dark:hover:bg-white/5"
                 )}
               >
                 <MoreVertical className="h-3.5 w-3.5" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-card/90 backdrop-blur-md border-white/20">
+            <DropdownMenuContent align="end" className="bg-card/95 backdrop-blur-md border-white/20 z-50">
               {goal.status === 'active' && (
                 <>
                   <DropdownMenuItem onClick={() => onStatusChange(goal.id, 'completed')}>
@@ -153,56 +154,56 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
           </h3>
           
           {goal.description && (
-            <p className="text-muted-foreground/80 text-sm leading-relaxed line-clamp-2">
+            <p className="text-muted-foreground/70 text-sm leading-relaxed line-clamp-2">
               {goal.description}
             </p>
           )}
         </div>
         
-        {/* Minimal Progress Section */}
+        {/* More Transparent Progress Section */}
         <div className="relative z-10 mb-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-medium text-muted-foreground/70 uppercase tracking-wide">Progress</span>
-            <span className="text-sm font-semibold text-foreground">
+            <span className="text-xs font-medium text-muted-foreground/60 uppercase tracking-wide">Progress</span>
+            <span className="text-sm font-semibold text-foreground/90">
               {goal.completed_tasks}/{goal.total_tasks}
             </span>
           </div>
           
-          {/* Compact Progress Bar */}
-          <div className="relative h-2 bg-white/8 dark:bg-white/4 rounded-full overflow-hidden">
+          {/* Very Transparent Progress Bar */}
+          <div className="relative h-2 bg-white/5 dark:bg-white/3 rounded-full overflow-hidden">
             <div 
               className={cn(
                 "h-full rounded-full transition-all duration-500 ease-out",
                 goal.status === 'completed' 
-                  ? "bg-gradient-to-r from-success to-success/80" 
-                  : "bg-gradient-to-r from-primary to-primary/80"
+                  ? "bg-gradient-to-r from-success/80 to-success/60" 
+                  : "bg-gradient-to-r from-primary/80 to-primary/60"
               )}
               style={{ width: `${Math.min(progress, 100)}%` }}
             />
           </div>
           
           <div className="mt-1.5 text-right">
-            <span className="text-sm font-semibold text-muted-foreground">
+            <span className="text-sm font-semibold text-muted-foreground/80">
               {Math.round(progress)}%
             </span>
           </div>
         </div>
         
-        {/* Compact Info Pills */}
+        {/* More Transparent Info Pills */}
         <div className="relative z-10 flex items-center gap-2 flex-wrap">
           {/* Task Count Pill */}
-          <div className="px-2.5 py-1 bg-white/8 dark:bg-white/4 rounded-full border border-white/10 dark:border-white/5 flex items-center gap-1.5">
-            <Target className="w-3 h-3 text-primary/80" />
-            <span className="text-xs font-medium text-foreground/80">
+          <div className="px-2.5 py-1 bg-white/5 dark:bg-white/3 rounded-full border border-white/8 dark:border-white/4 flex items-center gap-1.5">
+            <Target className="w-3 h-3 text-primary/70" />
+            <span className="text-xs font-medium text-foreground/70">
               {goal.total_tasks}
             </span>
           </div>
           
           {/* Due Date Pill */}
           {goal.target_date && (
-            <div className="px-2.5 py-1 bg-white/8 dark:bg-white/4 rounded-full border border-white/10 dark:border-white/5 flex items-center gap-1.5">
-              <Calendar className="w-3 h-3 text-accent-foreground/80" />
-              <span className="text-xs font-medium text-foreground/80">
+            <div className="px-2.5 py-1 bg-white/5 dark:bg-white/3 rounded-full border border-white/8 dark:border-white/4 flex items-center gap-1.5">
+              <Calendar className="w-3 h-3 text-accent-foreground/70" />
+              <span className="text-xs font-medium text-foreground/70">
                 {formatDate(goal.target_date)}
               </span>
             </div>
@@ -210,9 +211,9 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
           
           {/* Weekly Hours Pill */}
           {goal.weekly_hours && (
-            <div className="px-2.5 py-1 bg-white/8 dark:bg-white/4 rounded-full border border-white/10 dark:border-white/5 flex items-center gap-1.5">
-              <Clock className="w-3 h-3 text-secondary-foreground/80" />
-              <span className="text-xs font-medium text-foreground/80">
+            <div className="px-2.5 py-1 bg-white/5 dark:bg-white/3 rounded-full border border-white/8 dark:border-white/4 flex items-center gap-1.5">
+              <Clock className="w-3 h-3 text-secondary-foreground/70" />
+              <span className="text-xs font-medium text-foreground/70">
                 {goal.weekly_hours}h
               </span>
             </div>
