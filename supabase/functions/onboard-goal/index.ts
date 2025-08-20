@@ -45,7 +45,15 @@ RULES:
 
 CRITICAL HANDOFF INSTRUCTION:
 - When you believe you have gathered ALL the necessary information (Core Activity, Type, and Deadline for projects), your VERY NEXT response must ONLY be the JSON object: {"status": "ready_to_generate", "intel": {"title": "goal title", "modality": "project" or "checklist", "deadline": "YYYY-MM-DD or null", "context": "conversation summary"}}.
-- Do NOT say anything else when returning the JSON. The frontend will handle the transition messaging.`;
+- Do NOT say anything else when returning the JSON. The frontend will handle the transition messaging.
+
+🚨 CRITICAL CONTEXT RULE - EXTREMELY DANGEROUS TO IGNORE:
+- The "context" field MUST NEVER contain ANY dates, deadlines, timeframes, or temporal references whatsoever
+- Context should only describe WHAT the user wants to achieve, NOT WHEN they want to achieve it
+- Including dates/times in context will cause catastrophic system failures
+- Example GOOD context: "User wants to learn guitar and play specific songs"
+- Example BAD context: "User wants to learn guitar by October" or "User has 2 months to learn"
+- This rule is NON-NEGOTIABLE and CRITICAL for system stability`;
   
   return `${persona}\n\n${mission}`;
 }
