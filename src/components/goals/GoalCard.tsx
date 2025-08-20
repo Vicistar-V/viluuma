@@ -165,7 +165,7 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-medium text-muted-foreground/50 uppercase tracking-wide">Progress</span>
             <span className="text-sm font-semibold text-foreground/80">
-              {goal.completed_tasks}/{goal.total_tasks}
+              {Math.round(progress)}%
             </span>
           </div>
           
@@ -180,12 +180,6 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
               )}
               style={{ width: `${Math.min(progress, 100)}%` }}
             />
-          </div>
-          
-          <div className="mt-1.5 text-right">
-            <span className="text-sm font-semibold text-muted-foreground/70">
-              {Math.round(progress)}%
-            </span>
           </div>
         </div>
         
