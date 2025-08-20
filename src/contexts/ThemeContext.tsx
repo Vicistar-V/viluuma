@@ -35,8 +35,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     root.classList.add(resolvedTheme);
     setActualTheme(resolvedTheme);
 
-    // Apply fullscreen status bar theming on mobile
+    // Add native platform class for fullscreen CSS
     if (Capacitor.isNativePlatform()) {
+      document.documentElement.classList.add('native-platform');
+      
       try {
         // Configure status bar for fullscreen immersive experience
         await StatusBar.setOverlaysWebView({ overlay: true });
@@ -52,6 +54,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         // Status bar not available, continue silently
         console.log('Status bar not available:', error);
       }
+    } else {
+      // Remove native platform class on web
+      document.documentElement.classList.remove('native-platform');
     }
   };
 
