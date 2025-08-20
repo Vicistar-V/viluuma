@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,15 +14,11 @@ import { SmartArchivedGoalsSection } from '@/components/goals/SmartArchivedGoals
 import { UpgradePrompt } from '@/components/paywall/UpgradePrompt';
 import ThemeToggle from '@/components/ThemeToggle';
 import { BottomNav } from '@/components/BottomNav';
-import { useMobileAnimations } from '@/hooks/useMobileAnimations';
 
 const GoalsScreen = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const cardsContainerRef = useRef<HTMLDivElement>(null);
-  const { animateCardEntrance } = useMobileAnimations();
-  
   // BLAZING FAST: Direct table read - triggers handle all progress calculations
   const { data: goals, isLoading: goalsLoading } = useGoals();
   const subscription = useSubscription();
@@ -90,16 +86,6 @@ const GoalsScreen = () => {
     
     return { activeGoals, archivedGoals, filteredGoals, showingArchivedOnly: false, systemArchivedGoals, userArchivedGoals };
   }, [goals, filters]);
-
-  // Animate cards when they appear
-  useEffect(() => {
-    if (filteredGoals.length > 0 && cardsContainerRef.current) {
-      const cardElements = cardsContainerRef.current.querySelectorAll('.goal-card');
-      if (cardElements.length > 0) {
-        animateCardEntrance(Array.from(cardElements) as HTMLElement[], 0.2);
-      }
-    }
-  }, [filteredGoals, animateCardEntrance]);
   
   // BLAZING FAST: Client-side stats calculation (no database aggregation queries needed)
   const stats = useMemo(() => {
@@ -283,18 +269,17 @@ const GoalsScreen = () => {
                         <Archive className="h-5 w-5 text-muted-foreground" />
                         <h2 className="text-lg font-semibold text-muted-foreground">Archived Goals</h2>
                       </div>
-                     <div ref={cardsContainerRef} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                          {filteredGoals.map((goal) => (
-                            <div key={goal.id} className="goal-card">
-                              <GoalCard
-                                goal={goal}
-                                onStatusChange={handleStatusChange}
-                                onReopenGoal={handleReopenGoal}
-                                onDelete={handlePermanentDelete}
-                              />
-                            </div>
-                          ))}
-                       </div>
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                         {filteredGoals.map((goal) => (
+                           <GoalCard
+                             key={goal.id}
+                             goal={goal}
+                             onStatusChange={handleStatusChange}
+                             onReopenGoal={handleReopenGoal}
+                             onDelete={handlePermanentDelete}
+                           />
+                         ))}
+                      </div>
                     </div>
                   ) : (
                     <Card>
@@ -314,18 +299,17 @@ const GoalsScreen = () => {
                   // Normal view showing active goals + archived section
                   <>
                     {filteredGoals.length > 0 ? (
-                       <div ref={cardsContainerRef} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                          {filteredGoals.map((goal) => (
-                            <div key={goal.id} className="goal-card">
-                              <GoalCard
-                                goal={goal}
-                                onStatusChange={handleStatusChange}
-                                onReopenGoal={handleReopenGoal}
-                                onDelete={handleDelete}
-                              />
-                            </div>
-                          ))}
-                       </div>
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                         {filteredGoals.map((goal) => (
+                           <GoalCard
+                             key={goal.id}
+                             goal={goal}
+                             onStatusChange={handleStatusChange}
+                             onReopenGoal={handleReopenGoal}
+                             onDelete={handleDelete}
+                           />
+                         ))}
+                      </div>
                     ) : (
                       <Card>
                         <CardContent className="p-8 text-center">

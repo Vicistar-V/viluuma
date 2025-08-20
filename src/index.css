@@ -219,16 +219,4 @@ All colors MUST be HSL.
   .animate-soft-glow {
     animation: soft-glow 3s ease-in-out infinite;
   }
-
-  /* GSAP Goal Card Initial States */
-  .goal-card {
-    opacity: 0;
-    transform: translateY(60px) scale(0.9) rotateX(15deg);
-  }
-
-  /* GSAP Hover Enhancements */
-  .goal-card:hover {
-    transform-style: preserve-3d;
-    perspective: 1000px;
-  }
 }
