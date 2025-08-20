@@ -21,43 +21,28 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
-  const { 
-    handleTouchFeedback, 
-    triggerSuccessCelebration, 
-    useMagneticTouch,
-    createTouchRipple,
-    animateLiquidProgress,
-    triggerParticleCelebration
-  } = useMobileAnimations();
-  
-  const magneticRef = useMagneticTouch(0.15);
+  const { handleTouchFeedback, triggerSuccessCelebration } = useMobileAnimations();
   
   const progress = goal.total_tasks > 0 ? (goal.completed_tasks / goal.total_tasks) * 100 : 0;
 
-  // Advanced liquid progress animation
+  // Animate progress bar on mount and updates
   useEffect(() => {
     if (progressRef.current) {
       setTimeout(() => {
-        animateLiquidProgress(progressRef.current!.parentElement!, progress);
-      }, 200);
+        progressRef.current!.style.width = `${Math.min(progress, 100)}%`;
+      }, 100);
     }
-  }, [progress, animateLiquidProgress]);
+  }, [progress]);
 
-  // Advanced success celebration for completed goals
+  // Success celebration for completed goals
   useEffect(() => {
     if (goal.status === 'completed' && cardRef.current) {
       triggerSuccessCelebration(cardRef.current);
-      setTimeout(() => {
-        triggerParticleCelebration(cardRef.current!, 'high');
-      }, 400);
     }
-  }, [goal.status, triggerSuccessCelebration, triggerParticleCelebration]);
+  }, [goal.status, triggerSuccessCelebration]);
 
-  const handleCardTouch = (e: React.TouchEvent | React.MouseEvent) => {
+  const handleCardTouch = () => {
     handleTouchFeedback('light');
-    if (cardRef.current) {
-      createTouchRipple(cardRef.current, e.nativeEvent as TouchEvent | MouseEvent);
-    }
   };
 
   const handleActionTouch = (intensity: 'light' | 'medium' | 'heavy' = 'medium') => {
@@ -109,14 +94,8 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
     <div className="group relative">
       {/* Mobile-Optimized Interactive Card */}
       <div 
-        ref={(el) => {
-          cardRef.current = el;
-          if (magneticRef) {
-            (magneticRef as any).current = el;
-          }
-        }}
+        ref={cardRef}
         onTouchStart={handleCardTouch}
-        onMouseDown={handleCardTouch}
         className={cn(
           "relative overflow-hidden rounded-2xl cursor-pointer",
           "bg-gradient-to-br from-card/20 via-card/12 to-card/8",
@@ -224,25 +203,18 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
             </span>
           </div>
           
-          {/* Liquid Progress Bar */}
-          <div className="relative h-3 bg-white/15 dark:bg-white/8 rounded-full overflow-hidden border border-white/10 dark:border-white/5 shadow-inner">
+          {/* Animated Progress Bar */}
+          <div className="relative h-2 bg-white/15 dark:bg-white/8 rounded-full overflow-hidden border border-white/10 dark:border-white/5">
             <div 
               ref={progressRef}
               className={cn(
-                "progress-fill h-full rounded-full relative",
+                "h-full rounded-full transition-all duration-700 cubic-bezier(0.23, 1, 0.32, 1)",
                 goal.status === 'completed' 
-                  ? "bg-gradient-to-r from-success/90 to-success/70" 
-                  : "bg-gradient-to-r from-primary/90 to-primary/70"
+                  ? "bg-gradient-to-r from-success/80 to-success/60 shadow-lg shadow-success/20" 
+                  : "bg-gradient-to-r from-primary/80 to-primary/60"
               )}
-              style={{ 
-                width: '0%',
-                backgroundSize: '200% 100%',
-                position: 'relative'
-              }}
-            >
-              {/* Wave overlay effect */}
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer-wave" />
-            </div>
+              style={{ width: '0%' }}
+            />
           </div>
         </div>
         

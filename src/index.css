@@ -220,158 +220,62 @@ All colors MUST be HSL.
     animation: soft-glow 3s ease-in-out infinite;
   }
 
-  /* Advanced Mobile-native animations */
-  @keyframes morphing-success {
+  /* Mobile-native animations */
+  @keyframes success-pulse {
     0% { 
-      transform: scale(1) rotate(0deg);
-      filter: hue-rotate(0deg) brightness(1);
-    }
-    25% {
-      transform: scale(1.08) rotate(2deg);
-      filter: hue-rotate(120deg) brightness(1.2);
+      transform: scale(1);
+      box-shadow: 0 0 0 0 hsl(var(--success) / 0.4);
     }
     50% {
-      transform: scale(0.95) rotate(-1deg);
-      filter: hue-rotate(240deg) brightness(1.1);
-    }
-    75% {
-      transform: scale(1.03) rotate(1deg);
-      filter: hue-rotate(360deg) brightness(1.1);
+      transform: scale(1.02);
+      box-shadow: 0 0 20px 8px hsl(var(--success) / 0.2);
     }
     100% {
-      transform: scale(1) rotate(0deg);
-      filter: hue-rotate(0deg) brightness(1);
+      transform: scale(1);
+      box-shadow: 0 0 0 0 hsl(var(--success) / 0);
     }
-  }
-
-  @keyframes shimmer-wave {
-    0% {
-      background-position: -200% 0;
-      transform: skewX(-15deg);
-    }
-    50% {
-      transform: skewX(0deg);
-    }
-    100% {
-      background-position: 200% 0;
-      transform: skewX(15deg);
-    }
-  }
-
-  @keyframes liquid-fill {
-    0% {
-      width: 0%;
-      background-position: 0% 50%;
-    }
-    100% {
-      background-position: 100% 50%;
-    }
-  }
-
-  @keyframes magnetic-hover {
-    0% { transform: translateZ(0) scale(1); }
-    100% { transform: translateZ(10px) scale(1.02); }
   }
 
   @keyframes touch-feedback {
     0% { transform: scale(1); }
-    50% { transform: scale(0.97); }
+    50% { transform: scale(0.98); }
     100% { transform: scale(1); }
   }
 
   @keyframes bounce-in {
     0% {
       opacity: 0;
-      transform: scale(0.3) translateY(50px) rotateX(30deg);
-      filter: blur(8px);
+      transform: scale(0.3) translateY(50px);
     }
-    60% {
+    50% {
       opacity: 1;
-      transform: scale(1.05) translateY(-8px) rotateX(-5deg);
-      filter: blur(0px);
+      transform: scale(1.05) translateY(-10px);
     }
-    80% {
-      transform: scale(0.98) translateY(2px) rotateX(0deg);
+    70% {
+      transform: scale(0.95) translateY(0);
     }
     100% {
       opacity: 1;
-      transform: scale(1) translateY(0) rotateX(0deg);
-      filter: blur(0px);
+      transform: scale(1) translateY(0);
     }
   }
 
-  @keyframes elastic-in {
-    0% {
-      transform: scale(0) rotate(-360deg);
-      opacity: 0;
-    }
-    50% {
-      transform: scale(1.2) rotate(-180deg);
-      opacity: 0.8;
-    }
-    75% {
-      transform: scale(0.9) rotate(-90deg);
-      opacity: 0.9;
-    }
-    100% {
-      transform: scale(1) rotate(0deg);
-      opacity: 1;
-    }
-  }
-
-  @keyframes pulse-glow {
-    0%, 100% {
-      box-shadow: 0 0 5px hsl(var(--primary) / 0.2), 0 0 10px hsl(var(--primary) / 0.1);
-    }
-    50% {
-      box-shadow: 0 0 20px hsl(var(--primary) / 0.4), 0 0 40px hsl(var(--primary) / 0.2);
-    }
-  }
-
-  /* Enhanced Touch interaction classes */
+  /* Touch interaction classes */
   .touch-feedback:active {
-    animation: touch-feedback 0.12s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    animation: touch-feedback 0.15s cubic-bezier(0.23, 1, 0.32, 1);
   }
 
   .card-entrance {
-    animation: bounce-in 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+    animation: bounce-in 0.5s cubic-bezier(0.23, 1, 0.32, 1) both;
   }
 
-  /* Hardware acceleration for ultra-smooth animations */
+  /* Hardware acceleration for smooth animations */
   .animated-card {
-    will-change: transform, filter, box-shadow;
+    will-change: transform;
     transform: translate3d(0, 0, 0);
-    backface-visibility: hidden;
-    perspective: 1000px;
   }
 
   .animated-card:hover {
-    animation: magnetic-hover 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-  }
-
-  /* Shimmer effect for progress bars */
-  .animate-shimmer-wave {
-    animation: shimmer-wave 2s infinite linear;
-  }
-
-  /* Liquid fill animation */
-  .animate-liquid-fill {
-    animation: liquid-fill 1.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
-  }
-
-  /* Elastic entrance for interactive elements */
-  .animate-elastic-in {
-    animation: elastic-in 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
-  }
-
-  /* Continuous pulse glow for active elements */
-  .animate-pulse-glow {
-    animation: pulse-glow 2s ease-in-out infinite;
-  }
-
-  /* 3D Transform optimizations */
-  .transform-3d {
-    transform-style: preserve-3d;
-    backface-visibility: hidden;
+    transform: translate3d(0, -2px, 0) scale(1.01);
   }
 }
