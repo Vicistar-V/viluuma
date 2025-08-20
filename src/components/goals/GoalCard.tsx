@@ -114,9 +114,25 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
     );
   };
   
-  const formatDate = (dateString: string | null) => {
-    if (!dateString) return null;
-    return new Date(dateString).toLocaleDateString();
+  const getDueStatus = () => {
+    if (!goal.target_date || goal.status !== 'active') return null;
+    
+    const now = new Date();
+    const targetDate = new Date(goal.target_date);
+    const diffTime = targetDate.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return { text: "Due today", color: "text-amber-600", urgent: true };
+    if (diffDays === 1) return { text: "Due tomorrow", color: "text-amber-600", urgent: true };
+    if (diffDays < 0) return { text: `Overdue by ${Math.abs(diffDays)} days`, color: "text-red-600", urgent: true };
+    if (diffDays <= 7) return { text: `Due in ${diffDays} days`, color: "text-amber-600", urgent: false };
+    
+    return { text: `Due in ${diffDays} days`, color: "text-muted-foreground", urgent: false };
+  };
+
+  const getTaskProgress = () => {
+    if (goal.total_tasks === 0) return "No tasks yet";
+    return `${goal.completed_tasks} of ${goal.total_tasks} completed`;
   };
 
   return (
@@ -291,35 +307,52 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
           </div>
         </div>
         
-        {/* Enhanced Theme-aware Info Pills */}
+        {/* Enhanced Smart Info Pills */}
         <div className="relative z-10 flex items-center gap-2 flex-wrap">
-          {/* Task Count Pill */}
+          {/* Task Progress Pill */}
           <div className={cn(
             "px-3 py-1.5 rounded-full border flex items-center gap-2",
             "bg-muted/20 border-border/30 min-h-[32px]",
             "hover:bg-muted/30 transition-colors duration-200"
           )}>
             <Target className="w-3.5 h-3.5 text-primary" />
-            <span className="text-xs font-medium text-muted-foreground tabular-nums">
-              {goal.total_tasks} {goal.total_tasks === 1 ? 'task' : 'tasks'}
+            <span className="text-xs font-medium text-muted-foreground">
+              {getTaskProgress()}
             </span>
           </div>
           
-          {/* Due Date Pill */}
-          {goal.target_date && (
-            <div className={cn(
-              "px-3 py-1.5 rounded-full border flex items-center gap-2",
-              "bg-muted/20 border-border/30 min-h-[32px]",
-              "hover:bg-muted/30 transition-colors duration-200"
-            )}>
-              <Calendar className="w-3.5 h-3.5 text-accent-foreground" />
-              <span className="text-xs font-medium text-muted-foreground">
-                {formatDate(goal.target_date)}
-              </span>
-            </div>
-          )}
+          {/* Smart Due Status Pill */}
+          {(() => {
+            const dueStatus = getDueStatus();
+            if (!dueStatus) return null;
+            
+            return (
+              <div className={cn(
+                "px-3 py-1.5 rounded-full border flex items-center gap-2 min-h-[32px]",
+                "hover:bg-muted/30 transition-colors duration-200",
+                dueStatus.urgent 
+                  ? "bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800/40"
+                  : "bg-muted/20 border-border/30"
+              )}>
+                <Calendar className={cn(
+                  "w-3.5 h-3.5",
+                  dueStatus.color === "text-red-600" ? "text-red-500" :
+                  dueStatus.color === "text-amber-600" ? "text-amber-500" :
+                  "text-accent-foreground"
+                )} />
+                <span className={cn(
+                  "text-xs font-medium",
+                  dueStatus.color === "text-red-600" ? "text-red-600 dark:text-red-400" :
+                  dueStatus.color === "text-amber-600" ? "text-amber-700 dark:text-amber-300" :
+                  "text-muted-foreground"
+                )}>
+                  {dueStatus.text}
+                </span>
+              </div>
+            );
+          })()}
           
-          {/* Weekly Hours Pill */}
+          {/* Weekly Commitment Pill */}
           {goal.weekly_hours && (
             <div className={cn(
               "px-3 py-1.5 rounded-full border flex items-center gap-2",
