@@ -132,7 +132,7 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
             "bg-success/5"
           ),
           // Enhanced padding for better touch targets
-          "p-5"
+          "p-4"
         )}
       >
         
@@ -145,7 +145,7 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
         )} />
         
         {/* Header with Enhanced Badges */}
-        <div className="relative z-10 flex items-start justify-between mb-4">
+        <div className="relative z-10 flex items-start justify-between mb-3">
           <div className="flex items-center gap-2 flex-wrap">
             {getStatusBadge()}
             {getModalityBadge()}
@@ -211,8 +211,8 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
         </div>
 
         {/* Enhanced Title and Description */}
-        <div className="relative z-10 mb-5">
-          <h3 className="text-lg font-semibold leading-tight mb-2">
+        <div className="relative z-10 mb-3">
+          <h3 className="text-lg font-semibold leading-tight mb-1">
             <Link 
               to={`/goals/${goal.id}`}
               onTouchStart={() => handleActionTouch('light')}
@@ -234,8 +234,8 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
         </div>
         
         {/* Enhanced Progress Section */}
-        <div className="relative z-10 mb-5">
-          <div className="flex items-center justify-between mb-3">
+        <div className="relative z-10 mb-3">
+          <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Progress</span>
             <span className={cn(
               "text-sm font-semibold tabular-nums",
