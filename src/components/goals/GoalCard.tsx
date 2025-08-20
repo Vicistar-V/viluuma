@@ -6,8 +6,9 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Calendar, Clock, MoreVertical, Target, CheckCircle, Archive, Trash2, RotateCcw, Layers3, ListChecks, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Goal } from '@/hooks/useGoals';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
+import { useMobileAnimations } from '@/hooks/useMobileAnimations';
 
 interface GoalCardProps {
   goal: Goal;
@@ -18,8 +19,35 @@ interface GoalCardProps {
 
 export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalCardProps) => {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const progressRef = useRef<HTMLDivElement>(null);
+  const { handleTouchFeedback, triggerSuccessCelebration } = useMobileAnimations();
   
   const progress = goal.total_tasks > 0 ? (goal.completed_tasks / goal.total_tasks) * 100 : 0;
+
+  // Animate progress bar on mount and updates
+  useEffect(() => {
+    if (progressRef.current) {
+      setTimeout(() => {
+        progressRef.current!.style.width = `${Math.min(progress, 100)}%`;
+      }, 100);
+    }
+  }, [progress]);
+
+  // Success celebration for completed goals
+  useEffect(() => {
+    if (goal.status === 'completed' && cardRef.current) {
+      triggerSuccessCelebration(cardRef.current);
+    }
+  }, [goal.status, triggerSuccessCelebration]);
+
+  const handleCardTouch = () => {
+    handleTouchFeedback('light');
+  };
+
+  const handleActionTouch = (intensity: 'light' | 'medium' | 'heavy' = 'medium') => {
+    handleTouchFeedback(intensity);
+  };
   
   const getStatusBadge = () => {
     switch (goal.status) {
@@ -64,20 +92,24 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
 
   return (
     <div className="group relative">
-      {/* Ultra Transparent Glassmorphism Card */}
-      <div className={cn(
-        "relative overflow-hidden rounded-2xl",
-        "bg-gradient-to-br from-card/20 via-card/12 to-card/8",
-        "border border-white/6 dark:border-white/3",
-        "shadow-md shadow-black/3 dark:shadow-black/15",
-        "hover:shadow-lg hover:shadow-primary/8 dark:hover:shadow-primary/15",
-        "hover:border-white/12 dark:hover:border-white/6",
-        "hover:from-card/30 hover:via-card/20 hover:to-card/12",
-        "transition-all duration-300 ease-out",
-        "hover:scale-[1.01] hover:-translate-y-0.5",
-        "p-4",
-        "backdrop-blur-none"
-      )}>
+      {/* Mobile-Optimized Interactive Card */}
+      <div 
+        ref={cardRef}
+        onTouchStart={handleCardTouch}
+        className={cn(
+          "relative overflow-hidden rounded-2xl cursor-pointer",
+          "bg-gradient-to-br from-card/20 via-card/12 to-card/8",
+          "border border-white/6 dark:border-white/3",
+          "shadow-md shadow-black/3 dark:shadow-black/15",
+          "hover:shadow-lg hover:shadow-primary/8 dark:hover:shadow-primary/15",
+          "hover:border-white/12 dark:hover:border-white/6",
+          "hover:from-card/30 hover:via-card/20 hover:to-card/12",
+          "transition-all duration-300 cubic-bezier(0.23, 1, 0.32, 1)",
+          "animated-card touch-feedback",
+          "p-4 backdrop-blur-none",
+          goal.status === 'completed' && "ring-1 ring-success/20"
+        )}
+      >
         
         {/* Almost Invisible Gradient Overlay */}
         <div className="absolute inset-0 bg-gradient-to-br from-primary/1 via-transparent to-accent/1 pointer-events-none" />
@@ -94,12 +126,13 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
             <DropdownMenuTrigger asChild>
               <Button 
                 variant="ghost" 
-                size="sm" 
+                size="sm"
+                onTouchStart={() => handleActionTouch('light')}
                 className={cn(
                   "opacity-40 group-hover:opacity-70 transition-all duration-200",
-                  "h-7 w-7 p-0 rounded-full",
+                  "h-7 w-7 p-0 rounded-full touch-feedback",
                   "bg-white/2 dark:bg-white/1 border border-white/5 dark:border-white/3",
-                  "hover:bg-white/8 dark:hover:bg-white/4"
+                  "hover:bg-white/8 dark:hover:bg-white/4 active:scale-90"
                 )}
               >
                 <MoreVertical className="h-3.5 w-3.5" />
@@ -108,11 +141,11 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
             <DropdownMenuContent align="end" className="bg-card/95 backdrop-blur-md border-white/20 z-50">
               {goal.status === 'active' && (
                 <>
-                  <DropdownMenuItem onClick={() => onStatusChange(goal.id, 'completed')}>
+                  <DropdownMenuItem onClick={() => { handleActionTouch('heavy'); onStatusChange(goal.id, 'completed'); }}>
                     <CheckCircle className="w-4 h-4 mr-2" />
                     Mark Complete
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => onStatusChange(goal.id, 'archived')}>
+                  <DropdownMenuItem onClick={() => { handleActionTouch('medium'); onStatusChange(goal.id, 'archived'); }}>
                     <Archive className="w-4 h-4 mr-2" />
                     Archive
                   </DropdownMenuItem>
@@ -147,7 +180,8 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
           <h3 className="text-lg font-semibold leading-tight mb-1">
             <Link 
               to={`/goals/${goal.id}`}
-              className="text-foreground hover:text-primary transition-all duration-200 line-clamp-2 block"
+              onTouchStart={() => handleActionTouch('light')}
+              className="text-foreground hover:text-primary transition-all duration-200 line-clamp-2 block touch-feedback"
             >
               {goal.title}
             </Link>
@@ -169,16 +203,17 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
             </span>
           </div>
           
-          {/* More Visible Progress Bar */}
+          {/* Animated Progress Bar */}
           <div className="relative h-2 bg-white/15 dark:bg-white/8 rounded-full overflow-hidden border border-white/10 dark:border-white/5">
             <div 
+              ref={progressRef}
               className={cn(
-                "h-full rounded-full transition-all duration-500 ease-out",
+                "h-full rounded-full transition-all duration-700 cubic-bezier(0.23, 1, 0.32, 1)",
                 goal.status === 'completed' 
-                  ? "bg-gradient-to-r from-success/80 to-success/60" 
+                  ? "bg-gradient-to-r from-success/80 to-success/60 shadow-lg shadow-success/20" 
                   : "bg-gradient-to-r from-primary/80 to-primary/60"
               )}
-              style={{ width: `${Math.min(progress, 100)}%` }}
+              style={{ width: '0%' }}
             />
           </div>
         </div>

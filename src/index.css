@@ -219,4 +219,63 @@ All colors MUST be HSL.
   .animate-soft-glow {
     animation: soft-glow 3s ease-in-out infinite;
   }
+
+  /* Mobile-native animations */
+  @keyframes success-pulse {
+    0% { 
+      transform: scale(1);
+      box-shadow: 0 0 0 0 hsl(var(--success) / 0.4);
+    }
+    50% {
+      transform: scale(1.02);
+      box-shadow: 0 0 20px 8px hsl(var(--success) / 0.2);
+    }
+    100% {
+      transform: scale(1);
+      box-shadow: 0 0 0 0 hsl(var(--success) / 0);
+    }
+  }
+
+  @keyframes touch-feedback {
+    0% { transform: scale(1); }
+    50% { transform: scale(0.98); }
+    100% { transform: scale(1); }
+  }
+
+  @keyframes bounce-in {
+    0% {
+      opacity: 0;
+      transform: scale(0.3) translateY(50px);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.05) translateY(-10px);
+    }
+    70% {
+      transform: scale(0.95) translateY(0);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+  }
+
+  /* Touch interaction classes */
+  .touch-feedback:active {
+    animation: touch-feedback 0.15s cubic-bezier(0.23, 1, 0.32, 1);
+  }
+
+  .card-entrance {
+    animation: bounce-in 0.5s cubic-bezier(0.23, 1, 0.32, 1) both;
+  }
+
+  /* Hardware acceleration for smooth animations */
+  .animated-card {
+    will-change: transform;
+    transform: translate3d(0, 0, 0);
+  }
+
+  .animated-card:hover {
+    transform: translate3d(0, -2px, 0) scale(1.01);
+  }
 }

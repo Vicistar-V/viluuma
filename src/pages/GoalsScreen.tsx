@@ -14,6 +14,7 @@ import { SmartArchivedGoalsSection } from '@/components/goals/SmartArchivedGoals
 import { UpgradePrompt } from '@/components/paywall/UpgradePrompt';
 import ThemeToggle from '@/components/ThemeToggle';
 import { BottomNav } from '@/components/BottomNav';
+import { useMobileAnimations } from '@/hooks/useMobileAnimations';
 
 const GoalsScreen = () => {
   const { user, loading } = useAuth();
@@ -26,6 +27,7 @@ const GoalsScreen = () => {
   const reopenGoal = useReopenGoal();
   const deleteGoal = useDeleteGoal();
   const permanentlyDeleteGoal = usePermanentlyDeleteGoal();
+  const { useStaggeredEntrance } = useMobileAnimations();
   
   const [filters, setFilters] = useState<GoalFilters>({
     search: '',
@@ -86,6 +88,9 @@ const GoalsScreen = () => {
     
     return { activeGoals, archivedGoals, filteredGoals, showingArchivedOnly: false, systemArchivedGoals, userArchivedGoals };
   }, [goals, filters]);
+
+  // Staggered entrance for goal cards
+  const itemRefs = useStaggeredEntrance(filteredGoals.length, 100);
   
   // BLAZING FAST: Client-side stats calculation (no database aggregation queries needed)
   const stats = useMemo(() => {
@@ -300,15 +305,20 @@ const GoalsScreen = () => {
                   <>
                     {filteredGoals.length > 0 ? (
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                         {filteredGoals.map((goal) => (
-                           <GoalCard
-                             key={goal.id}
-                             goal={goal}
-                             onStatusChange={handleStatusChange}
-                             onReopenGoal={handleReopenGoal}
-                             onDelete={handleDelete}
-                           />
-                         ))}
+                     {filteredGoals.map((goal, index) => (
+                       <div 
+                         key={goal.id}
+                         ref={(el) => itemRefs.current[index] = el}
+                         className="card-entrance"
+                       >
+                         <GoalCard
+                           goal={goal}
+                           onStatusChange={handleStatusChange}
+                           onReopenGoal={handleReopenGoal}
+                           onDelete={handleDelete}
+                         />
+                       </div>
+                     ))}
                       </div>
                     ) : (
                       <Card>
