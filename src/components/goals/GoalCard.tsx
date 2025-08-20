@@ -8,7 +8,7 @@ import { Link } from 'react-router-dom';
 import { Goal } from '@/hooks/useGoals';
 import { useState, useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
-import { useGSAPAnimations } from '@/hooks/useGSAPAnimations';
+import { useMobileAnimations } from '@/hooks/useMobileAnimations';
 
 interface GoalCardProps {
   goal: Goal;
@@ -21,32 +21,23 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   const progressBarRef = useRef<HTMLDivElement>(null);
-  const { createMagneticEffect, createFloatingParticles, animateProgressBar, createPulseGlow } = useGSAPAnimations();
+  const { addTouchFeedback, animateProgressBar, createSuccessPulse } = useMobileAnimations();
   
   const progress = goal.total_tasks > 0 ? (goal.completed_tasks / goal.total_tasks) * 100 : 0;
 
   useEffect(() => {
     if (!cardRef.current) return;
 
-    // Create magnetic hover effect
-    const cleanupMagnetic = createMagneticEffect(cardRef.current);
+    // Add mobile touch feedback
+    const cleanupTouch = addTouchFeedback(cardRef.current);
 
-    // Create floating particles for active goals
-    let cleanupParticles: (() => void) | undefined;
-    if (goal.status === 'active') {
-      cleanupParticles = createFloatingParticles(cardRef.current);
-    }
-
-    // Add pulse glow for completed goals
+    // Add success pulse for completed goals
     if (goal.status === 'completed') {
-      createPulseGlow(cardRef.current, 'success');
+      createSuccessPulse(cardRef.current);
     }
 
-    return () => {
-      cleanupMagnetic?.();
-      cleanupParticles?.();
-    };
-  }, [goal.status, createMagneticEffect, createFloatingParticles, createPulseGlow]);
+    return cleanupTouch;
+  }, [goal.status, addTouchFeedback, createSuccessPulse]);
 
   useEffect(() => {
     if (progressBarRef.current && progress > 0) {

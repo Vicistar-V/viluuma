@@ -14,14 +14,14 @@ import { SmartArchivedGoalsSection } from '@/components/goals/SmartArchivedGoals
 import { UpgradePrompt } from '@/components/paywall/UpgradePrompt';
 import ThemeToggle from '@/components/ThemeToggle';
 import { BottomNav } from '@/components/BottomNav';
-import { useGSAPAnimations } from '@/hooks/useGSAPAnimations';
+import { useMobileAnimations } from '@/hooks/useMobileAnimations';
 
 const GoalsScreen = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const cardsContainerRef = useRef<HTMLDivElement>(null);
-  const { animateCardEntrance } = useGSAPAnimations();
+  const { animateCardEntrance } = useMobileAnimations();
   
   // BLAZING FAST: Direct table read - triggers handle all progress calculations
   const { data: goals, isLoading: goalsLoading } = useGoals();
