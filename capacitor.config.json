@@ -21,8 +21,7 @@
     },
     "StatusBar": {
       "style": "DARK",
-      "backgroundColor": "#000000",
-      "overlaysWebView": true
+      "backgroundColor": "#000000"
     },
     "Haptics": {},
     "App": {}

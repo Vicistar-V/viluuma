@@ -114,53 +114,6 @@ All colors MUST be HSL.
   body {
     @apply bg-background text-foreground;
   }
-
-  /* Native platform fullscreen mobile app support */
-  .native-platform #root {
-    width: 100%;
-    height: 100vh;
-    height: 100dvh; /* Dynamic viewport height for mobile */
-    overflow-x: hidden;
-  }
-
-  /* Safe area handling for notched devices - only on native */
-  .native-platform .safe-area-top {
-    padding-top: env(safe-area-inset-top);
-  }
-
-  .native-platform .safe-area-bottom {
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-
-  .native-platform .safe-area-left {
-    padding-left: env(safe-area-inset-left);
-  }
-
-  .native-platform .safe-area-right {
-    padding-right: env(safe-area-inset-right);
-  }
-
-  .native-platform .safe-area-all {
-    padding-top: env(safe-area-inset-top);
-    padding-bottom: env(safe-area-inset-bottom);
-    padding-left: env(safe-area-inset-left);
-    padding-right: env(safe-area-inset-right);
-  }
-
-  /* Ensure fullscreen experience - only on native platforms */
-  .native-platform html {
-    height: 100%;
-    height: 100dvh;
-  }
-
-  .native-platform body {
-    @apply bg-background text-foreground;
-    height: 100%;
-    height: 100dvh;
-    margin: 0;
-    padding: 0;
-    overflow-x: hidden;
-  }
 }
 
 @layer components {

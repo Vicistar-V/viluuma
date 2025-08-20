@@ -35,18 +35,15 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     root.classList.add(resolvedTheme);
     setActualTheme(resolvedTheme);
 
-    // Add native platform class for fullscreen CSS
+    // Configure status bar theming on native platforms
     if (Capacitor.isNativePlatform()) {
-      document.documentElement.classList.add('native-platform');
-      
       try {
-        // Configure status bar for fullscreen immersive experience
-        await StatusBar.setOverlaysWebView({ overlay: true });
-        
         if (resolvedTheme === 'light') {
+          // Light theme: dark content (icons/text) on light background
           await StatusBar.setStyle({ style: Style.Dark });
           await StatusBar.setBackgroundColor({ color: '#FFFFFF' });
         } else {
+          // Dark theme: light content (icons/text) on dark background
           await StatusBar.setStyle({ style: Style.Light });
           await StatusBar.setBackgroundColor({ color: '#000000' });
         }
@@ -54,9 +51,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         // Status bar not available, continue silently
         console.log('Status bar not available:', error);
       }
-    } else {
-      // Remove native platform class on web
-      document.documentElement.classList.remove('native-platform');
     }
   };
 
