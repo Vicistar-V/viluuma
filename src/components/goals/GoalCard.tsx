@@ -64,55 +64,24 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
 
   return (
     <div className="group relative">
-      {/* Glassmorphism Card */}
+      {/* Clean Professional Card */}
       <div className={cn(
-        "relative overflow-hidden rounded-xl",
-        "bg-gradient-to-br from-background via-card to-background",
-        "border border-border/30",
-        "shadow-lg shadow-black/5",
-        "hover:shadow-xl hover:shadow-success/10 hover:border-border/50",
-        "p-6 space-y-5"
+        "relative overflow-hidden rounded-2xl",
+        "bg-card/80 backdrop-blur-sm",
+        "border border-border/60",
+        "shadow-sm hover:shadow-md transition-all duration-200",
+        "hover:border-border/80",
+        "p-6"
       )}>
         
-        {/* Green Gradient Background Integration */}
-        <div className="absolute inset-0 opacity-[0.08] pointer-events-none bg-gradient-radial from-success/60 via-success/20 to-transparent" />
-        <div className="absolute inset-0 opacity-[0.06] pointer-events-none bg-gradient-to-br from-success/40 via-transparent via-success/10 to-success/30" />
-        <div className="absolute inset-0 opacity-[0.04] pointer-events-none bg-gradient-to-tr from-transparent via-success/20 to-success/40" />
+        {/* Subtle Background Accent */}
+        <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-gradient-to-br from-primary/20 to-transparent" />
 
-        {/* Status Gradient Overlay */}
-        <div className={cn(
-          "absolute inset-0 opacity-[0.02] pointer-events-none",
-          goal.status === 'completed' && "bg-gradient-to-br from-success to-success/50",
-          goal.status === 'archived' && "bg-gradient-to-br from-muted to-muted/50",
-          goal.status === 'active' && "bg-gradient-to-br from-primary to-primary/50"
-        )} />
-
-        {/* Header */}
-        <div className="flex items-start justify-between relative z-10">
-          <div className="flex-1 min-w-0 space-y-3">
-            {/* Status and Modality Badges */}
-            <div className="flex items-center gap-2 flex-wrap">
-              {getStatusBadge()}
-              {getModalityBadge()}
-            </div>
-
-            {/* Goal Title */}
-            <div>
-              <h3 className="text-xl font-bold leading-tight mb-2">
-                <Link 
-                  to={`/goals/${goal.id}`}
-                  className="text-foreground hover:text-primary transition-colors line-clamp-2 block"
-                >
-                  {goal.title}
-                </Link>
-              </h3>
-              
-              {goal.description && (
-                <p className="text-muted-foreground text-sm leading-relaxed line-clamp-2">
-                  {goal.description}
-                </p>
-              )}
-            </div>
+        {/* Header with Badges and Actions */}
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex items-center gap-2">
+            {getStatusBadge()}
+            {getModalityBadge()}
           </div>
           
           {/* Actions Dropdown */}
@@ -122,16 +91,14 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
                 variant="ghost" 
                 size="sm" 
                 className={cn(
-                  "opacity-0 group-hover:opacity-100",
-                  "bg-background hover:bg-accent",
-                  "border border-border/30 hover:border-border/60",
+                  "opacity-0 group-hover:opacity-100 transition-opacity",
                   "h-8 w-8 p-0 rounded-lg"
                 )}
               >
                 <MoreVertical className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-background border-border/50">
+            <DropdownMenuContent align="end">
               {goal.status === 'active' && (
                 <>
                   <DropdownMenuItem onClick={() => onStatusChange(goal.id, 'completed')}>
@@ -167,60 +134,76 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+
+        {/* Goal Title and Description */}
+        <div className="mb-6">
+          <h3 className="text-2xl font-bold leading-tight mb-2">
+            <Link 
+              to={`/goals/${goal.id}`}
+              className="text-foreground hover:text-primary transition-colors line-clamp-2 block"
+            >
+              {goal.title}
+            </Link>
+          </h3>
+          
+          {goal.description && (
+            <p className="text-muted-foreground leading-relaxed line-clamp-3">
+              {goal.description}
+            </p>
+          )}
+        </div>
         
-        {/* Progress Section */}
-        <div className="space-y-4 relative z-10">
-          {/* Progress Stats */}
-          <div className="flex items-center justify-between">
+        {/* Progress Section - Simplified */}
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-muted-foreground">Progress</span>
-            <div className="flex items-center gap-2">
-              <span className="text-2xl font-bold text-foreground">{goal.completed_tasks}</span>
-              <span className="text-sm text-muted-foreground">/ {goal.total_tasks}</span>
-              <span className="text-xs text-muted-foreground font-medium ml-2">
-                {Math.round(progress)}%
-              </span>
-            </div>
+            <span className="text-sm font-semibold text-foreground">
+              {goal.completed_tasks}/{goal.total_tasks} ({Math.round(progress)}%)
+            </span>
           </div>
           
-          {/* Enhanced Progress Bar */}
-          <div className="relative">
-            <div className="h-3 bg-muted/30 rounded-full overflow-hidden">
-              <div 
-                className={cn(
-                  "h-full rounded-full transition-all duration-500",
-                  goal.status === 'completed' 
-                    ? "bg-gradient-to-r from-success/80 to-success" 
-                    : "bg-gradient-to-r from-primary/80 to-primary"
-                )}
-                style={{ width: `${Math.min(progress, 100)}%` }}
-              />
-            </div>
+          <div className="h-2 bg-muted/40 rounded-full overflow-hidden">
+            <div 
+              className={cn(
+                "h-full rounded-full transition-all duration-300",
+                goal.status === 'completed' 
+                  ? "bg-success" 
+                  : "bg-primary"
+              )}
+              style={{ width: `${Math.min(progress, 100)}%` }}
+            />
           </div>
         </div>
         
-        {/* Meta Information */}
-        <div className="flex items-center gap-6 text-sm text-muted-foreground relative z-10">
+        {/* Bottom Pill Badges */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Task Count Badge */}
+          <div className="px-3 py-1.5 bg-muted/50 rounded-full flex items-center gap-1.5">
+            <Target className="w-3.5 h-3.5 text-muted-foreground" />
+            <span className="text-xs font-medium text-muted-foreground">
+              {goal.total_tasks} tasks
+            </span>
+          </div>
+          
+          {/* Due Date Badge */}
           {goal.target_date && (
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-md bg-accent/30">
-                <Calendar className="w-3.5 h-3.5" />
-              </div>
-              <span className="font-medium">Due {formatDate(goal.target_date)}</span>
+            <div className="px-3 py-1.5 bg-muted/50 rounded-full flex items-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+              <span className="text-xs font-medium text-muted-foreground">
+                Due {formatDate(goal.target_date)}
+              </span>
             </div>
           )}
+          
+          {/* Weekly Hours Badge */}
           {goal.weekly_hours && (
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-md bg-accent/30">
-                <Clock className="w-3.5 h-3.5" />
-              </div>
-              <span className="font-medium">{goal.weekly_hours}h/week</span>
+            <div className="px-3 py-1.5 bg-muted/50 rounded-full flex items-center gap-1.5">
+              <Clock className="w-3.5 h-3.5 text-muted-foreground" />
+              <span className="text-xs font-medium text-muted-foreground">
+                {goal.weekly_hours}h/week
+              </span>
             </div>
           )}
-        </div>
-        
-        {/* Creation Date - Bottom Corner */}
-        <div className="text-xs text-muted-foreground/70 relative z-10">
-          Created {formatDate(goal.created_at)}
         </div>
       </div>
       
