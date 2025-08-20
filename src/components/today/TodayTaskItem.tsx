@@ -1,13 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
-import { Clock, Calendar, Target, Sparkles, Zap, Lightbulb, CheckCircle } from 'lucide-react';
+import { Clock, Calendar, Target, Sparkles, Zap, Lightbulb, CheckCircle, AlertCircle } from 'lucide-react';
 import { TodayTask, useCompleteTask, useUncompleteTask } from '@/hooks/useTodayData';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import { haptics } from '@/lib/haptics';
+import { useMobileAnimations } from '@/hooks/useMobileAnimations';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface TodayTaskItemProps {
   task: TodayTask;
@@ -15,14 +16,32 @@ interface TodayTaskItemProps {
 
 const TodayTaskItem: React.FC<TodayTaskItemProps> = ({ task }) => {
   const [isCompleting, setIsCompleting] = useState(false);
+  const [isPressed, setIsPressed] = useState(false);
   const completeTaskMutation = useCompleteTask();
   const uncompleteTaskMutation = useUncompleteTask();
+  const cardRef = useRef<HTMLDivElement>(null);
+  const { handleTouchFeedback, triggerSuccessCelebration } = useMobileAnimations();
+  const { actualTheme } = useTheme();
+
+  const handleCardTouch = useCallback(() => {
+    handleTouchFeedback('light');
+    setIsPressed(true);
+  }, [handleTouchFeedback]);
+
+  const handleCardTouchEnd = useCallback(() => {
+    setIsPressed(false);
+  }, []);
 
   const handleCheckboxChange = async (checked: boolean) => {
     if (checked) {
       setIsCompleting(true);
+      handleTouchFeedback('medium');
       try {
         await completeTaskMutation.mutateAsync(task.id);
+        // Trigger celebration animation
+        if (cardRef.current) {
+          triggerSuccessCelebration(cardRef.current);
+        }
         // Show success feedback
         toast({
           title: "Task completed! 🎉",
@@ -41,6 +60,7 @@ const TodayTaskItem: React.FC<TodayTaskItemProps> = ({ task }) => {
         });
       }
     } else {
+      handleTouchFeedback('light');
       uncompleteTaskMutation.mutate(task.id);
     }
   };
@@ -48,32 +68,14 @@ const TodayTaskItem: React.FC<TodayTaskItemProps> = ({ task }) => {
   const isCompleted = task.status === 'completed';
   const displayStatus = task.display_status || task.task_type;
   
-  // New empathetic status checks
-  const isOverdue = displayStatus === 'overdue';  // Deadline has actually passed
-  const isDueToday = displayStatus === 'due_today';  // Due to finish today
-  const isInProgress = displayStatus === 'in_progress';  // Working on it, still on schedule
-  const isStartingToday = displayStatus === 'starting_today';  // Starting work today
-  const isChecklist = displayStatus === 'checklist';  // Optional checklist task
+  // New empathetic status checks (PRESERVED EXACTLY)
+  const isOverdue = displayStatus === 'overdue';
+  const isDueToday = displayStatus === 'due_today';
+  const isInProgress = displayStatus === 'in_progress';
+  const isStartingToday = displayStatus === 'starting_today';
+  const isChecklist = displayStatus === 'checklist';
 
-  // Priority indicator component
-  const PriorityIndicator = () => {
-    if (!task.priority || isChecklist) return null;
-    
-    const priorityClasses = {
-      high: 'priority-indicator-high',
-      medium: 'priority-indicator-medium',
-      low: 'priority-indicator-low'
-    };
-    
-    return (
-      <div className={cn(
-        'w-2 h-2 rounded-full flex-shrink-0',
-        priorityClasses[task.priority as keyof typeof priorityClasses]
-      )} />
-    );
-  };
-
-  // Get the appropriate invitation header for checklist tasks
+  // Get the appropriate invitation header for checklist tasks (PRESERVED)
   const getChecklistInvitation = () => {
     const invitations = [
       { icon: Sparkles, text: "✨ Feeling motivated?" },
@@ -81,17 +83,16 @@ const TodayTaskItem: React.FC<TodayTaskItemProps> = ({ task }) => {
       { icon: Lightbulb, text: "💡 Here's an idea..." }
     ];
     
-    // Use task ID to consistently pick the same invitation
     const index = parseInt(task.id.slice(-1), 16) % invitations.length;
     return invitations[index];
   };
 
-  // Get the appropriate display for different task states
+  // Enhanced status badge with preserved color system
   const getTaskTypeDisplay = () => {
     if (isOverdue) {
       return (
-        <Badge variant="secondary" className="text-xs border-destructive text-destructive bg-destructive/10">
-          <Clock className="w-3 h-3 mr-1" />
+        <Badge className="bg-destructive/15 text-destructive border-destructive/40 shadow-sm">
+          <AlertCircle className="w-3 h-3 mr-1.5" />
           Overdue
         </Badge>
       );
@@ -99,8 +100,8 @@ const TodayTaskItem: React.FC<TodayTaskItemProps> = ({ task }) => {
     
     if (isDueToday) {
       return (
-        <Badge variant="secondary" className="text-xs border-warning text-warning bg-warning/10">
-          <Calendar className="w-3 h-3 mr-1" />
+        <Badge className="bg-amber-50 text-amber-700 border-amber-200 shadow-sm dark:bg-amber-950/30 dark:text-amber-300 dark:border-amber-800/40">
+          <Clock className="w-3 h-3 mr-1.5" />
           Due Today
         </Badge>
       );
@@ -108,8 +109,8 @@ const TodayTaskItem: React.FC<TodayTaskItemProps> = ({ task }) => {
     
     if (isInProgress) {
       return (
-        <Badge variant="secondary" className="text-xs border-primary text-primary bg-primary/10">
-          <Target className="w-3 h-3 mr-1" />
+        <Badge className="bg-primary/15 text-primary border-primary/40 shadow-sm">
+          <Target className="w-3 h-3 mr-1.5" />
           In Progress
         </Badge>
       );
@@ -117,8 +118,8 @@ const TodayTaskItem: React.FC<TodayTaskItemProps> = ({ task }) => {
     
     if (isStartingToday) {
       return (
-        <Badge variant="secondary" className="text-xs border-accent text-accent-foreground bg-accent/10">
-          <Calendar className="w-3 h-3 mr-1" />
+        <Badge className="bg-accent/15 text-accent-foreground border-accent/40 shadow-sm">
+          <Calendar className="w-3 h-3 mr-1.5" />
           Starting Today
         </Badge>
       );
@@ -126,8 +127,8 @@ const TodayTaskItem: React.FC<TodayTaskItemProps> = ({ task }) => {
     
     if (isChecklist) {
       return (
-        <Badge variant="outline" className="text-xs border-dashed">
-          <Target className="w-3 h-3 mr-1" />
+        <Badge variant="outline" className="border-dashed bg-muted/10 shadow-sm">
+          <Sparkles className="w-3 h-3 mr-1.5" />
           Optional
         </Badge>
       );
@@ -136,7 +137,32 @@ const TodayTaskItem: React.FC<TodayTaskItemProps> = ({ task }) => {
     return null;
   };
 
-  // Get date display - only for actually overdue tasks
+  // Enhanced priority badge
+  const getPriorityDisplay = () => {
+    if (!task.priority || isChecklist) return null;
+    
+    return (
+      <Badge 
+        variant="outline" 
+        className={cn(
+          'flex items-center gap-1.5 shadow-sm',
+          task.priority === 'high' ? 'border-destructive/40 text-destructive bg-destructive/10' :
+          task.priority === 'medium' ? 'border-amber-300 text-amber-700 bg-amber-50 dark:border-amber-800/40 dark:text-amber-300 dark:bg-amber-950/30' :
+          'border-muted/40 text-muted-foreground bg-muted/10'
+        )}
+      >
+        <div className={cn(
+          'w-2 h-2 rounded-full',
+          task.priority === 'high' ? 'bg-destructive' :
+          task.priority === 'medium' ? 'bg-amber-500' :
+          'bg-muted-foreground'
+        )} />
+        {task.priority}
+      </Badge>
+    );
+  };
+
+  // Get date display - preserved functionality
   const getDateDisplay = () => {
     if (!isOverdue || !task.end_date) return null;
     
@@ -154,7 +180,7 @@ const TodayTaskItem: React.FC<TodayTaskItemProps> = ({ task }) => {
     }
   };
 
-  // Get progress display for in-progress tasks
+  // Get progress display - preserved functionality  
   const getProgressDisplay = () => {
     if (!isInProgress && !isDueToday && !isStartingToday) return null;
     
@@ -178,65 +204,104 @@ const TodayTaskItem: React.FC<TodayTaskItemProps> = ({ task }) => {
     return null;
   };
 
-  // Card styling based on task type
-  const getCardClassName = () => {
-    const baseClasses = 'transition-all duration-200 hover:shadow-md task-card-enter';
-    
-    if (isCompleting) {
-      return cn(baseClasses, 'animate-task-complete');
-    }
-    
-    if (isCompleted) {
-      return cn(baseClasses, 'opacity-60 bg-success/5 border-success/20');
-    }
-    
-    if (isChecklist) {
-      return cn(baseClasses, 'checklist-card');
-    }
-    
-    if (isOverdue) {
-      return cn(baseClasses, 'border-l-4 border-l-destructive bg-destructive/5');
-    }
-    
-    if (isDueToday) {
-      return cn(baseClasses, 'border-l-4 border-l-warning bg-warning/5');
-    }
-    
-    if (isInProgress) {
-      return cn(baseClasses, 'border-l-4 border-l-primary bg-primary/5');
-    }
-    
-    // Starting today or other scheduled tasks
-    return cn(baseClasses, 'border-l-4 border-l-accent hover:border-l-primary/40');
+  // Enhanced card styling with preserved color system
+  const getStatusColorAccent = () => {
+    if (isCompleted) return '';
+    if (isOverdue) return 'border-l-4 border-l-destructive';
+    if (isDueToday) return 'border-l-4 border-l-amber-500';
+    if (isInProgress) return 'border-l-4 border-l-primary';
+    if (isStartingToday) return 'border-l-4 border-l-accent';
+    return '';
+  };
+
+  const getStatusBackground = () => {
+    if (isCompleted) return 'bg-success/8';
+    if (isOverdue) return 'bg-destructive/5';
+    if (isDueToday) return 'bg-amber-50/80 dark:bg-amber-950/20';
+    if (isInProgress) return 'bg-primary/5';
+    if (isStartingToday) return 'bg-accent/5';
+    return '';
   };
 
   return (
-    <Card className={getCardClassName()}>
-      <CardContent className="p-4">
-        <div className="flex items-start gap-3">
-          <div className="relative">
+    <div className="group relative">
+      {/* Enhanced Mobile-Optimized Task Card */}
+      <div 
+        ref={cardRef}
+        onTouchStart={handleCardTouch}
+        onTouchEnd={handleCardTouchEnd}
+        className={cn(
+          "relative overflow-hidden rounded-2xl cursor-pointer will-change-transform",
+          // Base theme-aware background
+          "bg-card/95",
+          // Enhanced border system
+          "border border-border/40",
+          // Color accent borders (PRESERVED SYSTEM)
+          getStatusColorAccent(),
+          // Status backgrounds (PRESERVED SYSTEM)  
+          getStatusBackground(),
+          // Theme-aware shadows
+          actualTheme === 'dark' 
+            ? "shadow-lg shadow-background/20" 
+            : "shadow-md shadow-foreground/5",
+          // Enhanced hover states
+          "hover:shadow-xl hover:border-border/60 hover:bg-card",
+          actualTheme === 'dark'
+            ? "hover:shadow-background/30"
+            : "hover:shadow-primary/10",
+          // Smooth transitions
+          "transition-all duration-300 cubic-bezier(0.23, 1, 0.32, 1)",
+          // Press state
+          isPressed && "scale-[0.98]",
+          // Completing animation
+          isCompleting && "animate-task-complete",
+          // Completed state
+          isCompleted && "ring-1 ring-success/30",
+          // Enhanced padding
+          "p-4"
+        )}
+      >
+        
+        {/* Dynamic theme-aware overlay */}
+        <div className={cn(
+          "absolute inset-0 pointer-events-none",
+          actualTheme === 'dark'
+            ? "bg-gradient-to-br from-primary/2 via-transparent to-accent/2"
+            : "bg-gradient-to-br from-primary/1 via-transparent to-accent/1"
+        )} />
+
+        {/* Main Content */}
+        <div className="relative z-10 flex items-start gap-4">
+          {/* Enhanced Checkbox Section */}
+          <div className="relative pt-1">
             <Checkbox
               checked={isCompleted}
               onCheckedChange={handleCheckboxChange}
               disabled={completeTaskMutation.isPending || uncompleteTaskMutation.isPending}
-              className="mt-1 data-[state=checked]:bg-success data-[state=checked]:border-success"
+              className={cn(
+                "data-[state=checked]:bg-success data-[state=checked]:border-success",
+                "min-w-[20px] min-h-[20px] w-5 h-5",
+                "border-2 shadow-sm",
+                "transition-all duration-200",
+                "hover:border-primary/40"
+              )}
               onClick={() => {
-                // Immediate haptic feedback on tap for responsiveness
                 if (!isCompleted) {
                   haptics.light();
                 }
               }}
             />
             {isCompleted && (
-              <CheckCircle className="w-4 h-4 text-success absolute -top-0.5 -right-0.5 bg-background rounded-full p-0.5" />
+              <CheckCircle className="w-4 h-4 text-success absolute -top-0.5 -right-0.5 bg-background rounded-full p-0.5 shadow-sm" />
             )}
           </div>
           
+          {/* Enhanced Content Section */}
           <div className="flex-1 min-w-0">
-            {/* Checklist Invitation Header */}
+            {/* Checklist Invitation Header (PRESERVED) */}
             {isChecklist && !isCompleted && (
-              <div className="mb-2">
-                <div className="flex items-center gap-1.5">
+              <div className="mb-3">
+                <div className="flex items-center gap-2">
                   <span className="text-sm font-medium text-primary">
                     {getChecklistInvitation().text}
                   </span>
@@ -244,82 +309,72 @@ const TodayTaskItem: React.FC<TodayTaskItemProps> = ({ task }) => {
               </div>
             )}
             
-            {/* Task Type and Priority Badges */}
-            <div className="flex items-center gap-2 mb-2">
-              {/* Task Type Badge */}
+            {/* Enhanced Status and Priority Badges */}
+            <div className="flex items-center gap-2 mb-3 flex-wrap">
               {getTaskTypeDisplay()}
-              
-              {/* Priority Badge (not for checklist) */}
-              {!isChecklist && task.priority && (
-                <Badge 
-                  variant="outline" 
-                  className={cn(
-                    'text-xs flex items-center gap-1',
-                    task.priority === 'high' ? 'border-destructive text-destructive' :
-                    task.priority === 'medium' ? 'border-warning text-warning' :
-                    'border-muted-foreground text-muted-foreground'
-                  )}
-                >
-                  <PriorityIndicator />
-                  {task.priority}
-                </Badge>
-              )}
+              {getPriorityDisplay()}
             </div>
             
-            {/* Task Title */}
+            {/* Enhanced Task Title */}
             <h3 className={cn(
-              'font-medium mb-1 transition-all duration-300',
-              isCompleted ? 'line-through text-muted-foreground' : 'text-foreground',
-              isChecklist && !isCompleted ? 'text-sm' : 'text-base'
+              'font-semibold leading-tight mb-2 transition-all duration-300',
+              isCompleted ? 'line-through text-muted-foreground/70' : 'text-foreground',
+              isChecklist && !isCompleted ? 'text-base' : 'text-lg'
             )}>
               {task.title}
             </h3>
             
-            {/* Task Description */}
+            {/* Enhanced Task Description */}
             {task.description && (
               <p className={cn(
-                'text-sm mb-2 transition-all duration-300',
-                isCompleted ? 'line-through text-muted-foreground' : 'text-muted-foreground'
+                'text-sm leading-relaxed mb-3 transition-all duration-300',
+                isCompleted ? 'line-through text-muted-foreground/60' : 'text-muted-foreground',
+                'line-clamp-2'
               )}>
                 {task.description}
               </p>
             )}
             
-            {/* Bottom Row: Goal Title and Date Info */}
-            <div className="flex items-center justify-between">
-              {/* Goal Title */}
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground font-medium">
+            {/* Enhanced Info Pills */}
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              {/* Goal Title Pill */}
+              <div className={cn(
+                "px-3 py-1.5 rounded-full border flex items-center gap-2",
+                "bg-muted/15 border-border/30 min-h-[32px]",
+                "hover:bg-muted/25 transition-colors duration-200"
+              )}>
+                <Target className="w-3.5 h-3.5 text-accent-foreground" />
+                <span className="text-xs font-medium text-muted-foreground">
                   {task.goal_title}
                 </span>
-                {isChecklist && (
-                  <Badge variant="outline" className="text-xs border-dashed text-muted-foreground">
-                    Checklist
-                  </Badge>
-                )}
               </div>
               
-              {/* Date Information */}
-              <div className="flex items-center gap-2">
-                {/* Overdue date display */}
-                {isOverdue && (
-                  <span className="text-xs text-destructive font-medium">
-                    {getDateDisplay()}
+              {/* Date/Status Info Pill */}
+              {(getDateDisplay() || getProgressDisplay()) && (
+                <div className={cn(
+                  "px-3 py-1.5 rounded-full border flex items-center gap-2 min-h-[32px]",
+                  "hover:bg-muted/25 transition-colors duration-200",
+                  isOverdue 
+                    ? "bg-destructive/10 border-destructive/30"
+                    : "bg-muted/15 border-border/30"
+                )}>
+                  <Clock className={cn(
+                    "w-3.5 h-3.5",
+                    isOverdue ? "text-destructive" : "text-muted-foreground"
+                  )} />
+                  <span className={cn(
+                    "text-xs font-medium",
+                    isOverdue ? "text-destructive" : "text-muted-foreground"
+                  )}>
+                    {getDateDisplay() || getProgressDisplay()}
                   </span>
-                )}
-                
-                {/* Progress display for in-progress and due today tasks */}
-                {(isInProgress || isDueToday || isStartingToday) && (
-                  <span className="text-xs text-muted-foreground">
-                    {getProgressDisplay()}
-                  </span>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 };
 
