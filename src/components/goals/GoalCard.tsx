@@ -34,14 +34,14 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
     
     // For active goals, gradually increase green background opacity starting from 0%
     if (goal.status === 'active') {
-      // Smooth gradual transition - even 1% progress shows a tiny hint of green
-      const greenOpacity = Math.min(Math.round((progress / 100) * 15) || (progress > 0 ? 1 : 0), 15);
+      // Smooth gradual transition - reduced max opacity to 8% for subtlety
+      const greenOpacity = Math.min(Math.round((progress / 100) * 8) || (progress > 0 ? 1 : 0), 8);
       return greenOpacity > 0 ? `bg-success/${greenOpacity}` : '';
     }
     
-    // Completed goals get full green background
+    // Completed goals get subtle green background - reduced from 15% to 8%
     if (goal.status === 'completed') {
-      return 'bg-success/15';
+      return 'bg-success/8';
     }
     
     return '';
