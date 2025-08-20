@@ -74,6 +74,11 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
         "p-6 space-y-5"
       )}>
         
+        {/* Green Gradient Overlay */}
+        <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-gradient-radial from-success/40 via-success/10 to-transparent" />
+        <div className="absolute inset-x-0 top-0 h-32 opacity-[0.05] pointer-events-none bg-gradient-to-b from-success/30 to-transparent" />
+        <div className="absolute inset-x-0 bottom-0 h-32 opacity-[0.05] pointer-events-none bg-gradient-to-t from-success/30 to-transparent" />
+
         {/* Status Gradient Overlay */}
         <div className={cn(
           "absolute inset-0 opacity-[0.02] pointer-events-none",
