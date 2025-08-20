@@ -64,7 +64,7 @@ const TodayHeader: React.FC<TodayHeaderProps> = ({ overdueCount }) => {
   return (
     <div className="mb-8 animate-fade-in">
       {/* Header Card */}
-      <div className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-background to-muted/20 p-6 shadow-sm">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-background to-muted/20 p-6 shadow-sm">
         {/* Date Badge */}
         <div className="flex items-center gap-2 mb-3">
           <Calendar className="w-4 h-4 text-muted-foreground" />
