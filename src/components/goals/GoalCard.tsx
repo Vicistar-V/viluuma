@@ -28,15 +28,15 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
   
   const progress = goal.total_tasks > 0 ? (goal.completed_tasks / goal.total_tasks) * 100 : 0;
   
-  // Calculate progressive green background opacity based on progress (0% = no green, 100% = full green)
+  // Calculate progressive green background opacity based on progress (gradual from 0% to 100%)
   const getProgressiveGreenBackground = () => {
     if (goal.status === 'archived') return '';
     
-    // For active goals, gradually increase green background opacity based on progress
-    if (goal.status === 'active' && progress > 0) {
-      // Scale progress to green background opacity (0-15% opacity range)
-      const greenOpacity = Math.min(Math.round((progress / 100) * 15), 15);
-      return `bg-success/${greenOpacity}`;
+    // For active goals, gradually increase green background opacity starting from 0%
+    if (goal.status === 'active') {
+      // Smooth gradual transition - even 1% progress shows a tiny hint of green
+      const greenOpacity = Math.min(Math.round((progress / 100) * 15) || (progress > 0 ? 1 : 0), 15);
+      return greenOpacity > 0 ? `bg-success/${greenOpacity}` : '';
     }
     
     // Completed goals get full green background
