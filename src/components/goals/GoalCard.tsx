@@ -25,21 +25,21 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
     switch (goal.status) {
       case 'completed':
         return (
-          <Badge className="bg-success/20 text-success border-success/30 backdrop-blur-sm">
+          <Badge className="bg-success/20 text-success border-success/30">
             <CheckCircle className="w-3 h-3 mr-1.5" />
             Completed
           </Badge>
         );
       case 'archived':
         return (
-          <Badge className="bg-muted/30 text-muted-foreground border-border/50 backdrop-blur-sm">
+          <Badge className="bg-muted/30 text-muted-foreground border-border/50">
             <Archive className="w-3 h-3 mr-1.5" />
             Archived
           </Badge>
         );
       default:
         return (
-          <Badge className="bg-primary/10 text-primary border-primary/20 backdrop-blur-sm">
+          <Badge className="bg-primary/10 text-primary border-primary/20">
             <Target className="w-3 h-3 mr-1.5" />
             Active
           </Badge>
@@ -50,7 +50,7 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
   const getModalityBadge = () => {
     const Icon = goal.modality === 'project' ? Layers3 : ListChecks;
     return (
-      <Badge variant="outline" className="bg-accent/30 border-border/50 backdrop-blur-sm">
+      <Badge variant="outline" className="bg-accent/30 border-border/50">
         <Icon className="w-3 h-3 mr-1.5" />
         {goal.modality === 'project' ? 'Project' : 'Checklist'}
       </Badge>
@@ -67,8 +67,8 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
       {/* Glassmorphism Card */}
       <div className={cn(
         "relative overflow-hidden rounded-xl",
-        "bg-gradient-to-br from-background/80 via-background/60 to-background/40",
-        "backdrop-blur-md border border-border/50",
+        "bg-gradient-to-br from-background via-card to-background",
+        "border border-border/50",
         "shadow-lg shadow-primary/5",
         "hover:shadow-xl hover:shadow-primary/10 hover:border-border/80",
         "p-6 space-y-5"
@@ -118,7 +118,7 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
                 size="sm" 
                 className={cn(
                   "opacity-0 group-hover:opacity-100",
-                  "bg-background/50 hover:bg-background/80 backdrop-blur-sm",
+                  "bg-background hover:bg-accent",
                   "border border-border/30 hover:border-border/60",
                   "h-8 w-8 p-0 rounded-lg"
                 )}
@@ -126,7 +126,7 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
                 <MoreVertical className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-background/80 backdrop-blur-md border-border/50">
+            <DropdownMenuContent align="end" className="bg-background border-border/50">
               {goal.status === 'active' && (
                 <>
                   <DropdownMenuItem onClick={() => onStatusChange(goal.id, 'completed')}>
@@ -179,7 +179,7 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
           
           {/* Enhanced Progress Bar */}
           <div className="relative">
-            <div className="h-3 bg-muted/30 rounded-full overflow-hidden backdrop-blur-sm">
+            <div className="h-3 bg-muted/30 rounded-full overflow-hidden">
               <div 
                 className={cn(
                   "h-full rounded-full transition-all duration-500",
@@ -197,7 +197,7 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
         <div className="flex items-center gap-6 text-sm text-muted-foreground relative z-10">
           {goal.target_date && (
             <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-md bg-accent/20 backdrop-blur-sm">
+              <div className="p-1.5 rounded-md bg-accent/30">
                 <Calendar className="w-3.5 h-3.5" />
               </div>
               <span className="font-medium">Due {formatDate(goal.target_date)}</span>
@@ -205,7 +205,7 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
           )}
           {goal.weekly_hours && (
             <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-md bg-accent/20 backdrop-blur-sm">
+              <div className="p-1.5 rounded-md bg-accent/30">
                 <Clock className="w-3.5 h-3.5" />
               </div>
               <span className="font-medium">{goal.weekly_hours}h/week</span>
