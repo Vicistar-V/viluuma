@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { StatusBar, Style } from '@capacitor/status-bar';
+import { Capacitor } from '@capacitor/core';
 
 export type Theme = 'light' | 'dark' | 'system';
 
@@ -26,12 +28,31 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   };
 
-  // Function to apply theme to document
-  const applyTheme = (resolvedTheme: 'light' | 'dark') => {
+  // Function to apply theme to document and native status bar
+  const applyTheme = async (resolvedTheme: 'light' | 'dark') => {
     const root = window.document.documentElement;
     root.classList.remove('light', 'dark');
     root.classList.add(resolvedTheme);
     setActualTheme(resolvedTheme);
+
+    // Apply fullscreen status bar theming on mobile
+    if (Capacitor.isNativePlatform()) {
+      try {
+        // Configure status bar for fullscreen immersive experience
+        await StatusBar.setOverlaysWebView({ overlay: true });
+        
+        if (resolvedTheme === 'light') {
+          await StatusBar.setStyle({ style: Style.Dark });
+          await StatusBar.setBackgroundColor({ color: '#FFFFFF' });
+        } else {
+          await StatusBar.setStyle({ style: Style.Light });
+          await StatusBar.setBackgroundColor({ color: '#000000' });
+        }
+      } catch (error) {
+        // Status bar not available, continue silently
+        console.log('Status bar not available:', error);
+      }
+    }
   };
 
   // Resolve theme based on current setting
