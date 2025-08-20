@@ -191,6 +191,7 @@ const PlanReviewScreen = () => {
         p_target_date: targetDate ?? null,
         p_milestones: unifiedPlan.milestones,
         p_tasks: unifiedPlan.scheduledTasks,
+        p_description: intel.context || null,
       });
 
       if (error) throw error;
@@ -236,6 +237,7 @@ const PlanReviewScreen = () => {
         p_target_date: '', // No deadline for checklists (DB treats empty as NULL)
         p_milestones: unifiedPlan.milestones,
         p_tasks: unifiedPlan.scheduledTasks,
+        p_description: intel.context || null,
       });
 
       if (error) throw error;

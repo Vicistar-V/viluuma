@@ -27,6 +27,7 @@ const CreateManualGoalScreen = () => {
 
   const [showForm, setShowForm] = useState(false);
   const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
   const [modality, setModality] = useState<"project" | "checklist">("project");
   const [date, setDate] = useState<Date | undefined>();
   const [showPaywall, setShowPaywall] = useState(false);
@@ -49,6 +50,7 @@ const CreateManualGoalScreen = () => {
         p_title: title.trim(),
         p_modality: modality,
         p_target_date: modality === "project" ? (date ? format(date, "yyyy-MM-dd") : null) : null,
+        p_description: description.trim() || null,
       });
       if (error) throw error;
       toast({ title: "Goal created", description: "Let’s build it out" });
@@ -118,6 +120,16 @@ const CreateManualGoalScreen = () => {
               <div className="space-y-2">
                 <Label htmlFor="title">Goal title</Label>
                 <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g., Learn SwiftUI" />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="description">Description (optional)</Label>
+                <Input 
+                  id="description" 
+                  value={description} 
+                  onChange={(e) => setDescription(e.target.value)} 
+                  placeholder="e.g., Build iOS apps with modern Swift syntax" 
+                />
               </div>
 
               <div className="space-y-2">

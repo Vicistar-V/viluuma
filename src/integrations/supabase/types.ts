@@ -601,6 +601,10 @@ export type Database = {
         Args: { p_task_id: string }
         Returns: undefined
       }
+      update_goal_description: {
+        Args: { p_description: string; p_goal_id: string }
+        Returns: undefined
+      }
       update_milestone_title: {
         Args: { p_milestone_id: string; p_title: string }
         Returns: undefined

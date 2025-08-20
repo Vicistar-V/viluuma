@@ -20,6 +20,7 @@ import { PlanUpdateOverlay } from "@/components/ui/plan-update-overlay";
 interface Goal { 
   id: string; 
   title: string; 
+  description?: string | null;
   modality: 'project'|'checklist'; 
   status: 'active' | 'archived' | 'completed';
   total_tasks: number; 
@@ -145,6 +146,19 @@ const GoalDetailScreen = () => {
       return;
     }
     setGoal({ ...goal, title: newTitle });
+  };
+
+  const handleDescriptionUpdate = async (newDescription: string): Promise<void> => {
+    if (!goal) return;
+    const { error } = await supabase.rpc('update_goal_description', { 
+      p_goal_id: goal.id, 
+      p_description: newDescription.trim() || null 
+    });
+    if (error) {
+      toast({ title: 'Error', description: error.message });
+      return;
+    }
+    setGoal({ ...goal, description: newDescription.trim() || null });
   };
 
   const handleCompleteGoal = async (): Promise<void> => {
@@ -290,6 +304,7 @@ const GoalDetailScreen = () => {
       <GoalDetailHeader
         goal={goal}
         onTitleUpdate={handleTitleUpdate}
+        onDescriptionUpdate={handleDescriptionUpdate}
         onStatusChange={handleStatusChange}
         onCompleteGoal={handleCompleteGoal}
         onReopenGoal={handleReopenGoal}

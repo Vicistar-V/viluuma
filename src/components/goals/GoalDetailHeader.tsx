@@ -12,18 +12,20 @@ interface Goal {
   status: 'active' | 'archived' | 'completed';
   modality: 'project' | 'checklist';
   archive_status: 'active' | 'user_archived' | 'system_archived';
+  description?: string;
 }
 
 interface GoalDetailHeaderProps {
   goal: Goal;
   onTitleUpdate: (newTitle: string) => Promise<void>;
+  onDescriptionUpdate?: (newDescription: string) => Promise<void>;
   onStatusChange: (status: 'active' | 'archived') => Promise<void>;
   onCompleteGoal?: () => Promise<void>;
   onReopenGoal?: () => Promise<void>;
   onDelete: () => Promise<void>;
 }
 
-export const GoalDetailHeader = ({ goal, onTitleUpdate, onStatusChange, onCompleteGoal, onReopenGoal, onDelete }: GoalDetailHeaderProps) => {
+export const GoalDetailHeader = ({ goal, onTitleUpdate, onDescriptionUpdate, onStatusChange, onCompleteGoal, onReopenGoal, onDelete }: GoalDetailHeaderProps) => {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState(goal.title);
 
@@ -92,21 +94,28 @@ export const GoalDetailHeader = ({ goal, onTitleUpdate, onStatusChange, onComple
                   autoFocus
                 />
               ) : (
-                <div className="flex items-center gap-2">
-                  <h1 
-                    className="text-xl font-semibold truncate cursor-pointer hover:text-primary transition-colors"
-                    onClick={() => setIsEditingTitle(true)}
-                  >
-                    {goal.title}
-                  </h1>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setIsEditingTitle(true)}
-                    className="h-6 w-6 opacity-60 hover:opacity-100"
-                  >
-                    <PencilLine className="h-3 w-3" />
-                  </Button>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h1 
+                      className="text-xl font-semibold truncate cursor-pointer hover:text-primary transition-colors"
+                      onClick={() => setIsEditingTitle(true)}
+                    >
+                      {goal.title}
+                    </h1>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setIsEditingTitle(true)}
+                      className="h-6 w-6 opacity-60 hover:opacity-100"
+                    >
+                      <PencilLine className="h-3 w-3" />
+                    </Button>
+                  </div>
+                  {goal.description && (
+                    <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                      {goal.description}
+                    </p>
+                  )}
                 </div>
               )}
               <div className="flex items-center gap-2 mt-1">
