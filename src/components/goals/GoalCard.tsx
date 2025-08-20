@@ -6,8 +6,9 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Calendar, Clock, MoreVertical, Target, CheckCircle, Archive, Trash2, RotateCcw, Layers3, ListChecks, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Goal } from '@/hooks/useGoals';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
+import { useGSAPAnimations } from '@/hooks/useGSAPAnimations';
 
 interface GoalCardProps {
   goal: Goal;
@@ -18,8 +19,40 @@ interface GoalCardProps {
 
 export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalCardProps) => {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const progressBarRef = useRef<HTMLDivElement>(null);
+  const { createMagneticEffect, createFloatingParticles, animateProgressBar, createPulseGlow } = useGSAPAnimations();
   
   const progress = goal.total_tasks > 0 ? (goal.completed_tasks / goal.total_tasks) * 100 : 0;
+
+  useEffect(() => {
+    if (!cardRef.current) return;
+
+    // Create magnetic hover effect
+    const cleanupMagnetic = createMagneticEffect(cardRef.current);
+
+    // Create floating particles for active goals
+    let cleanupParticles: (() => void) | undefined;
+    if (goal.status === 'active') {
+      cleanupParticles = createFloatingParticles(cardRef.current);
+    }
+
+    // Add pulse glow for completed goals
+    if (goal.status === 'completed') {
+      createPulseGlow(cardRef.current, 'success');
+    }
+
+    return () => {
+      cleanupMagnetic?.();
+      cleanupParticles?.();
+    };
+  }, [goal.status, createMagneticEffect, createFloatingParticles, createPulseGlow]);
+
+  useEffect(() => {
+    if (progressBarRef.current && progress > 0) {
+      animateProgressBar(progressBarRef.current, progress);
+    }
+  }, [progress, animateProgressBar]);
   
   const getStatusBadge = () => {
     switch (goal.status) {
@@ -64,8 +97,10 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
 
   return (
     <div className="group relative">
-      {/* Ultra Transparent Glassmorphism Card */}
-      <div className={cn(
+      {/* Ultra Transparent Glassmorphism Card with GSAP Animations */}
+      <div 
+        ref={cardRef}
+        className={cn(
         "relative overflow-hidden rounded-2xl",
         "bg-gradient-to-br from-card/20 via-card/12 to-card/8",
         "border border-white/6 dark:border-white/3",
@@ -169,16 +204,17 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
             </span>
           </div>
           
-          {/* More Visible Progress Bar */}
+          {/* GSAP Animated Progress Bar */}
           <div className="relative h-2 bg-white/15 dark:bg-white/8 rounded-full overflow-hidden border border-white/10 dark:border-white/5">
             <div 
+              ref={progressBarRef}
               className={cn(
-                "h-full rounded-full transition-all duration-500 ease-out",
+                "h-full rounded-full relative overflow-hidden",
                 goal.status === 'completed' 
                   ? "bg-gradient-to-r from-success/80 to-success/60" 
                   : "bg-gradient-to-r from-primary/80 to-primary/60"
               )}
-              style={{ width: `${Math.min(progress, 100)}%` }}
+              style={{ width: '0%' }}
             />
           </div>
         </div>
