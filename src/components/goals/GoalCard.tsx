@@ -69,8 +69,8 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
         "relative overflow-hidden rounded-xl",
         "bg-gradient-to-br from-background via-card to-background",
         "border border-border/50",
-        "shadow-lg shadow-primary/5",
-        "hover:shadow-xl hover:shadow-primary/10 hover:border-border/80",
+        "shadow-[0_0_0_1px_hsl(var(--success)/0.1),0_4px_12px_hsl(var(--success)/0.05),inset_0_1px_0_hsl(var(--success)/0.1)]",
+        "hover:shadow-[0_0_0_1px_hsl(var(--success)/0.2),0_8px_24px_hsl(var(--success)/0.1),inset_0_1px_0_hsl(var(--success)/0.2)] hover:border-success/30",
         "p-6 space-y-5"
       )}>
         
