@@ -67,7 +67,7 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
       {/* Clean Professional Card */}
       <div className={cn(
         "relative overflow-hidden rounded-2xl",
-        "bg-card/80 backdrop-blur-sm",
+        "bg-card",
         "border border-border/60",
         "shadow-sm hover:shadow-md transition-all duration-200",
         "hover:border-border/80",
