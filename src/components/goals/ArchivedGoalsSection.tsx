@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
+import { Link } from 'react-router-dom';
 
 interface ArchivedGoalsSectionProps {
   archivedGoals: Goal[];
@@ -37,7 +38,14 @@ export const ArchivedGoalsSection = ({ archivedGoals, onUnarchive, onPermanentDe
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 space-y-2">
                     <div className="flex items-center gap-2">
-                      <h3 className="font-medium text-foreground">{goal.title}</h3>
+                      <Link 
+                        to={`/goals/${goal.id}`}
+                        className="hover:text-primary transition-colors"
+                      >
+                        <h3 className="font-medium text-foreground hover:underline cursor-pointer">
+                          {goal.title}
+                        </h3>
+                      </Link>
                       <Badge variant="secondary" className="text-xs">
                         {goal.modality}
                       </Badge>

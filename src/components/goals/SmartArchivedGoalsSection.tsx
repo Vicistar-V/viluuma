@@ -15,6 +15,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useState } from 'react';
 import { UpgradePrompt } from '@/components/paywall/UpgradePrompt';
 import { useSubscription } from '@/hooks/useSubscription';
+import { Link } from 'react-router-dom';
 
 interface Goal {
   id: string;
@@ -103,7 +104,14 @@ export const SmartArchivedGoalsSection = ({
                 <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-2">
-                      <h4 className="font-medium text-sm truncate">{goal.title}</h4>
+                      <Link 
+                        to={`/goals/${goal.id}`}
+                        className="hover:text-primary transition-colors"
+                      >
+                        <h4 className="font-medium text-sm truncate hover:underline cursor-pointer">
+                          {goal.title}
+                        </h4>
+                      </Link>
                       <Badge variant="outline">
                         {goal.modality}
                       </Badge>
@@ -182,7 +190,14 @@ export const SmartArchivedGoalsSection = ({
                 <div className="flex items-start justify-between">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-2">
-                      <h4 className="font-medium text-sm truncate">{goal.title}</h4>
+                      <Link 
+                        to={`/goals/${goal.id}`}
+                        className="hover:text-primary transition-colors"
+                      >
+                        <h4 className="font-medium text-sm truncate hover:underline cursor-pointer">
+                          {goal.title}
+                        </h4>
+                      </Link>
                       <Badge variant="outline">
                         {goal.modality}
                       </Badge>
