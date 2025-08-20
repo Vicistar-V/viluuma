@@ -64,23 +64,23 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
 
   return (
     <div className="group relative">
-      {/* More Transparent Glassmorphism Card */}
+      {/* Ultra Transparent Glassmorphism Card */}
       <div className={cn(
         "relative overflow-hidden rounded-2xl",
-        "bg-gradient-to-br from-card/40 via-card/25 to-card/15",
-        "border border-white/10 dark:border-white/5",
-        "shadow-lg shadow-black/5 dark:shadow-black/20",
-        "hover:shadow-xl hover:shadow-primary/10 dark:hover:shadow-primary/20",
-        "hover:border-white/20 dark:hover:border-white/10",
-        "hover:from-card/50 hover:via-card/35 hover:to-card/25",
+        "bg-gradient-to-br from-card/20 via-card/12 to-card/8",
+        "border border-white/6 dark:border-white/3",
+        "shadow-md shadow-black/3 dark:shadow-black/15",
+        "hover:shadow-lg hover:shadow-primary/8 dark:hover:shadow-primary/15",
+        "hover:border-white/12 dark:hover:border-white/6",
+        "hover:from-card/30 hover:via-card/20 hover:to-card/12",
         "transition-all duration-300 ease-out",
         "hover:scale-[1.01] hover:-translate-y-0.5",
         "p-4",
         "backdrop-blur-none"
       )}>
         
-        {/* Very Subtle Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/2 via-transparent to-accent/2 pointer-events-none" />
+        {/* Almost Invisible Gradient Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/1 via-transparent to-accent/1 pointer-events-none" />
         
         {/* Header with Compact Badges */}
         <div className="relative z-10 flex items-start justify-between mb-3">
@@ -89,17 +89,17 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
             {getModalityBadge()}
           </div>
           
-          {/* More Transparent Actions Menu */}
+          {/* Ultra Transparent Actions Menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button 
                 variant="ghost" 
                 size="sm" 
                 className={cn(
-                  "opacity-50 group-hover:opacity-80 transition-all duration-200",
+                  "opacity-40 group-hover:opacity-70 transition-all duration-200",
                   "h-7 w-7 p-0 rounded-full",
-                  "bg-white/3 dark:bg-white/2 border border-white/8 dark:border-white/4",
-                  "hover:bg-white/10 dark:hover:bg-white/5"
+                  "bg-white/2 dark:bg-white/1 border border-white/5 dark:border-white/3",
+                  "hover:bg-white/8 dark:hover:bg-white/4"
                 )}
               >
                 <MoreVertical className="h-3.5 w-3.5" />
@@ -154,56 +154,56 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
           </h3>
           
           {goal.description && (
-            <p className="text-muted-foreground/70 text-sm leading-relaxed line-clamp-2">
+            <p className="text-muted-foreground/60 text-sm leading-relaxed line-clamp-2">
               {goal.description}
             </p>
           )}
         </div>
         
-        {/* More Transparent Progress Section */}
+        {/* Ultra Transparent Progress Section */}
         <div className="relative z-10 mb-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-medium text-muted-foreground/60 uppercase tracking-wide">Progress</span>
-            <span className="text-sm font-semibold text-foreground/90">
+            <span className="text-xs font-medium text-muted-foreground/50 uppercase tracking-wide">Progress</span>
+            <span className="text-sm font-semibold text-foreground/80">
               {goal.completed_tasks}/{goal.total_tasks}
             </span>
           </div>
           
-          {/* Very Transparent Progress Bar */}
-          <div className="relative h-2 bg-white/5 dark:bg-white/3 rounded-full overflow-hidden">
+          {/* Nearly Invisible Progress Bar */}
+          <div className="relative h-2 bg-white/3 dark:bg-white/2 rounded-full overflow-hidden">
             <div 
               className={cn(
                 "h-full rounded-full transition-all duration-500 ease-out",
                 goal.status === 'completed' 
-                  ? "bg-gradient-to-r from-success/80 to-success/60" 
-                  : "bg-gradient-to-r from-primary/80 to-primary/60"
+                  ? "bg-gradient-to-r from-success/60 to-success/40" 
+                  : "bg-gradient-to-r from-primary/60 to-primary/40"
               )}
               style={{ width: `${Math.min(progress, 100)}%` }}
             />
           </div>
           
           <div className="mt-1.5 text-right">
-            <span className="text-sm font-semibold text-muted-foreground/80">
+            <span className="text-sm font-semibold text-muted-foreground/70">
               {Math.round(progress)}%
             </span>
           </div>
         </div>
         
-        {/* More Transparent Info Pills */}
+        {/* Ultra Transparent Info Pills */}
         <div className="relative z-10 flex items-center gap-2 flex-wrap">
           {/* Task Count Pill */}
-          <div className="px-2.5 py-1 bg-white/5 dark:bg-white/3 rounded-full border border-white/8 dark:border-white/4 flex items-center gap-1.5">
-            <Target className="w-3 h-3 text-primary/70" />
-            <span className="text-xs font-medium text-foreground/70">
+          <div className="px-2.5 py-1 bg-white/3 dark:bg-white/2 rounded-full border border-white/5 dark:border-white/3 flex items-center gap-1.5">
+            <Target className="w-3 h-3 text-primary/60" />
+            <span className="text-xs font-medium text-foreground/60">
               {goal.total_tasks}
             </span>
           </div>
           
           {/* Due Date Pill */}
           {goal.target_date && (
-            <div className="px-2.5 py-1 bg-white/5 dark:bg-white/3 rounded-full border border-white/8 dark:border-white/4 flex items-center gap-1.5">
-              <Calendar className="w-3 h-3 text-accent-foreground/70" />
-              <span className="text-xs font-medium text-foreground/70">
+            <div className="px-2.5 py-1 bg-white/3 dark:bg-white/2 rounded-full border border-white/5 dark:border-white/3 flex items-center gap-1.5">
+              <Calendar className="w-3 h-3 text-accent-foreground/60" />
+              <span className="text-xs font-medium text-foreground/60">
                 {formatDate(goal.target_date)}
               </span>
             </div>
@@ -211,9 +211,9 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
           
           {/* Weekly Hours Pill */}
           {goal.weekly_hours && (
-            <div className="px-2.5 py-1 bg-white/5 dark:bg-white/3 rounded-full border border-white/8 dark:border-white/4 flex items-center gap-1.5">
-              <Clock className="w-3 h-3 text-secondary-foreground/70" />
-              <span className="text-xs font-medium text-foreground/70">
+            <div className="px-2.5 py-1 bg-white/3 dark:bg-white/2 rounded-full border border-white/5 dark:border-white/3 flex items-center gap-1.5">
+              <Clock className="w-3 h-3 text-secondary-foreground/60" />
+              <span className="text-xs font-medium text-foreground/60">
                 {goal.weekly_hours}h
               </span>
             </div>
