@@ -68,16 +68,16 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
       <div className={cn(
         "relative overflow-hidden rounded-xl",
         "bg-gradient-to-br from-background via-card to-background",
-        "border border-border/50",
-        "shadow-[0_0_0_1px_hsl(var(--success)/0.1),0_4px_12px_hsl(var(--success)/0.05),inset_0_1px_0_hsl(var(--success)/0.1)]",
-        "hover:shadow-[0_0_0_1px_hsl(var(--success)/0.2),0_8px_24px_hsl(var(--success)/0.1),inset_0_1px_0_hsl(var(--success)/0.2)] hover:border-success/30",
+        "border border-border/30",
+        "shadow-lg shadow-black/5",
+        "hover:shadow-xl hover:shadow-success/10 hover:border-border/50",
         "p-6 space-y-5"
       )}>
         
-        {/* Green Gradient Overlay */}
-        <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-gradient-radial from-success/40 via-success/10 to-transparent" />
-        <div className="absolute inset-x-0 top-0 h-32 opacity-[0.05] pointer-events-none bg-gradient-to-b from-success/30 to-transparent" />
-        <div className="absolute inset-x-0 bottom-0 h-32 opacity-[0.05] pointer-events-none bg-gradient-to-t from-success/30 to-transparent" />
+        {/* Green Gradient Background Integration */}
+        <div className="absolute inset-0 opacity-[0.08] pointer-events-none bg-gradient-radial from-success/60 via-success/20 to-transparent" />
+        <div className="absolute inset-0 opacity-[0.06] pointer-events-none bg-gradient-to-br from-success/40 via-transparent via-success/10 to-success/30" />
+        <div className="absolute inset-0 opacity-[0.04] pointer-events-none bg-gradient-to-tr from-transparent via-success/20 to-success/40" />
 
         {/* Status Gradient Overlay */}
         <div className={cn(
