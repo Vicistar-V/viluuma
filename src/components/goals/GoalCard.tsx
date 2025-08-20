@@ -175,16 +175,16 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
               className="bg-popover border-border/50 shadow-xl z-50"
             >
               {goal.status === 'active' && (
-                <>
-                  <DropdownMenuItem onClick={() => { handleActionTouch('heavy'); onStatusChange(goal.id, 'completed'); }}>
-                    <CheckCircle className="w-4 h-4 mr-2" />
-                    Mark Complete
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => { handleActionTouch('medium'); onStatusChange(goal.id, 'archived'); }}>
-                    <Archive className="w-4 h-4 mr-2" />
-                    Archive
-                  </DropdownMenuItem>
-                </>
+                  <>
+                    <DropdownMenuItem onClick={() => { handleActionTouch('light'); onStatusChange(goal.id, 'completed'); }}>
+                      <CheckCircle className="w-4 h-4 mr-2" />
+                      Mark Complete
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => { handleActionTouch('light'); onStatusChange(goal.id, 'archived'); }}>
+                      <Archive className="w-4 h-4 mr-2" />
+                      Archive
+                    </DropdownMenuItem>
+                  </>
               )}
               {goal.status === 'archived' && (
                 <DropdownMenuItem onClick={() => onStatusChange(goal.id, 'active')}>
@@ -329,7 +329,7 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
             <AlertDialogCancel className="min-h-[44px]">Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
-                handleActionTouch('heavy');
+                handleActionTouch('light');
                 onDelete(goal.id);
                 setShowDeleteDialog(false);
               }}

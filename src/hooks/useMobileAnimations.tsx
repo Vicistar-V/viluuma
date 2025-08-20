@@ -42,13 +42,15 @@ export const useMobileAnimations = () => {
     return itemRefs;
   };
 
-  // Success celebration animation
+  // Success celebration animation - subtle version
   const triggerSuccessCelebration = (element: HTMLElement) => {
+    // Just a gentle scale animation, no intense pulse
     element.style.animation = 'none';
     element.offsetHeight; // Force reflow
-    element.style.animation = 'success-pulse 0.6s cubic-bezier(0.23, 1, 0.32, 1)';
+    element.style.animation = 'scale-in 0.3s ease-out';
     
-    handleTouchFeedback('heavy');
+    // Light haptic feedback instead of heavy
+    handleTouchFeedback('light');
   };
 
   // Progress bar animation
