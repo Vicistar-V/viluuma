@@ -63,7 +63,7 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
     switch (goal.status) {
       case 'completed':
         return (
-          <Badge className="bg-success/15 text-success border-success/30 shadow-sm">
+          <Badge className="bg-success/20 text-success border-success/40 shadow-sm">
             <CheckCircle className="w-3 h-3 mr-1.5" />
             Completed
           </Badge>
@@ -128,8 +128,8 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
           isPressed && "scale-[0.98]",
           // Completed goal special styling
           goal.status === 'completed' && cn(
-            "ring-1 ring-success/20",
-            "bg-success/5"
+            "ring-1 ring-success/30",
+            "bg-success/8"
           ),
           // Enhanced padding for better touch targets
           "p-4"
@@ -258,16 +258,16 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
                 "h-full rounded-full transition-all duration-800 cubic-bezier(0.23, 1, 0.32, 1)",
                 "will-change-transform",
                 goal.status === 'completed' 
-                  ? "bg-gradient-to-r from-success via-success/90 to-success/80 shadow-lg shadow-success/20" 
+                  ? "bg-gradient-to-r from-success via-success/90 to-success/80 shadow-lg shadow-success/30" 
                   : "bg-gradient-to-r from-primary via-primary/90 to-primary/80 shadow-md shadow-primary/15"
               )}
               style={{ width: '0%' }}
             />
             {/* Progress glow effect */}
             <div className={cn(
-              "absolute inset-0 rounded-full opacity-50",
+              "absolute inset-0 rounded-full opacity-60",
               goal.status === 'completed'
-                ? "bg-gradient-to-r from-success/20 to-transparent"
+                ? "bg-gradient-to-r from-success/30 to-transparent"
                 : "bg-gradient-to-r from-primary/20 to-transparent"
             )} />
           </div>
