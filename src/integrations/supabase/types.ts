@@ -541,7 +541,15 @@ export type Database = {
         Args: { p_goal_id: string }
         Returns: boolean
       }
+      goal_is_active: {
+        Args: { p_goal_id: string }
+        Returns: boolean
+      }
       milestone_belongs_to_current_user: {
+        Args: { p_milestone_id: string }
+        Returns: boolean
+      }
+      milestone_goal_is_active: {
         Args: { p_milestone_id: string }
         Returns: boolean
       }
@@ -564,6 +572,10 @@ export type Database = {
         Returns: string
       }
       task_belongs_to_current_user: {
+        Args: { p_task_id: string }
+        Returns: boolean
+      }
+      task_goal_is_active: {
         Args: { p_task_id: string }
         Returns: boolean
       }
