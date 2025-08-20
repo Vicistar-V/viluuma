@@ -318,7 +318,8 @@ const TodayTaskItem: React.FC<TodayTaskItemProps> = ({ task }) => {
             {/* Enhanced Task Title */}
             <h3 className={cn(
               'font-semibold leading-tight mb-2 transition-all duration-300',
-              isCompleted ? 'line-through text-muted-foreground/70' : 'text-foreground',
+              isCompleted ? 'line-through text-muted-foreground/70' : 
+              isOverdue ? 'text-foreground' : 'text-foreground',
               isChecklist && !isCompleted ? 'text-base' : 'text-lg'
             )}>
               {task.title}
@@ -328,7 +329,8 @@ const TodayTaskItem: React.FC<TodayTaskItemProps> = ({ task }) => {
             {task.description && (
               <p className={cn(
                 'text-sm leading-relaxed mb-3 transition-all duration-300',
-                isCompleted ? 'line-through text-muted-foreground/60' : 'text-foreground',
+                isCompleted ? 'line-through text-muted-foreground/60' : 
+                isOverdue ? 'text-foreground' : 'text-foreground/90',
                 'line-clamp-2'
               )}>
                 {task.description}
@@ -339,12 +341,36 @@ const TodayTaskItem: React.FC<TodayTaskItemProps> = ({ task }) => {
             <div className="flex items-center justify-between flex-wrap gap-2">
               {/* Goal Title Pill */}
               <div className={cn(
-                "px-3 py-1.5 rounded-full border flex items-center gap-2",
-                "bg-primary/10 border-primary/30 min-h-[32px]",
-                "hover:bg-primary/15 transition-colors duration-200"
+                "px-3 py-1.5 rounded-full border flex items-center gap-2 min-h-[32px]",
+                "hover:bg-primary/15 transition-colors duration-200",
+                isOverdue 
+                  ? "bg-destructive/10 border-destructive/30"
+                  : isDueToday 
+                    ? "bg-amber-500/15 border-amber-500/40"
+                    : isInProgress
+                      ? "bg-primary/15 border-primary/40" 
+                      : "bg-success/15 border-success/40"
               )}>
-                <Target className="w-3.5 h-3.5 text-primary" />
-                <span className="text-xs font-medium text-primary">
+                <Target className={cn(
+                  "w-3.5 h-3.5",
+                  isOverdue 
+                    ? "text-destructive" 
+                    : isDueToday 
+                      ? "text-amber-600"
+                      : isInProgress
+                        ? "text-primary"
+                        : "text-success"
+                )} />
+                <span className={cn(
+                  "text-xs font-medium",
+                  isOverdue 
+                    ? "text-destructive" 
+                    : isDueToday 
+                      ? "text-amber-700"
+                      : isInProgress
+                        ? "text-primary"
+                        : "text-success"
+                )}>
                   {task.goal_title}
                 </span>
               </div>
@@ -356,15 +382,25 @@ const TodayTaskItem: React.FC<TodayTaskItemProps> = ({ task }) => {
                   "hover:bg-accent/15 transition-colors duration-200",
                   isOverdue 
                     ? "bg-destructive/10 border-destructive/30"
-                    : "bg-accent/10 border-accent/30"
+                    : isDueToday
+                      ? "bg-amber-500/15 border-amber-500/40"
+                      : "bg-primary/15 border-primary/40"
                 )}>
                   <Clock className={cn(
                     "w-3.5 h-3.5",
-                    isOverdue ? "text-destructive" : "text-accent-foreground"
+                    isOverdue 
+                      ? "text-destructive" 
+                      : isDueToday
+                        ? "text-amber-600"
+                        : "text-primary"
                   )} />
                   <span className={cn(
                     "text-xs font-medium",
-                    isOverdue ? "text-destructive" : "text-accent-foreground"
+                    isOverdue 
+                      ? "text-destructive" 
+                      : isDueToday
+                        ? "text-amber-700"
+                        : "text-primary"
                   )}>
                     {getDateDisplay() || getProgressDisplay()}
                   </span>
