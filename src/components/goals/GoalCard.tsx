@@ -145,7 +145,7 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
         )} />
         
         {/* Header with Enhanced Badges */}
-        <div className="relative z-10 flex items-start justify-between mb-3">
+        <div className="relative z-10 flex items-start justify-between mb-2">
           <div className="flex items-center gap-2 flex-wrap">
             {getStatusBadge()}
             {getModalityBadge()}
