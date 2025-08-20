@@ -169,14 +169,14 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
             </span>
           </div>
           
-          {/* Nearly Invisible Progress Bar */}
-          <div className="relative h-2 bg-white/3 dark:bg-white/2 rounded-full overflow-hidden">
+          {/* More Visible Progress Bar */}
+          <div className="relative h-2 bg-white/15 dark:bg-white/8 rounded-full overflow-hidden border border-white/10 dark:border-white/5">
             <div 
               className={cn(
                 "h-full rounded-full transition-all duration-500 ease-out",
                 goal.status === 'completed' 
-                  ? "bg-gradient-to-r from-success/60 to-success/40" 
-                  : "bg-gradient-to-r from-primary/60 to-primary/40"
+                  ? "bg-gradient-to-r from-success/80 to-success/60" 
+                  : "bg-gradient-to-r from-primary/80 to-primary/60"
               )}
               style={{ width: `${Math.min(progress, 100)}%` }}
             />
