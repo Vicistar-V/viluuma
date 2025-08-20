@@ -63,21 +63,21 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
     switch (goal.status) {
       case 'completed':
         return (
-          <Badge className="bg-success/10 text-success border-success/20 shadow-sm backdrop-blur-sm">
+          <Badge className="bg-success/15 text-success border-success/30 shadow-sm">
             <CheckCircle className="w-3 h-3 mr-1.5" />
             Completed
           </Badge>
         );
       case 'archived':
         return (
-          <Badge className="bg-muted/10 text-muted-foreground border-muted/20 shadow-sm backdrop-blur-sm">
+          <Badge className="bg-muted/15 text-muted-foreground border-muted/30 shadow-sm">
             <Archive className="w-3 h-3 mr-1.5" />
             Archived
           </Badge>
         );
       default:
         return (
-          <Badge className="bg-primary/10 text-primary border-primary/20 shadow-sm backdrop-blur-sm">
+          <Badge className="bg-primary/15 text-primary border-primary/30 shadow-sm">
             <Sparkles className="w-3 h-3 mr-1.5" />
             Active
           </Badge>
@@ -88,7 +88,7 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
   const getModalityBadge = () => {
     const Icon = goal.modality === 'project' ? Layers3 : ListChecks;
     return (
-      <Badge variant="outline" className="bg-accent/10 border-accent/20 shadow-sm backdrop-blur-sm text-accent-foreground">
+      <Badge variant="outline" className="bg-accent/15 border-accent/30 shadow-sm text-accent-foreground">
         <Icon className="w-3 h-3 mr-1.5" />
         {goal.modality === 'project' ? 'Project' : 'Checklist'}
       </Badge>
@@ -109,8 +109,8 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
         onTouchEnd={handleCardTouchEnd}
         className={cn(
           "relative overflow-hidden rounded-2xl cursor-pointer will-change-transform",
-          // Base theme-aware background
-          "bg-gradient-to-br from-card via-card/95 to-card/90",
+          // Base theme-aware background - solid for performance
+          "bg-card/95",
           // Border with theme awareness
           "border border-border/40",
           // Theme-aware shadows
@@ -118,20 +118,18 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
             ? "shadow-lg shadow-background/20" 
             : "shadow-md shadow-foreground/5",
           // Enhanced hover states
-          "hover:shadow-xl hover:border-border/60",
+          "hover:shadow-xl hover:border-border/60 hover:bg-card",
           actualTheme === 'dark'
             ? "hover:shadow-background/30"
             : "hover:shadow-primary/15",
           // Smooth transitions with better easing
-          "transition-all duration-400 cubic-bezier(0.23, 1, 0.32, 1)",
+          "transition-all duration-300 cubic-bezier(0.23, 1, 0.32, 1)",
           // Press state with scale effect
           isPressed && "scale-[0.98]",
-          // Backdrop blur for glass effect
-          "backdrop-blur-sm",
           // Completed goal special styling
           goal.status === 'completed' && cn(
             "ring-1 ring-success/20",
-            "bg-gradient-to-br from-success/5 via-card/95 to-success/3"
+            "bg-success/5"
           ),
           // Enhanced padding for better touch targets
           "p-5"
@@ -163,9 +161,9 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
                 className={cn(
                   "opacity-60 group-hover:opacity-100 transition-all duration-300",
                   "h-8 w-8 p-0 rounded-full min-h-[44px] min-w-[44px]",
-                  "bg-muted/10 border border-border/20",
-                  "hover:bg-muted/20 hover:border-border/40",
-                  "active:scale-95 backdrop-blur-sm",
+                  "bg-muted/15 border border-border/30",
+                  "hover:bg-muted/25 hover:border-border/50",
+                  "active:scale-95",
                   "shadow-sm hover:shadow-md"
                 )}
               >
@@ -174,7 +172,7 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
             </DropdownMenuTrigger>
             <DropdownMenuContent 
               align="end" 
-              className="bg-popover/95 backdrop-blur-xl border-border/50 shadow-xl z-50"
+              className="bg-popover border-border/50 shadow-xl z-50"
             >
               {goal.status === 'active' && (
                 <>
@@ -279,9 +277,9 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
         <div className="relative z-10 flex items-center gap-2 flex-wrap">
           {/* Task Count Pill */}
           <div className={cn(
-            "px-3 py-1.5 rounded-full border flex items-center gap-2 backdrop-blur-sm",
-            "bg-muted/15 border-border/20 min-h-[32px]",
-            "hover:bg-muted/25 transition-colors duration-200"
+            "px-3 py-1.5 rounded-full border flex items-center gap-2",
+            "bg-muted/20 border-border/30 min-h-[32px]",
+            "hover:bg-muted/30 transition-colors duration-200"
           )}>
             <Target className="w-3.5 h-3.5 text-primary" />
             <span className="text-xs font-medium text-muted-foreground tabular-nums">
@@ -292,9 +290,9 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
           {/* Due Date Pill */}
           {goal.target_date && (
             <div className={cn(
-              "px-3 py-1.5 rounded-full border flex items-center gap-2 backdrop-blur-sm",
-              "bg-muted/15 border-border/20 min-h-[32px]",
-              "hover:bg-muted/25 transition-colors duration-200"
+              "px-3 py-1.5 rounded-full border flex items-center gap-2",
+              "bg-muted/20 border-border/30 min-h-[32px]",
+              "hover:bg-muted/30 transition-colors duration-200"
             )}>
               <Calendar className="w-3.5 h-3.5 text-accent-foreground" />
               <span className="text-xs font-medium text-muted-foreground">
@@ -306,9 +304,9 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
           {/* Weekly Hours Pill */}
           {goal.weekly_hours && (
             <div className={cn(
-              "px-3 py-1.5 rounded-full border flex items-center gap-2 backdrop-blur-sm",
-              "bg-muted/15 border-border/20 min-h-[32px]",
-              "hover:bg-muted/25 transition-colors duration-200"
+              "px-3 py-1.5 rounded-full border flex items-center gap-2",
+              "bg-muted/20 border-border/30 min-h-[32px]",
+              "hover:bg-muted/30 transition-colors duration-200"
             )}>
               <Clock className="w-3.5 h-3.5 text-secondary-foreground" />
               <span className="text-xs font-medium text-muted-foreground tabular-nums">
@@ -320,7 +318,7 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
       </div>
       
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent className="bg-popover/98 backdrop-blur-xl border-border/50 shadow-2xl">
+        <AlertDialogContent className="bg-popover border-border/50 shadow-2xl">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-foreground">Delete Goal</AlertDialogTitle>
             <AlertDialogDescription className="text-muted-foreground">
