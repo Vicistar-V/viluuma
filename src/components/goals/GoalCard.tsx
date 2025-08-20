@@ -129,7 +129,7 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
           // Completed goal special styling
           goal.status === 'completed' && cn(
             "ring-1 ring-success/30",
-            "bg-success/8"
+            "bg-success/15"
           ),
           // Enhanced padding for better touch targets
           "p-4"
