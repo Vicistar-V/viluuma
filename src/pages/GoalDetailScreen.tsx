@@ -13,7 +13,7 @@ import { GoalOverviewCard } from "@/components/goals/GoalOverviewCard";
 import { ActiveProjectView } from "@/components/goals/ActiveProjectView";
 import { ActiveChecklistView } from "@/components/goals/ActiveChecklistView";
 import { CompletedGoalView } from "@/components/goals/CompletedGoalView";
-import { ArchivedGoalModal } from "@/components/goals/ArchivedGoalModal";
+import { ArchivedGoalView } from "@/components/goals/ArchivedGoalView";
 import TaskDetailModal from "@/components/tasks/TaskDetailModal";
 import { PlanUpdateOverlay } from "@/components/ui/plan-update-overlay";
 
@@ -67,7 +67,6 @@ const GoalDetailScreen = () => {
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
-  const [showArchivedModal, setShowArchivedModal] = useState(false);
   const [showPlanUpdateOverlay, setShowPlanUpdateOverlay] = useState(false);
 
   useEffect(() => { 
@@ -80,12 +79,6 @@ const GoalDetailScreen = () => {
     if (!loading && !user) navigate('/login'); 
   }, [user, loading, navigate]);
 
-  // Handle archived goals
-  useEffect(() => {
-    if (goal?.status === 'archived') {
-      setShowArchivedModal(true);
-    }
-  }, [goal?.status]);
 
   const refresh = async (showOverlay = false) => {
     if (!id) return;
@@ -306,7 +299,16 @@ const GoalDetailScreen = () => {
       <main className="container mx-auto px-4 py-6 pb-28 space-y-6">
         <GoalOverviewCard goal={goal} />
 
-        {goal.status === 'completed' ? (
+        {goal.status === 'archived' ? (
+          <ArchivedGoalView
+            goal={goal}
+            milestones={milestones}
+            groupedTasks={groupedTasks}
+            onReactivate={async () => {
+              await handleStatusChange('active');
+            }}
+          />
+        ) : goal.status === 'completed' ? (
           <CompletedGoalView
             goal={goal}
             milestones={milestones}
@@ -347,16 +349,6 @@ const GoalDetailScreen = () => {
         onSaved={() => refresh(true)}
       />
 
-      <ArchivedGoalModal
-        goal={showArchivedModal ? goal : null}
-        milestones={milestones}
-        groupedTasks={groupedTasks}
-        onClose={() => setShowArchivedModal(false)}
-        onReactivate={async () => {
-          await handleStatusChange('active');
-          setShowArchivedModal(false);
-        }}
-      />
 
       <BottomNav />
       
