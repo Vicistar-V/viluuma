@@ -222,7 +222,7 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
                 size="sm"
                 className={cn(
                   "opacity-60 group-hover:opacity-100 transition-all duration-300",
-                  "h-8 w-8 p-0 rounded-full min-h-[44px] min-w-[44px]",
+                  "h-6 w-6 p-0 rounded-full min-h-[32px] min-w-[32px]",
                   "bg-muted/15 border border-border/30",
                   "hover:bg-muted/25 hover:border-border/50",
                   "active:scale-95",
