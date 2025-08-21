@@ -79,17 +79,20 @@ When you have everything:
     "title": "Run a marathon",
     "modality": "project",
     "deadline": "2025-06-15",
-    "commitment": "1-2 hours",
+    "commitment": {
+      "totalHoursPerWeek": 14,
+      "dailyBudget": {"mon": 2, "tue": 2, "wed": 2, "thu": 2, "fri": 2, "sat": 2, "sun": 2}
+    },
     "context": "Training for a specific marathon race"
   }
 }
 
 **CRITICAL COMMITMENT CAPTURE AND FORMAT RULES:**
-- ALWAYS use the EXACT commitment data the user provided - NEVER make up values
-- When user says "I can commit X hours per week", use "X hours" in commitment field
-- When user says "I can commit X hours per day", use "X hours" in commitment field  
-- If user selected from slider (like "4 hrs/day"), reflect that: "4 hours"
-- Match the user's actual selection precisely - do not approximate or round
+- ALWAYS capture the EXACT commitment structure the user provided - NEVER make up values
+- When user provides daily breakdown (e.g., "mon: 4hrs, tue: 4hrs"), capture the full dailyBudget structure
+- When user says "I can commit X hours per week", capture both totalHoursPerWeek and dailyBudget if provided
+- The commitment field should be an object with: {"totalHoursPerWeek": number, "dailyBudget": {"mon": number, "tue": number, etc.}}
+- If only weekly hours provided, distribute evenly across weekdays for dailyBudget
 - For ongoing goals: commitment can be null since they don't have deadlines
 
 **CRITICAL RULES:**

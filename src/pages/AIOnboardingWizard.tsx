@@ -29,7 +29,10 @@ interface AIStateResponse {
     title: string;
     modality: "project" | "checklist";
     deadline: string | null;
-    commitment: string | null;
+    commitment: {
+      totalHoursPerWeek: number;
+      dailyBudget: DailyBudget;
+    } | null;
     context: string;
   };
 }
@@ -160,7 +163,6 @@ const AIOnboardingWizard = () => {
 
   const handleReadyToGenerate = (intel: any) => {
     console.log("🎯 Ready to generate plan with intel:", intel);
-    console.log("💾 Stored commitment data:", storedCommitmentData);
     
     // Convert AI intel to our Intel format
     const finalIntel: Intel = {
@@ -170,11 +172,11 @@ const AIOnboardingWizard = () => {
       context: intel.context || ""
     };
     
-    // Create user constraints using actual commitment data or defaults
+    // Use commitment data directly from AI intel
     const finalConstraints: UserConstraints = {
       deadline: intel.deadline,
-      hoursPerWeek: storedCommitmentData?.totalHoursPerWeek || (intel.modality === "project" ? 10 : 0),
-      dailyBudget: storedCommitmentData?.dailyBudget || (intel.modality === "project" ? createDefaultDailyBudget(2) : undefined)
+      hoursPerWeek: intel.commitment?.totalHoursPerWeek || (intel.modality === "project" ? 10 : 0),
+      dailyBudget: intel.commitment?.dailyBudget || (intel.modality === "project" ? createDefaultDailyBudget(2) : undefined)
     };
     
     setHandoffData({
