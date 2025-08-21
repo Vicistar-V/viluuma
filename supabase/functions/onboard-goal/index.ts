@@ -100,7 +100,7 @@ async function callAIStateEngine(messages: any[]): Promise<any> {
   console.log("🤖 Calling AI State Engine with", messages.length, "messages");
 
   const requestPayload = {
-    model: "anthropic/claude-3.5-sonnet", // Excellent at following JSON instructions
+    model: "moonshotai/kimi-k2:free", // Free model for conversation flow
     temperature: 0.3, // Lower temperature for more consistent JSON output
     max_tokens: 400, // Enough for JSON response with conversation
     messages: messages,
