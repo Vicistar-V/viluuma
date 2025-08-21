@@ -338,22 +338,24 @@ function calculateRelativeSchedule(
 ): { scheduledTasks: ScheduledViluumaTask[]; totalProjectDays: number } {
   const weeklyBudget = intel.hoursPerWeek ?? 20;
   const workdaysPerWeek = 5;
-  const dailyBudgetHours = Math.max(1, weeklyBudget / workdaysPerWeek);
+  
+  // PRECISION FIX: Convert everything to minutes to eliminate floating-point errors
+  const dailyBudgetMinutes = Math.round((weeklyBudget / workdaysPerWeek) * 60);
   const MAX_TASKS_PER_DAY = 5; // Anti-bombardment guardrail
 
-  console.log(`🧠 Station 4: NEW Hour-Aware Calculator with daily budget of ${dailyBudgetHours.toFixed(1)} hours and max ${MAX_TASKS_PER_DAY} tasks per day.`);
+  console.log(`🧠 Station 4: PRECISION Calculator with daily budget of ${(dailyBudgetMinutes/60).toFixed(1)} hours (${dailyBudgetMinutes} minutes) and max ${MAX_TASKS_PER_DAY} tasks per day.`);
 
   const scheduledTasks: ScheduledViluumaTask[] = [];
   let currentDayOffset = 0;
-  let hoursSpentToday = 0;
+  let minutesSpentToday = 0;
   let tasksScheduledToday = 0;
 
   for (const task of tasks) {
-    const taskDuration = task.duration_hours;
+    const taskDurationMinutes = task.duration_hours * 60;
 
-    // CHECK 1: Can this task fit in today's budget (both hours and task limit)?
+    // CHECK 1: Can this task fit in today's budget (both time and task limit)?
     if (
-      (hoursSpentToday + taskDuration) <= dailyBudgetHours &&
+      (minutesSpentToday + taskDurationMinutes) <= dailyBudgetMinutes &&
       tasksScheduledToday < MAX_TASKS_PER_DAY
     ) {
       // YES! It fits and we haven't hit our task limit.
@@ -364,30 +366,30 @@ function calculateRelativeSchedule(
       });
       
       // Update the budget and task count for today
-      hoursSpentToday += taskDuration;
+      minutesSpentToday += taskDurationMinutes;
       tasksScheduledToday++;
 
     } else {
-      // NO! Either we're out of hours OR we've hit our task limit for today.
+      // NO! Either we're out of time OR we've hit our task limit for today.
       // Move to the next day.
       currentDayOffset++;
-      hoursSpentToday = 0;
+      minutesSpentToday = 0;
       tasksScheduledToday = 0;
       
       // CHECK 2: Can this task be completed in a single (new) day?
-      if (taskDuration <= dailyBudgetHours) {
+      if (taskDurationMinutes <= dailyBudgetMinutes) {
         // YES! Schedule it for this new day.
         scheduledTasks.push({
           ...task,
           start_day_offset: currentDayOffset,
           end_day_offset: currentDayOffset,
         });
-        hoursSpentToday = taskDuration;
+        minutesSpentToday = taskDurationMinutes;
         tasksScheduledToday = 1;
         
       } else {
         // NO! This is a "mega-task" that takes multiple days itself.
-        const daysForMegaTask = Math.ceil(taskDuration / dailyBudgetHours);
+        const daysForMegaTask = Math.ceil(taskDurationMinutes / dailyBudgetMinutes);
         const startDayForMegaTask = currentDayOffset;
         const endDayForMegaTask = currentDayOffset + daysForMegaTask - 1;
 
@@ -399,8 +401,8 @@ function calculateRelativeSchedule(
 
         // The task ends on a future day, possibly using only a portion of the last day's budget.
         currentDayOffset = endDayForMegaTask;
-        const hoursOnLastDay = taskDuration % dailyBudgetHours;
-        hoursSpentToday = (hoursOnLastDay === 0) ? dailyBudgetHours : hoursOnLastDay;
+        const minutesOnLastDay = taskDurationMinutes % dailyBudgetMinutes;
+        minutesSpentToday = (minutesOnLastDay === 0) ? dailyBudgetMinutes : minutesOnLastDay;
         tasksScheduledToday = 1; // The mega-task counts as 1 task on the final day
       }
     }
@@ -410,8 +412,8 @@ function calculateRelativeSchedule(
     ? scheduledTasks[scheduledTasks.length - 1].end_day_offset + 1
     : 0;
 
-  console.log(`✅ Station 4: Hour-Aware schedule calculated. Total project days: ${totalProjectDays}.`);
-  console.log(`📊 Station 4: Scheduled ${scheduledTasks.length} tasks across ${totalProjectDays} days with intelligent packing.`);
+  console.log(`✅ Station 4: PRECISION schedule calculated. Total project days: ${totalProjectDays}.`);
+  console.log(`📊 Station 4: Scheduled ${scheduledTasks.length} tasks across ${totalProjectDays} days with intelligent packing and minute-precision.`);
 
   return { scheduledTasks, totalProjectDays };
 }
@@ -533,22 +535,27 @@ function createFinalBlueprint(
     order_index: m.order_index
   }));
 
-  // Map tasks to the expected format with milestone linking
+  // Map tasks to the expected format with milestone linking - BULLETPROOF VERSION
   const finalTasks = planData.scheduledTasks.map((task) => {
     // Find milestone by its unique ID for bulletproof linking
-    const milestone = planData.milestones.find(m => m.id === task.milestone_id) || planData.milestones[0];
+    const milestone = planData.milestones.find(m => m.id === task.milestone_id);
+    
+    if (!milestone) {
+      console.warn(`⚠️ Station 6 WARN: Could not find parent milestone for task "${task.name}". Filtering it out.`);
+      return null; // Mark it for removal
+    }
     
     return {
       id: task.id,
       title: task.name,
       description: task.description,
-      milestone_index: milestone?.order_index ?? 0,
+      milestone_index: milestone.order_index,
       duration_hours: task.duration_hours,
       priority: task.priority,
       start_day_offset: task.start_day_offset,
       end_day_offset: task.end_day_offset
     };
-  });
+  }).filter(Boolean); // Elegantly removes any nulls from orphaned tasks
 
   const dailyBudget = constraints.hoursPerWeek / 5;
 
@@ -577,9 +584,28 @@ serve(async (req) => {
     console.log("🚀 Generate Plan Conductor: Starting plan generation");
     
     // ========================================
-    // 1. INPUT & VALIDATION
     // ========================================
-    const { intel, userConstraints = {}, userTimezone } = await req.json();
+    // 1. INPUT & VALIDATION - CLEAN API STRUCTURE
+    // ========================================
+    const requestBody = await req.json();
+    
+    // Support both new clean structure and legacy structure for backward compatibility
+    let intel, config;
+    
+    if (requestBody.config) {
+      // New clean API structure
+      intel = requestBody.intel;
+      config = requestBody.config;
+    } else {
+      // Legacy structure - map to new format
+      intel = requestBody.intel;
+      config = {
+        deadline: requestBody.userConstraints?.deadline,
+        hoursPerWeek: requestBody.userConstraints?.hoursPerWeek,
+        timezone: requestBody.userTimezone,
+        compression_requested: requestBody.userConstraints?.compression_requested || false
+      };
+    }
     
     // Validate required intel
     if (!intel?.title || typeof intel.title !== "string" || intel.title.trim().length === 0) {
@@ -589,9 +615,11 @@ serve(async (req) => {
       throw new Error("INVALID_MODALITY");
     }
 
-    // Normalize constraints and timezone
-    const hoursPerWeek = Math.min(80, Math.max(1, Number(userConstraints.hoursPerWeek ?? 20)));
-    const timezone = userTimezone || 'UTC';
+    // Normalize config with robust defaults
+    const hoursPerWeek = Math.min(80, Math.max(1, Number(config.hoursPerWeek ?? 20)));
+    const timezone = config.timezone || 'UTC';
+    const deadline = config.deadline;
+    
     console.log(`📊 Input validated: "${intel.title}" (${intel.modality}), ${hoursPerWeek}h/week, timezone: ${timezone}`);
 
     // ========================================
@@ -628,7 +656,7 @@ serve(async (req) => {
     // ========================================
     // 6. STATION 5: THE ANALYST
     // ========================================
-    const analysis = analyzePlanQuality(totalProjectDays, enrichedTasks.length, intel.modality, userConstraints.deadline, timezone);
+    const analysis = analyzePlanQuality(totalProjectDays, enrichedTasks.length, intel.modality, deadline, timezone);
     console.log("✅ Station 5: Plan quality analyzed");
 
     // ========================================
