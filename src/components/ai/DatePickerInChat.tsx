@@ -17,9 +17,7 @@ const DatePickerInChat = ({ onDateSelect, onCancel, className = "" }: DatePicker
 
   const handleDateSelect = (date: Date | undefined) => {
     setSelectedDate(date);
-    if (date) {
-      setShowCalendar(false);
-    }
+    // Keep calendar open to show confirm button
   };
 
   const handleConfirmDate = () => {
