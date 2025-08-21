@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
-import { Clock, Calendar, Sparkles } from "lucide-react";
+import { Clock, Calendar, Sparkles, CalendarDays } from "lucide-react";
 import { DailyBudget, CommitmentData } from "@/types/onboarding";
 
 interface CommitmentProfileUIProps {
@@ -13,27 +13,41 @@ interface CommitmentProfileUIProps {
 }
 
 const CommitmentProfileUI = ({ onCommitmentSet, className = "" }: CommitmentProfileUIProps) => {
+  const [commitmentType, setCommitmentType] = useState<"weekly" | "custom" | null>(null);
   const [selectedHours, setSelectedHours] = useState(2);
-  const [showAdvanced, setShowAdvanced] = useState(false);
   const [dailyBudget, setDailyBudget] = useState<DailyBudget>({
     mon: 2, tue: 2, wed: 2, thu: 2, fri: 2, sat: 0, sun: 0
   });
 
-  const hourOptions = [
-    { value: 1, label: "1 hr", description: "Light commitment" },
-    { value: 2, label: "2 hrs", description: "Steady progress" },
-    { value: 4, label: "4 hrs", description: "Intensive focus" },
-    { value: 8, label: "8 hrs", description: "Full dedication" },
+  const weeklyOptions = [
+    { value: 5, label: "5 hrs", description: "Light commitment", perDay: "~1hr/day" },
+    { value: 10, label: "10 hrs", description: "Steady progress", perDay: "~2hrs/day" },
+    { value: 20, label: "20 hrs", description: "Intensive focus", perDay: "~4hrs/day" },
+    { value: 40, label: "40 hrs", description: "Full dedication", perDay: "~8hrs/day" },
   ];
 
-  const handleQuickSelect = (hours: number) => {
-    setSelectedHours(hours);
-    // Update daily budget for weekdays only (default: M-F work schedule)
+  const handleWeeklyChoice = () => {
+    setCommitmentType("weekly");
+  };
+
+  const handleCustomChoice = () => {
+    setCommitmentType("custom");
+  };
+
+  const handleWeeklySelect = (totalHours: number) => {
+    const hoursPerDay = Math.round(totalHours / 5); // Distribute across weekdays
     const newDailyBudget: DailyBudget = {
-      mon: hours, tue: hours, wed: hours, thu: hours, fri: hours,
+      mon: hoursPerDay, tue: hoursPerDay, wed: hoursPerDay, thu: hoursPerDay, fri: hoursPerDay,
       sat: 0, sun: 0
     };
     setDailyBudget(newDailyBudget);
+    
+    const commitment: CommitmentData = {
+      type: "daily",
+      dailyBudget: newDailyBudget,
+      totalHoursPerWeek: totalHours
+    };
+    onCommitmentSet(commitment);
   };
 
   const handleCustomSlider = (value: number[]) => {
@@ -55,9 +69,9 @@ const CommitmentProfileUI = ({ onCommitmentSet, className = "" }: CommitmentProf
     return Object.values(budget).reduce((sum, hours) => sum + hours, 0);
   };
 
-  const handleConfirm = () => {
+  const handleCustomConfirm = () => {
     const commitment: CommitmentData = {
-      type: showAdvanced ? "daily" : "daily", // Always use daily type for more precision
+      type: "daily",
       dailyBudget,
       totalHoursPerWeek: calculateTotalWeeklyHours(dailyBudget)
     };
@@ -69,8 +83,9 @@ const CommitmentProfileUI = ({ onCommitmentSet, className = "" }: CommitmentProf
     fri: "Fri", sat: "Sat", sun: "Sun"
   };
 
-  return (
-    <>
+  // Initial Choice Screen
+  if (!commitmentType) {
+    return (
       <Card className={`border-primary/20 bg-gradient-to-r from-primary/5 to-secondary/5 ${className}`}>
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-lg">
@@ -78,142 +93,152 @@ const CommitmentProfileUI = ({ onCommitmentSet, className = "" }: CommitmentProf
             Your Time Commitment
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Be realistic! Consistency is more important than intensity.
+            How would you like to set up your weekly schedule?
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Quick Hour Selection */}
-          <div className="grid grid-cols-3 gap-2">
-            {hourOptions.map((option) => (
+          {/* Choice Buttons */}
+          <div className="grid grid-cols-1 gap-3">
+            <Button
+              variant="outline"
+              onClick={handleWeeklyChoice}
+              className="flex items-center justify-start gap-3 h-auto py-4 px-4 text-left hover:bg-primary/5 hover:border-primary/30"
+            >
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                <Clock className="h-5 w-5 text-primary" />
+              </div>
+              <div className="flex-1">
+                <p className="font-semibold">⏰ A Weekly Goal</p>
+                <p className="text-sm text-muted-foreground">Simple total hours per week</p>
+              </div>
+            </Button>
+
+            <Button
+              variant="outline"
+              onClick={handleCustomChoice}
+              className="flex items-center justify-start gap-3 h-auto py-4 px-4 text-left hover:bg-secondary/5 hover:border-secondary/30"
+            >
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary/10">
+                <CalendarDays className="h-5 w-5 text-secondary-foreground" />
+              </div>
+              <div className="flex-1">
+                <p className="font-semibold">🗓️ Customize My Week</p>
+                <p className="text-sm text-muted-foreground">Set hours for each day individually</p>
+              </div>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Weekly Goal Selection
+  if (commitmentType === "weekly") {
+    return (
+      <Card className={`border-primary/20 bg-gradient-to-r from-primary/5 to-secondary/5 ${className}`}>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Clock className="h-5 w-5 text-primary" />
+            Weekly Time Goal
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Pick a total that feels realistic and sustainable.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Weekly Options */}
+          <div className="grid grid-cols-2 gap-3">
+            {weeklyOptions.map((option) => (
               <Button
                 key={option.value}
-                variant={selectedHours === option.value ? "default" : "outline"}
-                className="flex flex-col h-auto py-3 px-2"
-                onClick={() => handleQuickSelect(option.value)}
+                variant="outline"
+                className="flex flex-col h-auto py-4 px-3 hover:bg-primary/5 hover:border-primary/30"
+                onClick={() => handleWeeklySelect(option.value)}
               >
-                <span className="font-semibold">{option.label}</span>
+                <span className="font-semibold text-lg">{option.label}</span>
                 <span className="text-xs opacity-80">{option.description}</span>
+                <span className="text-xs text-primary font-medium">{option.perDay}</span>
               </Button>
             ))}
           </div>
 
-          {/* Custom Slider */}
-          <div className="space-y-3 pt-2">
-            <div className="flex items-center justify-between">
-              <Label className="text-sm font-medium">Custom Amount</Label>
-              <span className="text-sm font-semibold text-primary">{selectedHours} hours/day</span>
-            </div>
-            <Slider
-              value={[selectedHours]}
-              onValueChange={handleCustomSlider}
-              max={8}
-              min={1}
-              step={1}
-              className="w-full"
-            />
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>1 hr</span>
-              <span>8 hrs</span>
-            </div>
-          </div>
-
-          {/* Advanced Customization Link */}
+          {/* Back Button */}
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setShowAdvanced(true)}
-            className="w-full text-primary hover:text-primary-foreground hover:bg-primary/10"
+            onClick={() => setCommitmentType(null)}
+            className="w-full text-muted-foreground hover:text-foreground"
           >
-            <Sparkles className="h-4 w-4 mr-2" />
-            Customize by Day of the Week
-          </Button>
-
-          {/* Weekly Summary */}
-          <div className="bg-muted/30 rounded-lg p-3 text-center">
-            <p className="text-sm text-muted-foreground">Weekly Total</p>
-            <p className="text-lg font-semibold">
-              {calculateTotalWeeklyHours(dailyBudget)} hours/week
-            </p>
-          </div>
-
-          {/* Confirm Button */}
-          <Button
-            onClick={handleConfirm}
-            className="w-full"
-            size="lg"
-          >
-            That's My Commitment!
+            ← Back to options
           </Button>
         </CardContent>
       </Card>
+    );
+  }
 
-      {/* Advanced Weekly Planner Modal */}
-      <Dialog open={showAdvanced} onOpenChange={setShowAdvanced}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
-              Weekly Schedule
-            </DialogTitle>
-          </DialogHeader>
-          
-          <div className="space-y-4 py-4">
-            <p className="text-sm text-muted-foreground">
-              Customize your daily commitment for each day of the week.
-            </p>
-            
-            {(Object.keys(dayLabels) as Array<keyof DailyBudget>).map((day) => (
-              <div key={day} className="flex items-center justify-between">
-                <Label className="w-12 text-sm font-medium">
-                  {dayLabels[day]}
-                </Label>
-                <div className="flex items-center gap-3 flex-1">
-                  <Slider
-                    value={[dailyBudget[day]]}
-                    onValueChange={(value) => handleDayChange(day, value[0])}
-                    max={8}
-                    min={0}
-                    step={1}
-                    className="flex-1"
-                  />
-                  <span className="w-12 text-sm font-semibold text-right">
-                    {dailyBudget[day]}h
-                  </span>
-                </div>
+  // Custom Weekly Planner
+  return (
+    <Card className={`border-primary/20 bg-gradient-to-r from-primary/5 to-secondary/5 ${className}`}>
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <Calendar className="h-5 w-5 text-primary" />
+          Custom Weekly Schedule
+        </CardTitle>
+        <p className="text-sm text-muted-foreground">
+          Set your commitment for each day of the week.
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Day-by-day sliders */}
+        <div className="space-y-3">
+          {(Object.keys(dayLabels) as Array<keyof DailyBudget>).map((day) => (
+            <div key={day} className="flex items-center justify-between">
+              <Label className="w-12 text-sm font-medium">
+                {dayLabels[day]}
+              </Label>
+              <div className="flex items-center gap-3 flex-1">
+                <Slider
+                  value={[dailyBudget[day]]}
+                  onValueChange={(value) => handleDayChange(day, value[0])}
+                  max={8}
+                  min={0}
+                  step={1}
+                  className="flex-1"
+                />
+                <span className="w-12 text-sm font-semibold text-right">
+                  {dailyBudget[day]}h
+                </span>
               </div>
-            ))}
-
-            <div className="bg-primary/5 rounded-lg p-3 text-center border border-primary/10">
-              <p className="text-sm text-muted-foreground">Total per week</p>
-              <p className="text-lg font-semibold text-primary">
-                {calculateTotalWeeklyHours(dailyBudget)} hours
-              </p>
             </div>
-          </div>
+          ))}
+        </div>
 
-          <div className="flex gap-2">
-            <Button 
-              variant="outline" 
-              onClick={() => setShowAdvanced(false)}
-              className="flex-1"
-            >
-              Cancel
-            </Button>
-            <Button 
-              onClick={() => {
-                setShowAdvanced(false);
-                // Update selected hours to reflect the average for display
-                const weekdayHours = (dailyBudget.mon + dailyBudget.tue + dailyBudget.wed + dailyBudget.thu + dailyBudget.fri) / 5;
-                setSelectedHours(Math.round(weekdayHours));
-              }}
-              className="flex-1"
-            >
-              Done
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </>
+        {/* Weekly Summary */}
+        <div className="bg-primary/5 rounded-lg p-3 text-center border border-primary/10">
+          <p className="text-sm text-muted-foreground">Total per week</p>
+          <p className="text-lg font-semibold text-primary">
+            {calculateTotalWeeklyHours(dailyBudget)} hours
+          </p>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setCommitmentType(null)}
+            className="flex-1"
+          >
+            ← Back
+          </Button>
+          <Button
+            onClick={handleCustomConfirm}
+            className="flex-1"
+          >
+            That's My Schedule!
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 };
 

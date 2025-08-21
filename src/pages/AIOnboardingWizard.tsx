@@ -75,12 +75,12 @@ const AIOnboardingWizard = () => {
       if (data?.status === "ready_to_generate" && data?.intel) {
         console.log("🎯 Complete handoff detected - showing handoff confirmation");
         
-        // Extract final intel with proper commitment data
+        // Create final constraints from pending intel or defaults
         const finalIntel: Intel = data.intel;
         const finalConstraints: UserConstraints = {
           deadline: finalIntel.deadline,
-          hoursPerWeek: pendingIntel ? calculateWeeklyHours(pendingIntel.dailyBudget) : 10,
-          dailyBudget: pendingIntel ? pendingIntel.dailyBudget : createDefaultDailyBudget(2)
+          hoursPerWeek: pendingIntel ? calculateWeeklyHours(pendingIntel.dailyBudget) : (finalIntel.modality === "project" ? 10 : 0),
+          dailyBudget: pendingIntel ? pendingIntel.dailyBudget : (finalIntel.modality === "project" ? createDefaultDailyBudget(2) : undefined)
         };
         
         // Show handoff confirmation modal
@@ -93,8 +93,8 @@ const AIOnboardingWizard = () => {
         return;
       }
 
-      // Handle commitment request from AI
-      if (data?.status === "commitment_needed") {
+      // Handle commitment request from AI (for projects only)
+      if (data?.status === "commitment_needed" && data?.message) {
         console.log("⏰ AI requesting commitment, showing commitment UI");
         setIsAITyping(false);
         
@@ -118,30 +118,6 @@ const AIOnboardingWizard = () => {
           ...prev, 
           { role: "assistant", content: data.content }
         ]);
-        
-        // Check if AI is ready for handoff after receiving commitment
-        const isReadyForHandoff = data.content.toLowerCase().includes("i've got everything i need") ||
-                                 data.content.toLowerCase().includes("here's the briefing") ||
-                                 data.content.toLowerCase().includes("does this look right") ||
-                                 data.content.toLowerCase().includes("ready to build");
-                                 
-        if (isReadyForHandoff && pendingIntel) {
-          console.log("📋 AI ready for handoff, showing confirmation UI");
-          
-          // Calculate final constraints from stored commitment data
-          const finalConstraints: UserConstraints = {
-            deadline: pendingIntel.deadline,
-            hoursPerWeek: calculateWeeklyHours(pendingIntel.dailyBudget),
-            dailyBudget: pendingIntel.dailyBudget
-          };
-          
-          // Show handoff confirmation UI
-          setHandoffData({
-            intel: pendingIntel,
-            userConstraints: finalConstraints
-          });
-          setShowHandoff(true);
-        }
         return;
       }
 
@@ -255,34 +231,33 @@ const AIOnboardingWizard = () => {
       
       if (error) throw error;
 
+      // Check for final handoff after commitment
+      if (data?.status === "ready_to_generate" && data?.intel) {
+        console.log("🎯 Complete handoff detected after commitment");
+        
+        const finalIntel: Intel = data.intel;
+        const finalConstraints: UserConstraints = {
+          deadline: pendingIntel?.deadline || finalIntel.deadline,
+          hoursPerWeek: pendingIntel ? calculateWeeklyHours(pendingIntel.dailyBudget) : 10,
+          dailyBudget: pendingIntel ? pendingIntel.dailyBudget : createDefaultDailyBudget(2)
+        };
+        
+        setIsAITyping(false);
+        setHandoffData({
+          intel: { ...finalIntel, ...pendingIntel },
+          userConstraints: finalConstraints
+        });
+        setShowHandoff(true);
+        return;
+      }
+
+      // Handle normal conversation response
       if (data?.content) {
         setIsAITyping(false);
         setMessages((prev) => [
           ...prev, 
           { role: "assistant", content: data.content }
         ]);
-        
-        // Check if AI is ready for handoff after commitment
-        const isReadyForHandoff = data.content.toLowerCase().includes("i've got everything i need") ||
-                                 data.content.toLowerCase().includes("here's the briefing") ||
-                                 data.content.toLowerCase().includes("does this look right") ||
-                                 data.content.toLowerCase().includes("ready to build");
-                                 
-        if (isReadyForHandoff && pendingIntel) {
-          console.log("📋 AI ready for handoff after commitment, showing confirmation UI");
-          
-          const finalConstraints: UserConstraints = {
-            deadline: pendingIntel.deadline,
-            hoursPerWeek: calculateWeeklyHours(pendingIntel.dailyBudget),
-            dailyBudget: pendingIntel.dailyBudget
-          };
-          
-          setHandoffData({
-            intel: pendingIntel,
-            userConstraints: finalConstraints
-          });
-          setShowHandoff(true);
-        }
       }
     } catch (error: any) {
       console.error("❌ Error continuing conversation:", error);
