@@ -644,15 +644,32 @@ serve(async (req) => {
     }
 
     // Normalize config with robust defaults
-    const hoursPerWeek = Math.min(80, Math.max(1, Number(config.hoursPerWeek ?? 20)));
-    const dailyBudget = config.dailyBudget; // Pass through the daily budget if provided
+    let hoursPerWeek: number;
+    const dailyBudget = config.dailyBudget;
+    
+    // Priority 1: Calculate from dailyBudget if it exists (user's commitment profile)
+    if (dailyBudget) {
+      hoursPerWeek = Object.values(dailyBudget).reduce((sum, hours) => sum + hours, 0);
+      console.log(`📊 Calculated ${hoursPerWeek}h/week from dailyBudget:`, dailyBudget);
+    }
+    // Priority 2: Use explicit hoursPerWeek if provided
+    else if (config.hoursPerWeek !== undefined) {
+      hoursPerWeek = Math.min(80, Math.max(1, Number(config.hoursPerWeek)));
+      console.log(`📊 Using explicit hoursPerWeek: ${hoursPerWeek}h/week`);
+    }
+    // Priority 3: Only default to 20 when no user input exists
+    else {
+      hoursPerWeek = 20;
+      console.log(`📊 No user commitment found, defaulting to ${hoursPerWeek}h/week`);
+    }
+    
+    // Ensure reasonable bounds (1-80 hours per week)
+    hoursPerWeek = Math.min(80, Math.max(1, hoursPerWeek));
+    
     const timezone = config.timezone || 'UTC';
     const deadline = config.deadline;
     
-    console.log(`📊 Input validated: "${intel.title}" (${intel.modality}), ${hoursPerWeek}h/week`);
-    if (dailyBudget) {
-      console.log(`📊 Using custom daily budget:`, dailyBudget);
-    }
+    console.log(`📊 Input validated: "${intel.title}" (${intel.modality}), ${hoursPerWeek}h/week total`);
     console.log(`📊 Timezone: ${timezone}`);
 
     // ========================================
