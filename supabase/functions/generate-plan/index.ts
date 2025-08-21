@@ -447,10 +447,8 @@ function analyzePlanQuality(
   const now = new Date();
   const todayInUsersTimezone = new Date(now.toLocaleString("en-US", {timeZone: timezone}));
   
-  // Convert relative project days to actual business days for analysis
-  const totalWorkdays = totalProjectDays > 0 
-    ? differenceInBusinessDays(addBusinessDays(todayInUsersTimezone, totalProjectDays - 1), todayInUsersTimezone) + 1
-    : 0;
+  // Use totalProjectDays directly - Station 4 already calculated the correct timeline
+  const totalWorkdays = totalProjectDays;
 
   // Low quality gatekeeper for projects - but be more lenient now with hour-aware scheduling
   const MIN_WORKDAYS = 1; // Reduced from 3 since we now pack tasks efficiently
