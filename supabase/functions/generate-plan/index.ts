@@ -10,7 +10,7 @@ const corsHeaders = {
 };
 
 // Configuration
-const DEFAULT_MODEL = "mistralai/mistral-7b-instruct:free";
+const DEFAULT_MODEL = "moonshotai/kimi-k2:free";
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 // ========================================
