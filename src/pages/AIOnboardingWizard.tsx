@@ -49,6 +49,7 @@ const AIOnboardingWizard = () => {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showCommitmentUI, setShowCommitmentUI] = useState(false);
   const [handoffData, setHandoffData] = useState<{intel: Intel, userConstraints: UserConstraints} | null>(null);
+  const [storedCommitmentData, setStoredCommitmentData] = useState<CommitmentData | null>(null);
   const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -159,6 +160,7 @@ const AIOnboardingWizard = () => {
 
   const handleReadyToGenerate = (intel: any) => {
     console.log("🎯 Ready to generate plan with intel:", intel);
+    console.log("💾 Stored commitment data:", storedCommitmentData);
     
     // Convert AI intel to our Intel format
     const finalIntel: Intel = {
@@ -168,11 +170,11 @@ const AIOnboardingWizard = () => {
       context: intel.context || ""
     };
     
-    // Create user constraints with defaults
+    // Create user constraints using actual commitment data or defaults
     const finalConstraints: UserConstraints = {
       deadline: intel.deadline,
-      hoursPerWeek: intel.modality === "project" ? 10 : 0, // Default hours
-      dailyBudget: intel.modality === "project" ? createDefaultDailyBudget(2) : undefined
+      hoursPerWeek: storedCommitmentData?.totalHoursPerWeek || (intel.modality === "project" ? 10 : 0),
+      dailyBudget: storedCommitmentData?.dailyBudget || (intel.modality === "project" ? createDefaultDailyBudget(2) : undefined)
     };
     
     setHandoffData({
@@ -233,6 +235,7 @@ const AIOnboardingWizard = () => {
 
   const handleCommitmentSet = (commitment: CommitmentData) => {
     console.log("⏰ Commitment set:", commitment);
+    setStoredCommitmentData(commitment); // Store the actual commitment data
     setShowCommitmentUI(false);
     
     const commitmentMessage = `I can commit ${commitment.totalHoursPerWeek} hours per week to this goal.`;
@@ -246,6 +249,7 @@ const AIOnboardingWizard = () => {
     setShowCommitmentUI(false);
     setCurrentAIState(null);
     setHandoffData(null);
+    setStoredCommitmentData(null); // Clear stored commitment data
     setMessages([
       {
         role: "assistant",
