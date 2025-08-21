@@ -212,20 +212,23 @@ const AIOnboardingWizard = () => {
     console.log("🎯 User choice:", choiceId);
     setShowChoices(false);
     
-    // Send choice back to AI
-    const choiceText = choiceId === "project" 
-      ? "I'd like to set a specific deadline for this goal."
-      : "This is more of an ongoing goal without a specific deadline.";
-    
-    handleSend(choiceText);
+    if (choiceId === "project") {
+      // For project goals, immediately show date picker
+      setShowDatePicker(true);
+    } else {
+      // For ongoing goals, send directly to AI
+      const choiceText = "This is more of an ongoing goal without a specific deadline.";
+      handleSend(choiceText);
+    }
   };
 
   const handleDateSelect = (date: Date | null) => {
     console.log("🗓️ Date selected:", date);
     setShowDatePicker(false);
     
+    // Send both modality and date info together
     const dateMessage = date 
-      ? `My target date is ${format(date, "MMMM d, yyyy")}.`
+      ? `I'd like to set a specific deadline for this goal. My target date is ${format(date, "MMMM d, yyyy")}.`
       : "I don't have a specific deadline in mind.";
     
     handleSend(dateMessage);
