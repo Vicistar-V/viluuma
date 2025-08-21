@@ -23,17 +23,20 @@ import {
 
 // AI State Engine Response Types
 interface AIStateResponse {
-  response_for_user: string;
-  state_analysis: {
-    status: "needs_title" | "needs_modality" | "needs_deadline" | "needs_commitment" | "ready_to_generate";
+  say_to_user: string;
+  update_state?: {
+    title: string | null;
+    modality: "project" | "checklist" | null;
+    deadline: string | null;
+    commitment: string | null;
+    context: string;
+  };
+  finalize_and_handoff?: {
     intel: {
-      title: string | null;
-      modality: "project" | "checklist" | null;
+      title: string;
+      modality: "project" | "checklist";
       deadline: string | null;
-      commitment: {
-        type: "daily" | "weekly" | null;
-        value: number | object | null;
-      } | null;
+      commitment: string | null;
       context: string;
     };
   };
@@ -103,7 +106,7 @@ const AIOnboardingWizard = () => {
       // Add AI response to messages
       setMessages((prev) => [
         ...prev, 
-        { role: "assistant", content: data.response_for_user }
+        { role: "assistant", content: data.say_to_user }
       ]);
 
       // Handle different states based on AI's analysis
@@ -131,37 +134,43 @@ const AIOnboardingWizard = () => {
   };
 
   const handleAIState = (aiResponse: AIStateResponse) => {
-    const { status, intel } = aiResponse.state_analysis;
-    
-    console.log("🎯 AI State:", status, "Intel:", intel);
+    console.log("🎯 AI Response:", aiResponse);
 
-    switch (status) {
-      case "needs_modality":
-        // Show project vs checklist choice buttons
-        setShowChoices(true);
-        break;
-        
-      case "needs_deadline":
-        // Show date picker UI
-        setShowDatePicker(true);
-        break;
-        
-      case "needs_commitment":
-        // Show commitment UI for projects
-        if (intel.modality === "project") {
-          setShowCommitmentUI(true);
-        }
-        break;
-        
-      case "ready_to_generate":
-        // Show handoff confirmation
-        handleReadyToGenerate(intel);
-        break;
-        
-      default:
-        // Continue normal conversation
-        break;
+    // Check if this is the final handoff
+    if (aiResponse.finalize_and_handoff) {
+      handleReadyToGenerate(aiResponse.finalize_and_handoff.intel);
+      return;
     }
+
+    // Handle ongoing conversation based on what information is missing
+    const intel = aiResponse.update_state;
+    if (!intel) return;
+
+    // Determine what UI to show based on missing information
+    if (!intel.title) {
+      // Continue normal conversation - no special UI needed
+      return;
+    }
+
+    if (!intel.modality) {
+      // Show project vs checklist choice buttons
+      setShowChoices(true);
+      return;
+    }
+
+    if (intel.modality === "project" && !intel.deadline) {
+      // Show date picker UI
+      setShowDatePicker(true);
+      return;
+    }
+
+    if (intel.modality === "project" && intel.deadline && !intel.commitment) {
+      // Show commitment UI for projects
+      setShowCommitmentUI(true);
+      return;
+    }
+
+    // If we have all the info but haven't triggered handoff, continue conversation
   };
 
   const handleReadyToGenerate = (intel: any) => {
@@ -281,7 +290,7 @@ const AIOnboardingWizard = () => {
       </div>
 
       {/* Choice Buttons for Project vs Checklist */}
-      {showChoices && currentAIState?.state_analysis.status === "needs_modality" && (
+      {showChoices && (
         <div className="mb-4">
           <ChoiceButtons
             title="What type of goal is this?"
@@ -307,7 +316,7 @@ const AIOnboardingWizard = () => {
       )}
 
       {/* Date Picker for Deadline */}
-      {showDatePicker && currentAIState?.state_analysis.status === "needs_deadline" && (
+      {showDatePicker && (
         <div className="mb-4">
           <DatePickerInChat
             onDateSelect={handleDateSelect}
@@ -317,7 +326,7 @@ const AIOnboardingWizard = () => {
       )}
 
       {/* Commitment UI for Projects */}
-      {showCommitmentUI && currentAIState?.state_analysis.status === "needs_commitment" && (
+      {showCommitmentUI && (
         <div className="mb-4">
           <CommitmentProfileUI
             onCommitmentSet={handleCommitmentSet}
