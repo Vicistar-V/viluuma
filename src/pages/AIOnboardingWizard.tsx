@@ -73,7 +73,7 @@ const AIOnboardingWizard = () => {
 
       // Check for final handoff to plan generation  
       if (data?.status === "ready_to_generate" && data?.intel) {
-        console.log("🎯 Complete handoff detected - user confirmed readiness to proceed");
+        console.log("🎯 Complete handoff detected - showing handoff confirmation");
         
         // Extract final intel with proper commitment data
         const finalIntel: Intel = data.intel;
@@ -83,14 +83,13 @@ const AIOnboardingWizard = () => {
           dailyBudget: pendingIntel ? pendingIntel.dailyBudget : createDefaultDailyBudget(2)
         };
         
-        // Navigate directly to plan generation
+        // Show handoff confirmation modal
         setIsAITyping(false);
-        navigate("/plan-review", { 
-          state: { 
-            intel: finalIntel,
-            userConstraints: finalConstraints 
-          } 
+        setHandoffData({
+          intel: finalIntel,
+          userConstraints: finalConstraints
         });
+        setShowHandoff(true);
         return;
       }
 
