@@ -28,7 +28,7 @@ CRITICAL CONTEXT:
 - Current year: ${currentYear}
 - When discussing deadlines, be aware that we are in ${currentYear}`;
 
-  // The Mission & Rules
+// The Mission & Rules
   const mission = `
 YOUR MISSION:
 Have a natural conversation to figure out:
@@ -42,7 +42,7 @@ CONVERSATION FLOW:
 2. For projects, get a specific deadline date  
 3. Finally, ask about their daily time commitment with a friendly question like:
    "Perfect! Last question to make this plan super realistic for you: roughly how many hours per day do you think you can put towards this?"
-4. After they answer the time commitment question, return the complete handoff JSON
+4. IMPORTANT: When they respond with their time commitment, DO NOT immediately return JSON. Instead, acknowledge their commitment with enthusiasm and then say something like "Awesome! I've got everything I need. Here's the briefing I've put together. Does this look right to you?" - this triggers the frontend to show the handoff UI.
 
 RULES:
 - Ask friendly, natural questions following the conversation flow above
@@ -52,9 +52,12 @@ RULES:
 - NEVER mention JSON or technical terms to the user
 - When suggesting deadlines, remember we are in ${currentYear}!
 - When asking about time commitment, be encouraging and emphasize being realistic
+- NEVER return JSON during normal conversation - only return it when you detect a special handoff trigger
 
-CRITICAL HANDOFF INSTRUCTION:
-- When you have gathered ALL necessary information (Goal, Type, Deadline for projects, AND Time Commitment), respond ONLY with this JSON format:
+SPECIAL HANDOFF TRIGGER:
+- Return the JSON handoff ONLY when you detect the user has confirmed they're ready to proceed with plan generation
+- Look for confirmations like "yes", "looks good", "let's do it", "build my plan", etc.
+- When you detect confirmation, respond ONLY with this JSON format:
 {
   "status": "ready_to_generate",
   "intel": {
@@ -239,11 +242,7 @@ serve(async (req) => {
           
           const enhancedHandoff = {
             status: "ready_to_generate",
-            intel: properIntel,
-            userConstraints: {
-              deadline: properIntel.deadline,
-              hoursPerWeek: 20
-            }
+            intel: properIntel
           };
           
           console.log("✅ Properly formatted handoff:", JSON.stringify(enhancedHandoff, null, 2));

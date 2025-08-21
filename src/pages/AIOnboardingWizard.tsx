@@ -32,7 +32,7 @@ const AIOnboardingWizard = () => {
   const [isAITyping, setIsAITyping] = useState(false);
   const [showHandoff, setShowHandoff] = useState(false);
   const [showCommitmentUI, setShowCommitmentUI] = useState(false);
-  const [pendingIntel, setPendingIntel] = useState<Intel | null>(null);
+  const [pendingIntel, setPendingIntel] = useState<(Intel & { dailyBudget: DailyBudget }) | null>(null);
   const [handoffData, setHandoffData] = useState<{intel: Intel, userConstraints: UserConstraints} | null>(null);
   const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
   const navigate = useNavigate();
@@ -73,30 +73,24 @@ const AIOnboardingWizard = () => {
 
       // Check for final handoff to plan generation  
       if (data?.status === "ready_to_generate" && data?.intel) {
-        console.log("🎯 Complete handoff detected with all data including commitment");
+        console.log("🎯 Complete handoff detected - user confirmed readiness to proceed");
         
-        setIsAITyping(false);
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "assistant", 
-            content: "Awesome! I've got everything I need. Here's the briefing I've put together. Does this look right to you?",
-          },
-        ]);
-        
-        // Create user constraints from the intel data and default commitment
-        const userConstraints: UserConstraints = {
-          deadline: data.intel.deadline,
-          hoursPerWeek: 10, // Default 2 hours * 5 days
-          dailyBudget: createDefaultDailyBudget(2) // Default 2 hours per weekday
+        // Extract final intel with proper commitment data
+        const finalIntel: Intel = data.intel;
+        const finalConstraints: UserConstraints = {
+          deadline: finalIntel.deadline,
+          hoursPerWeek: pendingIntel ? calculateWeeklyHours(pendingIntel.dailyBudget) : 10,
+          dailyBudget: pendingIntel ? pendingIntel.dailyBudget : createDefaultDailyBudget(2)
         };
         
-        // Show the handoff confirmation UI
-        setHandoffData({
-          intel: data.intel,
-          userConstraints: userConstraints
+        // Navigate directly to plan generation
+        setIsAITyping(false);
+        navigate("/plan-review", { 
+          state: { 
+            intel: finalIntel,
+            userConstraints: finalConstraints 
+          } 
         });
-        setShowHandoff(true);
         return;
       }
 
@@ -108,18 +102,39 @@ const AIOnboardingWizard = () => {
           { role: "assistant", content: data.content }
         ]);
         
-        // Smart detection: if AI is asking about hours/commitment, show commitment UI
+        // Enhanced detection: Check for commitment questions and handoff readiness
         const isAskingAboutCommitment = data.content.toLowerCase().includes("hours per day") ||
                                        data.content.toLowerCase().includes("time commitment") ||
-                                       data.content.toLowerCase().includes("how much time");
+                                       data.content.toLowerCase().includes("how much time") ||
+                                       data.content.toLowerCase().includes("how many hours");
                                        
-        if (isAskingAboutCommitment) {
+        const isReadyForHandoff = data.content.toLowerCase().includes("i've got everything i need") ||
+                                 data.content.toLowerCase().includes("here's the briefing") ||
+                                 data.content.toLowerCase().includes("does this look right");
+                                       
+        if (isAskingAboutCommitment && !isReadyForHandoff) {
           console.log("⏰ AI asked about commitment, showing commitment UI");
           
           // Extract intel from conversation for commitment phase
           const conversationIntel = extractIntelFromConversation(updatedMessages);
           setPendingIntel(conversationIntel);
           setShowCommitmentUI(true);
+        } else if (isReadyForHandoff && pendingIntel) {
+          console.log("📋 AI ready for handoff, showing confirmation UI");
+          
+          // Calculate final constraints from stored commitment data
+          const finalConstraints: UserConstraints = {
+            deadline: pendingIntel.deadline,
+            hoursPerWeek: calculateWeeklyHours(pendingIntel.dailyBudget),
+            dailyBudget: pendingIntel.dailyBudget
+          };
+          
+          // Show handoff confirmation UI
+          setHandoffData({
+            intel: pendingIntel,
+            userConstraints: finalConstraints
+          });
+          setShowHandoff(true);
         }
         return;
       }
@@ -176,8 +191,8 @@ const AIOnboardingWizard = () => {
     }
   };
 
-  // Extract intel from conversation for commitment phase
-  const extractIntelFromConversation = (messages: ChatMessageType[]): Intel => {
+  // Enhanced intel extraction that preserves commitment data
+  const extractIntelFromConversation = (messages: ChatMessageType[]): Intel & { dailyBudget: DailyBudget } => {
     const { title, context } = extractGoalFromConversation(messages);
     const deadline = extractDeadlineFromConversation(messages);
     const modality = determineModalityFromConversation(messages);
@@ -186,8 +201,14 @@ const AIOnboardingWizard = () => {
       title,
       modality,
       deadline,
-      context
+      context,
+      dailyBudget: createDefaultDailyBudget(2) // Default commitment
     };
+  };
+
+  // Helper to calculate weekly hours from daily budget
+  const calculateWeeklyHours = (dailyBudget: DailyBudget): number => {
+    return Object.values(dailyBudget).reduce((sum, hours) => sum + hours, 0);
   };
 
   const handleCommitmentSet = (commitment: CommitmentData) => {
@@ -195,32 +216,76 @@ const AIOnboardingWizard = () => {
     
     console.log("⏰ Commitment set:", commitment);
     
-    // Create final intel and constraints with commitment data
-    const finalIntel: Intel = {
+    // Update pending intel with commitment data  
+    const updatedIntel = {
       ...pendingIntel,
-      deadline: pendingIntel.deadline || extractDeadlineFromConversation(messages)
-    };
-    const finalConstraints: UserConstraints = {
-      deadline: finalIntel.deadline,
-      hoursPerWeek: commitment.totalHoursPerWeek,
       dailyBudget: commitment.dailyBudget
     };
+    setPendingIntel(updatedIntel);
     
-    // Hide commitment UI and show handoff confirmation
+    // Send commitment response back to conversation to continue natural flow
+    const commitmentResponse = `Perfect! I can work with ${commitment.totalHoursPerWeek} hours per week. That's a great, realistic commitment!`;
+    const newMessage: ChatMessageType = { role: "user", content: commitmentResponse };
+    const updatedMessages = [...messages, newMessage];
+    
+    // Hide commitment UI and continue conversation
     setShowCommitmentUI(false);
-    setMessages((prev) => [
-      ...prev,
-      {
-        role: "assistant",
-        content: "Awesome! I've got everything I need. Here's the briefing I've put together. Does this look right to you?",
-      },
-    ]);
-    
-    setHandoffData({
-      intel: finalIntel,
-      userConstraints: finalConstraints
-    });
-    setShowHandoff(true);
+    setMessages(updatedMessages);
+    setUserInput("");
+    setIsAITyping(true);
+
+    // Continue the conversation with commitment info
+    handleContinueConversation(updatedMessages);
+  };
+
+  const handleContinueConversation = async (updatedMessages: ChatMessageType[]) => {
+    try {
+      const { data, error } = await supabase.functions.invoke("onboard-goal", {
+        body: { 
+          conversationHistory: updatedMessages,
+          userTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        },
+      });
+      
+      if (error) throw error;
+
+      if (data?.content) {
+        setIsAITyping(false);
+        setMessages((prev) => [
+          ...prev, 
+          { role: "assistant", content: data.content }
+        ]);
+        
+        // Check if AI is ready for handoff after commitment
+        const isReadyForHandoff = data.content.toLowerCase().includes("i've got everything i need") ||
+                                 data.content.toLowerCase().includes("here's the briefing") ||
+                                 data.content.toLowerCase().includes("does this look right");
+                                 
+        if (isReadyForHandoff && pendingIntel) {
+          console.log("📋 AI ready for handoff after commitment, showing confirmation UI");
+          
+          const finalConstraints: UserConstraints = {
+            deadline: pendingIntel.deadline,
+            hoursPerWeek: calculateWeeklyHours(pendingIntel.dailyBudget),
+            dailyBudget: pendingIntel.dailyBudget
+          };
+          
+          setHandoffData({
+            intel: pendingIntel,
+            userConstraints: finalConstraints
+          });
+          setShowHandoff(true);
+        }
+      }
+    } catch (error: any) {
+      console.error("❌ Error continuing conversation:", error);
+      setIsAITyping(false);
+      toast({ 
+        title: "Connection issue", 
+        description: "Please try again.",
+        variant: "destructive" 
+      });
+    }
   };
 
   const handleStartOver = () => {
