@@ -339,7 +339,7 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
         <div className="relative z-10 flex items-center gap-2 flex-wrap">
           {/* Enhanced Task Progress Pill with Dynamic Colors */}
           <div className={cn(
-            "px-3 py-1.5 rounded-full border flex items-center gap-2 min-h-[32px]",
+            "px-2 py-1 rounded-full border flex items-center gap-2 min-h-[28px]",
             "hover:bg-muted/30 transition-colors duration-200",
             // Dynamic colors based on progress
             progress === 0 ? "bg-muted/15 border-muted/25" :
@@ -373,7 +373,7 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
             
             return (
               <div className={cn(
-                "px-3 py-1.5 rounded-full border flex items-center gap-2 min-h-[32px]",
+                "px-2 py-1 rounded-full border flex items-center gap-2 min-h-[28px]",
                 "hover:bg-muted/30 transition-colors duration-200",
                 dueStatus.bg,
                 dueStatus.border
@@ -397,7 +397,7 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
           {/* Enhanced Weekly Commitment Pill */}
           {goal.weekly_hours && (
             <div className={cn(
-              "px-3 py-1.5 rounded-full border flex items-center gap-2 min-h-[32px]",
+              "px-2 py-1 rounded-full border flex items-center gap-2 min-h-[28px]",
               "hover:bg-muted/30 transition-colors duration-200",
               // Color based on commitment level
               goal.weekly_hours >= 10 ? "bg-destructive/10 border-destructive/25" :
