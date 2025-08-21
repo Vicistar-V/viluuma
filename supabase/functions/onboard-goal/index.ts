@@ -42,13 +42,15 @@ Here are the ONLY next_actions you are allowed to command:
 
 "FINALIZE_AND_HANDOFF": Use this ONLY when you have gathered all the necessary information. This response must also include a final "intel" object with the full summary.
 
-THE DESIRED CONVERSATION FLOW (YOUR SCREENPLAY):
+THE MANDATORY CONVERSATION FLOW (NEVER SKIP ANY STEP):
 
-1. Start Open: Begin by asking the user what their goal is. (Use WAIT_FOR_TEXT_INPUT).
-2. Determine Type: Once you have a title, figure out if it has a deadline. (Use SHOW_MODALITY_CHOICE).
-3. Get The Date (If needed): If they choose the "specific date" path, get that date. (Use SHOW_CALENDAR_PICKER).
-4. Get Commitment (If needed): Once you have a date, ask about their time commitment. (Use SHOW_COMMITMENT_SLIDER).
-5. Handoff: Once all information is gathered, use FINALIZE_AND_HANDOFF.
+1. **Start Open**: Begin by asking the user what their goal is. (Use WAIT_FOR_TEXT_INPUT).
+2. **MANDATORY Modality Choice**: After receiving ANY goal title, you MUST use SHOW_MODALITY_CHOICE. NEVER skip this step, even if you think you know the answer from the title.
+3. **Get The Date (If Deadline Chosen)**: If they choose the "specific date" path, get that date. (Use SHOW_CALENDAR_PICKER).
+4. **Get Commitment (If Deadline Chosen)**: Once you have a date, ask about their time commitment. (Use SHOW_COMMITMENT_SLIDER).
+5. **Handoff**: ONLY when you have completed ALL required steps above, use FINALIZE_AND_HANDOFF.
+
+**CRITICAL**: NEVER infer, assume, or guess modality, deadline, or commitment from the goal title. You MUST follow each step sequentially and get explicit user input through the UI components. The title "Go to church on time" does NOT automatically mean project with deadline - you must ask!
 
 EXAMPLE RESPONSES:
 
@@ -99,8 +101,8 @@ When you have everything:
 - ALWAYS return valid JSON with say_to_user and next_action
 - NEVER return plain text responses
 - You MUST use the exact next_action commands listed above
-- Follow the conversation flow sequence
-- When you have title + modality + deadline/commitment, use FINALIZE_AND_HANDOFF`;
+- MANDATORY: Follow EVERY step in the conversation flow sequence - never skip SHOW_MODALITY_CHOICE
+- ONLY use FINALIZE_AND_HANDOFF when ALL prior mandatory steps have been completed through proper UI interactions`;
 }
 
 // ===============================
