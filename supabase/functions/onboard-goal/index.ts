@@ -57,6 +57,26 @@ THE FINAL HANDOFF: When your update_state object contains at least a title, moda
 }
 
 // ===============================
+// CONVERSATION MANAGEMENT FUNCTION
+// ===============================
+
+function manageConversationLength(messages: any[]): any[] {
+  const MAX_CONVERSATION_MESSAGES = 20; // Keep recent conversation manageable
+  
+  if (messages.length <= MAX_CONVERSATION_MESSAGES) {
+    return messages;
+  }
+  
+  // Always keep the system prompt (first message) and recent conversation
+  const systemMessage = messages[0];
+  const recentMessages = messages.slice(-MAX_CONVERSATION_MESSAGES + 1);
+  
+  console.log(`📝 Conversation length management: ${messages.length} → ${recentMessages.length + 1} messages`);
+  
+  return [systemMessage, ...recentMessages];
+}
+
+// ===============================
 // AI COMMUNICATION FUNCTION
 // ===============================
 
@@ -66,13 +86,16 @@ async function callAIStateEngine(messages: any[]): Promise<any> {
     throw new Error("Missing OPENROUTER_API_KEY");
   }
 
-  console.log("🤖 Calling AI State Engine with", messages.length, "messages");
-
+  // Manage conversation length to prevent context overflow
+  const managedMessages = manageConversationLength(messages);
+  
+  console.log("🤖 Calling AI State Engine with", managedMessages.length, "messages (original:", messages.length, ")");
+  
   const requestPayload = {
     model: "moonshotai/kimi-k2:free", // Free model for conversation flow
     temperature: 0.3, // Lower temperature for more consistent JSON output
-    max_tokens: 400, // Enough for JSON response with conversation
-    messages: messages,
+    max_tokens: 800, // Increased for longer conversations and JSON responses
+    messages: managedMessages,
   };
 
   const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
