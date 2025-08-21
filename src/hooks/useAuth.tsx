@@ -1,6 +1,7 @@
 import { useState, useEffect, createContext, useContext } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { validatePassword, validateEmail, sanitizeInput } from '@/lib/validation';
 
 interface AuthContextType {
   user: User | null;
@@ -48,6 +49,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const signUp = async (email: string, password: string, displayName?: string) => {
+    // Client-side validation
+    if (!validateEmail(email)) {
+      return { error: { message: 'Please enter a valid email address' } };
+    }
+
+    const passwordValidation = validatePassword(password);
+    if (!passwordValidation.isValid) {
+      return { 
+        error: { 
+          message: passwordValidation.feedback.join('. ') 
+        } 
+      };
+    }
+
     const redirectUrl = `${window.location.origin}/`;
     
     const { error } = await supabase.auth.signUp({
@@ -56,7 +71,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       options: {
         emailRedirectTo: redirectUrl,
         data: {
-          display_name: displayName
+          display_name: displayName ? sanitizeInput(displayName) : undefined
         }
       }
     });
@@ -64,6 +79,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const signIn = async (email: string, password: string) => {
+    // Basic client-side validation
+    if (!validateEmail(email)) {
+      return { error: { message: 'Please enter a valid email address' } };
+    }
+
+    if (!password || password.length === 0) {
+      return { error: { message: 'Password is required' } };
+    }
+
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password

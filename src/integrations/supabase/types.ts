@@ -417,6 +417,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      check_rate_limit: {
+        Args: { action_type: string; max_per_hour?: number }
+        Returns: boolean
+      }
       complete_all_goal_tasks: {
         Args: { p_goal_id: string }
         Returns: Json
@@ -565,6 +569,10 @@ export type Database = {
       priority_order: {
         Args: { p_priority: string }
         Returns: number
+      }
+      sanitize_user_input: {
+        Args: { input_text: string }
+        Returns: string
       }
       save_goal_plan: {
         Args: {

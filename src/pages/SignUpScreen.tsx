@@ -6,8 +6,9 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { Eye, EyeOff, Mail, Lock, User } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, Shield } from 'lucide-react';
 import ThemeToggle from '@/components/ThemeToggle';
+import { validatePassword, validateDisplayName, sanitizeInput, getPasswordStrengthColor, getPasswordStrengthText } from '@/lib/validation';
 
 const SignUpScreen = () => {
   const [email, setEmail] = useState('');
@@ -18,6 +19,10 @@ const SignUpScreen = () => {
   const { signUp } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // Password strength validation
+  const passwordValidation = validatePassword(password);
+  const isDisplayNameValid = validateDisplayName(displayName);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,10 +36,19 @@ const SignUpScreen = () => {
       return;
     }
 
-    if (password.length < 6) {
+    if (!isDisplayNameValid) {
       toast({
-        title: "Password Too Short",
-        description: "Password must be at least 6 characters long",
+        title: "Invalid Display Name",
+        description: "Display name must be 2-50 characters and contain only letters, numbers, spaces, and basic punctuation",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!passwordValidation.isValid) {
+      toast({
+        title: "Password Requirements Not Met",
+        description: passwordValidation.feedback.join('. '),
         variant: "destructive"
       });
       return;
@@ -42,7 +56,7 @@ const SignUpScreen = () => {
 
     setLoading(true);
     
-    const { error } = await signUp(email, password, displayName);
+    const { error } = await signUp(email, sanitizeInput(password), sanitizeInput(displayName));
     
     if (error) {
       if (error.message.includes('already registered')) {
@@ -94,7 +108,7 @@ const SignUpScreen = () => {
                   type="text"
                   placeholder="Enter your display name"
                   value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
+                  onChange={(e) => setDisplayName(sanitizeInput(e.target.value))}
                   className="pl-10 h-12"
                   autoComplete="name"
                 />
@@ -124,7 +138,7 @@ const SignUpScreen = () => {
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
-                  placeholder="Enter your password (min. 6 characters)"
+                  placeholder="Enter a strong password (min. 8 characters)"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="pl-10 pr-10 h-12"
@@ -144,12 +158,29 @@ const SignUpScreen = () => {
                   )}
                 </Button>
               </div>
+              {password && (
+                <div className="flex items-center gap-2 text-sm">
+                  <Shield className="h-4 w-4" />
+                  <span className={getPasswordStrengthColor(passwordValidation.score)}>
+                    Password strength: {getPasswordStrengthText(passwordValidation.score)}
+                  </span>
+                </div>
+              )}
+              {password && passwordValidation.feedback.length > 0 && (
+                <div className="text-sm text-muted-foreground">
+                  <ul className="list-disc list-inside space-y-1">
+                    {passwordValidation.feedback.map((feedback, index) => (
+                      <li key={index}>{feedback}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
 
             <Button
               type="submit"
               className="w-full h-12 text-base font-medium"
-              disabled={loading}
+              disabled={loading || !passwordValidation.isValid || !isDisplayNameValid}
             >
               {loading ? "Creating account..." : "Create Account"}
             </Button>
