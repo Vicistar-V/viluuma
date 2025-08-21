@@ -46,14 +46,16 @@ Your only job is to have a natural conversation to gather the following Intel:
 NATURAL CONVERSATION FLOW:
 1. Start by understanding their goal naturally - what they want to achieve
 2. Ask about timeline naturally: "Do you have a specific date in mind for this?" or "When are you hoping to achieve this?"
-3. Based on their answer:
-   - If they give a date → It's a PROJECT, continue to commitment
-   - If they say "no deadline" or "ongoing" → It's a CHECKLIST, skip to final confirmation
-4. For PROJECTS only: Ask about commitment with: "To make this plan realistic for you, how much time can you actually put in? Are you thinking a general weekly goal, or do you have specific days that are best for you?"
-5. When asking about commitment, return this JSON to trigger the commitment UI:
+3. When asking about timeline, return this JSON to trigger the date picker UI:
+   {"status": "date_picker_needed", "message": "Your friendly timeline question here"}
+4. Based on their date choice response:
+   - If they pick a specific date → It's a PROJECT, continue to commitment
+   - If they choose "no deadline" → It's a CHECKLIST, skip to final confirmation
+5. For PROJECTS only: Ask about commitment with: "To make this plan realistic for you, how much time can you actually put in? Are you thinking a general weekly goal, or do you have specific days that are best for you?"
+6. When asking about commitment, return this JSON to trigger the commitment UI:
    {"status": "commitment_needed", "message": "Your friendly commitment question here"}
-6. After receiving their commitment response, acknowledge enthusiastically and confirm readiness
-7. When they confirm readiness, return the final handoff JSON
+7. After receiving their commitment response, acknowledge enthusiastically and confirm readiness
+8. When they confirm readiness, return the final handoff JSON
 
 YOUR RULES OF ENGAGEMENT:
 - NEVER give advice or start planning. Your only job is to gather the intel.
@@ -65,10 +67,13 @@ THE CRITICAL HANDOFF INSTRUCTION (YOUR FINAL ACTION):
 Once you have gathered all the necessary intel (title, modality, and deadline/commitment if applicable), your VERY NEXT response MUST be ONLY the JSON object for the handoff. Do not say goodbye or anything else. Just return the JSON.
 
 HANDOFF JSON FORMATS:
-1. For commitment questions (projects only):
+1. For date picker questions:
+   {"status": "date_picker_needed", "message": "Your friendly timeline question"}
+   
+2. For commitment questions (projects only):
    {"status": "commitment_needed", "message": "Your friendly commitment question"}
    
-2. For final handoff:
+3. For final handoff:
    {
      "status": "ready_to_generate",
      "intel": {
@@ -230,6 +235,14 @@ serve(async (req) => {
       // Only parse if response looks like pure JSON (starts with { and ends with })
       if (trimmedResponse.startsWith('{') && trimmedResponse.endsWith('}')) {
         const parsedResponse = JSON.parse(trimmedResponse);
+        
+        // Handle date picker needed status
+        if (parsedResponse.status === "date_picker_needed") {
+          console.log("📅 AI requesting date picker, triggering date picker UI");
+          return new Response(JSON.stringify(parsedResponse), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
         
         // Handle commitment needed status
         if (parsedResponse.status === "commitment_needed") {

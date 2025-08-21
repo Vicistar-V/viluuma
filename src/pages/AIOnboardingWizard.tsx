@@ -9,6 +9,7 @@ import ChatMessage from "@/components/ai/ChatMessage";
 import TypingIndicator from "@/components/ai/TypingIndicator";
 import HandoffConfirmation from "@/components/ai/HandoffConfirmation";
 import CommitmentProfileUI from "@/components/ai/CommitmentProfileUI";
+import DatePickerInChat from "@/components/ai/DatePickerInChat";
 import { 
   ChatMessageType, 
   Intel, 
@@ -32,6 +33,7 @@ const AIOnboardingWizard = () => {
   const [isAITyping, setIsAITyping] = useState(false);
   const [showHandoff, setShowHandoff] = useState(false);
   const [showCommitmentUI, setShowCommitmentUI] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [pendingIntel, setPendingIntel] = useState<(Intel & { dailyBudget: DailyBudget }) | null>(null);
   const [handoffData, setHandoffData] = useState<{intel: Intel, userConstraints: UserConstraints} | null>(null);
   const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
@@ -93,6 +95,24 @@ const AIOnboardingWizard = () => {
         return;
       }
 
+      // Handle date picker request from AI
+      if (data?.status === "date_picker_needed" && data?.message) {
+        console.log("📅 AI requesting date picker, showing date picker UI");
+        setIsAITyping(false);
+        
+        // Add the AI's timeline question to messages
+        setMessages((prev) => [
+          ...prev, 
+          { role: "assistant", content: data.message }
+        ]);
+        
+        // Extract intel from conversation for date picker phase
+        const conversationIntel = extractIntelFromConversation(updatedMessages);
+        setPendingIntel(conversationIntel);
+        setShowDatePicker(true);
+        return;
+      }
+
       // Handle commitment request from AI (for projects only)
       if (data?.status === "commitment_needed" && data?.message) {
         console.log("⏰ AI requesting commitment, showing commitment UI");
@@ -104,9 +124,11 @@ const AIOnboardingWizard = () => {
           { role: "assistant", content: data.message }
         ]);
         
-        // Extract intel from conversation for commitment phase
-        const conversationIntel = extractIntelFromConversation(updatedMessages);
-        setPendingIntel(conversationIntel);
+        // Extract existing intel or use conversation data
+        if (!pendingIntel) {
+          const conversationIntel = extractIntelFromConversation(updatedMessages);
+          setPendingIntel(conversationIntel);
+        }
         setShowCommitmentUI(true);
         return;
       }
@@ -270,9 +292,49 @@ const AIOnboardingWizard = () => {
     }
   };
 
+  const handleDateSelect = (selectedDate: Date | null) => {
+    if (!pendingIntel) return;
+    
+    console.log("📅 Date selected:", selectedDate);
+    
+    // Determine modality based on date selection
+    const modality: "project" | "checklist" = selectedDate ? "project" : "checklist";
+    const deadline = selectedDate ? selectedDate.toISOString() : null;
+    
+    // Update pending intel with date and modality
+    const updatedIntel: Intel & { dailyBudget: DailyBudget } = {
+      ...pendingIntel,
+      modality,
+      deadline
+    };
+    setPendingIntel(updatedIntel);
+    
+    // Create response message about the date choice
+    const dateResponse = selectedDate 
+      ? `Perfect! I'll aim for ${selectedDate.toLocaleDateString()}. That gives us a great timeline to work with!`
+      : `Got it! This is an ongoing goal with no specific deadline. That's totally fine!`;
+    
+    const newMessage: ChatMessageType = { role: "user", content: dateResponse };
+    const updatedMessages = [...messages, newMessage];
+    
+    // Hide date picker and continue conversation
+    setShowDatePicker(false);
+    setMessages(updatedMessages);
+    setIsAITyping(true);
+    
+    // Continue the conversation with date info
+    handleContinueConversation(updatedMessages);
+  };
+
+  const handleDatePickerCancel = () => {
+    setShowDatePicker(false);
+    // Don't clear pendingIntel, just return to conversation
+  };
+
   const handleStartOver = () => {
     setShowHandoff(false);
     setShowCommitmentUI(false);
+    setShowDatePicker(false);
     setHandoffData(null);
     setPendingIntel(null);
     setMessages([
@@ -302,6 +364,16 @@ const AIOnboardingWizard = () => {
         {isAITyping && <TypingIndicator />}
       </div>
 
+      {/* Date Picker UI */}
+      {showDatePicker && (
+        <div className="fixed inset-x-0 bottom-0 p-4 max-w-screen-sm mx-auto">
+          <DatePickerInChat 
+            onDateSelect={handleDateSelect}
+            onCancel={handleDatePickerCancel}
+          />
+        </div>
+      )}
+
       {/* Commitment UI */}
       {showCommitmentUI && (
         <div className="fixed inset-x-0 bottom-0 p-4 max-w-screen-sm mx-auto">
@@ -322,8 +394,8 @@ const AIOnboardingWizard = () => {
         </div>
       )}
 
-      {/* Input Area - Only show if not in handoff or commitment mode */}
-      {!showHandoff && !showCommitmentUI && (
+      {/* Input Area - Only show if not in any modal mode */}
+      {!showHandoff && !showCommitmentUI && !showDatePicker && (
         <Card className="fixed inset-x-0 bottom-0 mx-auto max-w-screen-sm border-t">
           <CardContent className="flex items-center gap-2 p-3">
             <Input
