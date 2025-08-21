@@ -202,14 +202,18 @@ serve(async (req) => {
     // 4. CALL THE AI FOR THE NEXT CHAT RESPONSE
     const aiResponse = await callConversationalAI(messagesForAI);
     
-    // 4.5 CHECK IF THIS RESPONSE IS ACTUALLY A HANDOFF JSON
-    // If the AI response contains the handoff JSON, parse and return it properly
-    if (aiResponse.includes('"status": "ready_to_generate"')) {
-      console.log("🎯 AI returned handoff JSON in conversation, parsing and returning");
-      try {
-        const jsonMatch = aiResponse.match(/\{.*\}/s);
-        if (jsonMatch) {
-          const parsedHandoff = JSON.parse(jsonMatch[0]);
+    // 4.5 CHECK IF THIS IS A COMPLETE JSON HANDOFF (NOT PARTIAL/MIXED CONTENT)
+    // Only attempt JSON parsing if the ENTIRE response is a complete JSON object
+    try {
+      const trimmedResponse = aiResponse.trim();
+      
+      // Only parse if response looks like pure JSON (starts with { and ends with })
+      if (trimmedResponse.startsWith('{') && trimmedResponse.endsWith('}')) {
+        const parsedHandoff = JSON.parse(trimmedResponse);
+        
+        // Verify it's actually a handoff with required structure
+        if (parsedHandoff.status === "ready_to_generate" && parsedHandoff.intel) {
+          console.log("🎯 AI returned complete handoff JSON, processing");
           
           // Transform the AI response format to our expected format
           const properIntel = {
@@ -239,9 +243,10 @@ serve(async (req) => {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
-      } catch (parseErr) {
-        console.warn("⚠️ AI returned malformed JSON, treating as normal conversation", parseErr);
       }
+    } catch (parseErr) {
+      // Not valid JSON or not a handoff, continue as normal conversation
+      console.log("💬 Response is normal conversation, not JSON handoff");
     }
     
     // 5. RETURN THE CHAT MESSAGE
