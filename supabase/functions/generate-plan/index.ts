@@ -481,12 +481,14 @@ function analyzePlanQuality(
     };
   }
 
-  const workdaysAvailable = differenceInBusinessDays(deadlineDate, todayInUsersTimezone);
+  // Calculate workdays available (including the deadline day)
+  const workdaysAvailable = differenceInBusinessDays(deadlineDate, todayInUsersTimezone) + 1;
   const calculatedEndDate = addBusinessDays(todayInUsersTimezone, totalWorkdays - 1);
   const calculatedEndDateString = calculatedEndDate.toISOString().split('T')[0];
 
   console.log(`📊 Station 5: Workdays available: ${workdaysAvailable}, workdays needed: ${totalWorkdays} (timezone: ${timezone})`);
 
+  // Only mark as over-scoped if plan truly exceeds available time
   if (totalWorkdays > workdaysAvailable) {
     console.log(`⚠️ Station 5: Over-scoped. Plan needs ${totalWorkdays} workdays, but only ${workdaysAvailable} are available.`);
     return {
