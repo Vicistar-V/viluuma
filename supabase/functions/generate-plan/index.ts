@@ -339,81 +339,58 @@ function calculateRelativeSchedule(
   const weeklyBudget = intel.hoursPerWeek ?? 20;
   const workdaysPerWeek = 5;
   
-  // PRECISION FIX: Convert everything to minutes to eliminate floating-point errors
+  // PRECISION: Convert everything to minutes to eliminate floating-point errors
   const dailyBudgetMinutes = Math.round((weeklyBudget / workdaysPerWeek) * 60);
-  const MAX_TASKS_PER_DAY = 5; // Anti-bombardment guardrail
 
-  console.log(`🧠 Station 4: PRECISION Calculator with daily budget of ${(dailyBudgetMinutes/60).toFixed(1)} hours (${dailyBudgetMinutes} minutes) and max ${MAX_TASKS_PER_DAY} tasks per day.`);
+  console.log(`🧠 Station 4: WATER POURING Calculator with daily budget of ${(dailyBudgetMinutes/60).toFixed(1)} hours (${dailyBudgetMinutes} minutes).`);
+  console.log(`💧 Station 4: Using volume-based scheduling - no artificial task limits, optimal packing guaranteed.`);
 
   const scheduledTasks: ScheduledViluumaTask[] = [];
+  
   let currentDayOffset = 0;
-  let minutesSpentToday = 0;
-  let tasksScheduledToday = 0;
+  let minutesLeftInToday = dailyBudgetMinutes;
 
+  // THE WATER POURING ALGORITHM: Process every task sequentially
   for (const task of tasks) {
-    const taskDurationMinutes = task.duration_hours * 60;
-
-    // CHECK 1: Can this task fit in today's budget (both time and task limit)?
-    if (
-      (minutesSpentToday + taskDurationMinutes) <= dailyBudgetMinutes &&
-      tasksScheduledToday < MAX_TASKS_PER_DAY
-    ) {
-      // YES! It fits and we haven't hit our task limit.
-      scheduledTasks.push({
-        ...task,
-        start_day_offset: currentDayOffset,
-        end_day_offset: currentDayOffset, // Same-day task
-      });
+    let minutesLeftForThisTask = task.duration_hours * 60;
+    const taskStartDay = currentDayOffset;
+    
+    // As long as there's still work to do on this task...
+    while (minutesLeftForThisTask > 0) {
+      // How much work can we do on this task TODAY?
+      // It's either the full remaining amount, or just enough to fill today's cup.
+      const minutesToWorkToday = Math.min(minutesLeftForThisTask, minutesLeftInToday);
       
-      // Update the budget and task count for today
-      minutesSpentToday += taskDurationMinutes;
-      tasksScheduledToday++;
-
-    } else {
-      // NO! Either we're out of time OR we've hit our task limit for today.
-      // Move to the next day.
-      currentDayOffset++;
-      minutesSpentToday = 0;
-      tasksScheduledToday = 0;
+      // Subtract that work from both budgets
+      minutesLeftForThisTask -= minutesToWorkToday;
+      minutesLeftInToday -= minutesToWorkToday;
       
-      // CHECK 2: Can this task be completed in a single (new) day?
-      if (taskDurationMinutes <= dailyBudgetMinutes) {
-        // YES! Schedule it for this new day.
-        scheduledTasks.push({
-          ...task,
-          start_day_offset: currentDayOffset,
-          end_day_offset: currentDayOffset,
-        });
-        minutesSpentToday = taskDurationMinutes;
-        tasksScheduledToday = 1;
-        
-      } else {
-        // NO! This is a "mega-task" that takes multiple days itself.
-        const daysForMegaTask = Math.ceil(taskDurationMinutes / dailyBudgetMinutes);
-        const startDayForMegaTask = currentDayOffset;
-        const endDayForMegaTask = currentDayOffset + daysForMegaTask - 1;
-
-        scheduledTasks.push({
-          ...task,
-          start_day_offset: startDayForMegaTask,
-          end_day_offset: endDayForMegaTask,
-        });
-
-        // The task ends on a future day, possibly using only a portion of the last day's budget.
-        currentDayOffset = endDayForMegaTask;
-        const minutesOnLastDay = taskDurationMinutes % dailyBudgetMinutes;
-        minutesSpentToday = (minutesOnLastDay === 0) ? dailyBudgetMinutes : minutesOnLastDay;
-        tasksScheduledToday = 1; // The mega-task counts as 1 task on the final day
+      // If today's cup is now full (or empty)...
+      if (minutesLeftInToday <= 0) {
+        // ...move to the next cup for any remaining work
+        currentDayOffset++;
+        minutesLeftInToday = dailyBudgetMinutes; // Refill the cup
       }
     }
+    
+    // Now that the task's work is fully scheduled, record its start and end day
+    // The end day is the current day if we haven't moved to a new day, 
+    // or the previous day if we just moved to a new day
+    const taskEndDay = (minutesLeftInToday === dailyBudgetMinutes) ? currentDayOffset - 1 : currentDayOffset;
+    
+    scheduledTasks.push({
+      ...task,
+      start_day_offset: taskStartDay,
+      end_day_offset: taskEndDay,
+    });
   }
 
   const totalProjectDays = scheduledTasks.length > 0
-    ? scheduledTasks[scheduledTasks.length - 1].end_day_offset + 1
+    ? Math.max(...scheduledTasks.map(t => t.end_day_offset)) + 1
     : 0;
 
-  console.log(`✅ Station 4: PRECISION schedule calculated. Total project days: ${totalProjectDays}.`);
-  console.log(`📊 Station 4: Scheduled ${scheduledTasks.length} tasks across ${totalProjectDays} days with intelligent packing and minute-precision.`);
+  console.log(`✅ Station 4: WATER POURING schedule calculated. Total project days: ${totalProjectDays}.`);
+  console.log(`📊 Station 4: Scheduled ${scheduledTasks.length} tasks across ${totalProjectDays} days with optimal volume-based packing.`);
 
   return { scheduledTasks, totalProjectDays };
 }
