@@ -16,9 +16,20 @@ interface Intel {
   levelOfDetail?: "condensed" | "standard" | "comprehensive";
 }
 
+interface DailyBudget {
+  mon: number;
+  tue: number;
+  wed: number;
+  thu: number;
+  fri: number;
+  sat: number;
+  sun: number;
+}
+
 interface UserConstraints {
   deadline: string | null;
   hoursPerWeek?: number;
+  dailyBudget?: DailyBudget;
 }
 
 interface ScheduledTask {

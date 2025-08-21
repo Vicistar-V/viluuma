@@ -332,23 +332,63 @@ interface ScheduledViluumaTask extends ViluumaTask {
   end_day_offset: number;
 }
 
+interface DailyBudget {
+  mon: number;
+  tue: number;
+  wed: number;
+  thu: number;
+  fri: number;
+  sat: number;
+  sun: number;
+}
+
+interface EnhancedUserConstraints {
+  hoursPerWeek?: number;
+  dailyBudget?: DailyBudget;
+}
+
 function calculateRelativeSchedule(
   tasks: ViluumaTask[],
-  intel: { hoursPerWeek?: number }
+  intel: EnhancedUserConstraints
 ): { scheduledTasks: ScheduledViluumaTask[]; totalProjectDays: number } {
-  const weeklyBudget = intel.hoursPerWeek ?? 20;
-  const workdaysPerWeek = 5;
   
-  // PRECISION: Convert everything to minutes to eliminate floating-point errors
-  const dailyBudgetMinutes = Math.round((weeklyBudget / workdaysPerWeek) * 60);
+  // Enhanced algorithm: support both legacy hoursPerWeek and new dailyBudget
+  let dailyBudgets: DailyBudget;
+  
+  if (intel.dailyBudget) {
+    // Use the provided daily budget
+    dailyBudgets = intel.dailyBudget;
+    console.log(`🧠 Station 4: Using custom daily budget`, dailyBudgets);
+  } else {
+    // Fallback to legacy hoursPerWeek calculation
+    const weeklyBudget = intel.hoursPerWeek ?? 20;
+    const dailyHours = weeklyBudget / 5; // Distribute evenly across weekdays
+    dailyBudgets = {
+      mon: dailyHours, tue: dailyHours, wed: dailyHours, thu: dailyHours, fri: dailyHours,
+      sat: 0, sun: 0
+    };
+    console.log(`🧠 Station 4: Using legacy weekly budget (${weeklyBudget}h/week = ${dailyHours.toFixed(1)}h/day)`);
+  }
+  
+  // Convert to minutes for precision
+  const dailyBudgetMinutes = {
+    mon: Math.round(dailyBudgets.mon * 60),
+    tue: Math.round(dailyBudgets.tue * 60),
+    wed: Math.round(dailyBudgets.wed * 60),
+    thu: Math.round(dailyBudgets.thu * 60),
+    fri: Math.round(dailyBudgets.fri * 60),
+    sat: Math.round(dailyBudgets.sat * 60),
+    sun: Math.round(dailyBudgets.sun * 60)
+  };
 
-  console.log(`🧠 Station 4: WATER POURING Calculator with daily budget of ${(dailyBudgetMinutes/60).toFixed(1)} hours (${dailyBudgetMinutes} minutes).`);
-  console.log(`💧 Station 4: Using volume-based scheduling - no artificial task limits, optimal packing guaranteed.`);
+  console.log(`🧠 Station 4: ENHANCED WATER POURING Calculator with custom daily budgets`);
+  console.log(`💧 Station 4: Using day-aware volume-based scheduling - respecting individual daily commitments`);
 
   const scheduledTasks: ScheduledViluumaTask[] = [];
   
   let currentDayOffset = 0;
-  let minutesLeftInToday = dailyBudgetMinutes;
+  const dayNames = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
+  let minutesLeftInToday = dailyBudgetMinutes[dayNames[currentDayOffset % 7]];
 
   // THE WATER POURING ALGORITHM: Process every task sequentially
   for (const task of tasks) {
@@ -367,16 +407,26 @@ function calculateRelativeSchedule(
       
       // If today's cup is now full (or empty)...
       if (minutesLeftInToday <= 0) {
-        // ...move to the next cup for any remaining work
+        // ...move to the next day for any remaining work
         currentDayOffset++;
-        minutesLeftInToday = dailyBudgetMinutes; // Refill the cup
+        const nextDayName = dayNames[currentDayOffset % 7];
+        minutesLeftInToday = dailyBudgetMinutes[nextDayName]; // Refill with next day's budget
+        
+        // Handle days with zero budget (skip them)
+        while (minutesLeftInToday === 0 && minutesLeftForThisTask > 0) {
+          currentDayOffset++;
+          const skipDayName = dayNames[currentDayOffset % 7];
+          minutesLeftInToday = dailyBudgetMinutes[skipDayName];
+        }
       }
     }
     
     // Now that the task's work is fully scheduled, record its start and end day
     // The end day is the current day if we haven't moved to a new day, 
     // or the previous day if we just moved to a new day
-    const taskEndDay = (minutesLeftInToday === dailyBudgetMinutes) ? currentDayOffset - 1 : currentDayOffset;
+    const currentDayName = dayNames[currentDayOffset % 7];
+    const currentDayBudget = dailyBudgetMinutes[currentDayName];
+    const taskEndDay = (minutesLeftInToday === currentDayBudget) ? currentDayOffset - 1 : currentDayOffset;
     
     scheduledTasks.push({
       ...task,
@@ -389,8 +439,8 @@ function calculateRelativeSchedule(
     ? Math.max(...scheduledTasks.map(t => t.end_day_offset)) + 1
     : 0;
 
-  console.log(`✅ Station 4: WATER POURING schedule calculated. Total project days: ${totalProjectDays}.`);
-  console.log(`📊 Station 4: Scheduled ${scheduledTasks.length} tasks across ${totalProjectDays} days with optimal volume-based packing.`);
+  console.log(`✅ Station 4: ENHANCED WATER POURING schedule calculated. Total project days: ${totalProjectDays}.`);
+  console.log(`📊 Station 4: Scheduled ${scheduledTasks.length} tasks across ${totalProjectDays} days with day-aware optimal packing.`);
 
   return { scheduledTasks, totalProjectDays };
 }
@@ -579,6 +629,7 @@ serve(async (req) => {
       config = {
         deadline: requestBody.userConstraints?.deadline,
         hoursPerWeek: requestBody.userConstraints?.hoursPerWeek,
+        dailyBudget: requestBody.userConstraints?.dailyBudget, // Support new dailyBudget
         timezone: requestBody.userTimezone,
         compression_requested: requestBody.userConstraints?.compression_requested || false
       };
@@ -594,10 +645,15 @@ serve(async (req) => {
 
     // Normalize config with robust defaults
     const hoursPerWeek = Math.min(80, Math.max(1, Number(config.hoursPerWeek ?? 20)));
+    const dailyBudget = config.dailyBudget; // Pass through the daily budget if provided
     const timezone = config.timezone || 'UTC';
     const deadline = config.deadline;
     
-    console.log(`📊 Input validated: "${intel.title}" (${intel.modality}), ${hoursPerWeek}h/week, timezone: ${timezone}`);
+    console.log(`📊 Input validated: "${intel.title}" (${intel.modality}), ${hoursPerWeek}h/week`);
+    if (dailyBudget) {
+      console.log(`📊 Using custom daily budget:`, dailyBudget);
+    }
+    console.log(`📊 Timezone: ${timezone}`);
 
     // ========================================
     // 2. STATION 1: THE PROMPTER
@@ -627,7 +683,10 @@ serve(async (req) => {
     // ========================================
     // 5. STATION 4: THE CALCULATOR
     // ========================================
-    const { scheduledTasks, totalProjectDays } = calculateRelativeSchedule(enrichedTasks, { hoursPerWeek });
+    const { scheduledTasks, totalProjectDays } = calculateRelativeSchedule(enrichedTasks, { 
+      hoursPerWeek, 
+      dailyBudget 
+    });
     console.log("✅ Station 4: Schedule calculated");
 
     // ========================================

@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import ChatMessage from "@/components/ai/ChatMessage";
 import TypingIndicator from "@/components/ai/TypingIndicator";
 import HandoffConfirmation from "@/components/ai/HandoffConfirmation";
+import CommitmentProfileUI from "@/components/ai/CommitmentProfileUI";
 
 interface ChatMessageType {
   role: "user" | "assistant";
@@ -21,9 +22,26 @@ interface Intel {
   context: string;
 }
 
+interface DailyBudget {
+  mon: number;
+  tue: number;
+  wed: number;
+  thu: number;
+  fri: number;
+  sat: number;
+  sun: number;
+}
+
+interface CommitmentData {
+  type: "daily" | "weekly";
+  dailyBudget: DailyBudget;
+  totalHoursPerWeek: number;
+}
+
 interface UserConstraints {
   deadline?: string | null;
   hoursPerWeek: number;
+  dailyBudget?: DailyBudget;
 }
 
 const AIOnboardingWizard = () => {
@@ -36,6 +54,8 @@ const AIOnboardingWizard = () => {
   const [userInput, setUserInput] = useState("");
   const [isAITyping, setIsAITyping] = useState(false);
   const [showHandoff, setShowHandoff] = useState(false);
+  const [showCommitmentUI, setShowCommitmentUI] = useState(false);
+  const [pendingIntel, setPendingIntel] = useState<Intel | null>(null);
   const [handoffData, setHandoffData] = useState<{intel: Intel, userConstraints: UserConstraints} | null>(null);
   const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
   const navigate = useNavigate();
@@ -74,9 +94,29 @@ const AIOnboardingWizard = () => {
 
       console.log("📥 Received response:", data);
 
-      // Check for handoff to plan generation
+      // Check for commitment UI trigger
+      if (data?.status === "commitment_needed") {
+        console.log("⏰ Commitment gathering needed, showing commitment UI");
+        
+        setIsAITyping(false);
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: "Perfect! Last question to make this plan super realistic for you: roughly how many hours per day do you think you can put towards this?",
+          },
+        ]);
+        
+        // Extract intel from conversation history for commitment phase
+        const conversationIntel = extractIntelFromConversation(updatedMessages);
+        setPendingIntel(conversationIntel);
+        setShowCommitmentUI(true);
+        return;
+      }
+
+      // Check for final handoff to plan generation
       if (data?.status === "ready_to_generate" && data?.intel) {
-        console.log("🎯 Handoff detected, showing confirmation UI");
+        console.log("🎯 Final handoff detected, showing confirmation UI");
         
         setIsAITyping(false);
         setMessages((prev) => [
@@ -156,9 +196,58 @@ const AIOnboardingWizard = () => {
     }
   };
 
+  // Extract intel from conversation for commitment phase
+  const extractIntelFromConversation = (messages: ChatMessageType[]): Intel => {
+    // Simple extraction logic - in a real implementation, this could be more sophisticated
+    const userMessages = messages.filter(m => m.role === 'user').map(m => m.content).join(' ');
+    
+    // Basic heuristics to extract goal info from conversation
+    const title = userMessages.length > 10 ? userMessages.substring(0, 100) + '...' : userMessages;
+    const modality = userMessages.toLowerCase().includes('deadline') || 
+                    userMessages.toLowerCase().includes('by ') ? 'project' : 'checklist';
+    
+    return {
+      title: title || 'My Goal',
+      modality: modality as 'project' | 'checklist',
+      context: userMessages
+    };
+  };
+
+  const handleCommitmentSet = (commitment: CommitmentData) => {
+    if (!pendingIntel) return;
+    
+    console.log("⏰ Commitment set:", commitment);
+    
+    // Create final intel and constraints with commitment data
+    const finalIntel: Intel = pendingIntel;
+    const finalConstraints: UserConstraints = {
+      deadline: null, // Will be extracted from conversation if needed
+      hoursPerWeek: commitment.totalHoursPerWeek,
+      dailyBudget: commitment.dailyBudget
+    };
+    
+    // Hide commitment UI and show handoff confirmation
+    setShowCommitmentUI(false);
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "assistant",
+        content: "Awesome! I've got everything I need. Here's the briefing I've put together. Does this look right to you?",
+      },
+    ]);
+    
+    setHandoffData({
+      intel: finalIntel,
+      userConstraints: finalConstraints
+    });
+    setShowHandoff(true);
+  };
+
   const handleStartOver = () => {
     setShowHandoff(false);
+    setShowCommitmentUI(false);
     setHandoffData(null);
+    setPendingIntel(null);
     setMessages([
       {
         role: "assistant",
@@ -186,6 +275,13 @@ const AIOnboardingWizard = () => {
         {isAITyping && <TypingIndicator />}
       </div>
 
+      {/* Commitment UI */}
+      {showCommitmentUI && (
+        <div className="fixed inset-x-0 bottom-0 p-4 max-w-screen-sm mx-auto">
+          <CommitmentProfileUI onCommitmentSet={handleCommitmentSet} />
+        </div>
+      )}
+
       {/* Handoff Confirmation */}
       {showHandoff && handoffData && (
         <div className="fixed inset-x-0 bottom-0">
@@ -199,8 +295,8 @@ const AIOnboardingWizard = () => {
         </div>
       )}
 
-      {/* Input Area - Only show if not in handoff mode */}
-      {!showHandoff && (
+      {/* Input Area - Only show if not in handoff or commitment mode */}
+      {!showHandoff && !showCommitmentUI && (
         <Card className="fixed inset-x-0 bottom-0 mx-auto max-w-screen-sm border-t">
           <CardContent className="flex items-center gap-2 p-3">
             <Input

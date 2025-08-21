@@ -8,7 +8,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Target, Calendar as CalendarIconLucide, FileText, Edit3 } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
+import CommitmentEditModal from "@/components/ai/CommitmentEditModal";
+import { CalendarIcon, Target, Calendar as CalendarIconLucide, FileText, Edit3, Clock } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -19,9 +21,20 @@ interface Intel {
   context: string;
 }
 
+interface DailyBudget {
+  mon: number;
+  tue: number;
+  wed: number;
+  thu: number;
+  fri: number;
+  sat: number;
+  sun: number;
+}
+
 interface UserConstraints {
   deadline?: string | null;
   hoursPerWeek: number;
+  dailyBudget?: DailyBudget;
 }
 
 interface HandoffConfirmationProps {
@@ -40,6 +53,7 @@ const HandoffConfirmation = ({
   isLoading = false 
 }: HandoffConfirmationProps) => {
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showCommitmentEditModal, setShowCommitmentEditModal] = useState(false);
   const [editedIntel, setEditedIntel] = useState<Intel>(intel);
   const [editedConstraints, setEditedConstraints] = useState<UserConstraints>(userConstraints);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(
@@ -76,6 +90,19 @@ const HandoffConfirmation = ({
 
   const getModalityIcon = (modality: string) => {
     return modality === "project" ? CalendarIconLucide : FileText;
+  };
+
+  const formatDailyBudget = (dailyBudget: DailyBudget): string => {
+    const workdayHours = dailyBudget.mon + dailyBudget.tue + dailyBudget.wed + dailyBudget.thu + dailyBudget.fri;
+    const weekendHours = dailyBudget.sat + dailyBudget.sun;
+    
+    if (weekendHours === 0) {
+      const avgWorkdayHours = workdayHours / 5;
+      return `~${avgWorkdayHours.toFixed(1)} hours per day (weekdays)`;
+    }
+    
+    const avgAllDays = (workdayHours + weekendHours) / 7;
+    return `~${avgAllDays.toFixed(1)} hours per day (all week)`;
   };
 
   const ModalityIcon = getModalityIcon(intel.modality);
@@ -124,6 +151,33 @@ const HandoffConfirmation = ({
               </div>
             </div>
           )}
+
+          {/* Commitment */}
+          <div className="flex items-start gap-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
+              <Clock className="h-4 w-4 text-primary" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-muted-foreground">COMMITMENT</p>
+              <p className="font-semibold">
+                {userConstraints.dailyBudget ? 
+                  formatDailyBudget(userConstraints.dailyBudget) : 
+                  `~${Math.round(userConstraints.hoursPerWeek / 5)} hours per day`
+                }
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {userConstraints.hoursPerWeek} hours/week total
+              </p>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowCommitmentEditModal(true)}
+                className="mt-1 p-0 h-auto text-xs text-primary hover:text-primary-foreground"
+              >
+                Edit commitment →
+              </Button>
+            </div>
+          </div>
 
           {/* Context/Notes */}
           {intel.context && (
@@ -273,6 +327,17 @@ const HandoffConfirmation = ({
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Commitment Edit Modal */}
+      <CommitmentEditModal
+        open={showCommitmentEditModal}
+        onOpenChange={setShowCommitmentEditModal}
+        userConstraints={editedConstraints}
+        onSave={(updatedConstraints) => {
+          setEditedConstraints(updatedConstraints);
+          onConfirm(editedIntel, updatedConstraints);
+        }}
+      />
     </>
   );
 };

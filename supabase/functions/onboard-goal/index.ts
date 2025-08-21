@@ -34,8 +34,15 @@ CRITICAL CONTEXT:
 YOUR MISSION:
 Have a natural conversation to figure out:
 - The user's core goal (what they want to achieve)
-- The goal type: "Project" (has a deadline) or "Checklist" (ongoing habit/routine)
+- The goal type: "Project" (has a deadline) or "Checklist" (ongoing habit/routine)  
 - For projects: a specific deadline
+- The user's time commitment (how many hours per day they can realistically work on this)
+
+CONVERSATION FLOW:
+1. First understand their goal and determine if it's a project or checklist
+2. For projects, get a specific deadline date
+3. Finally, ask about their daily time commitment with a friendly question like:
+   "Perfect! Last question to make this plan super realistic for you: roughly how many hours per day do you think you can put towards this?"
 
 RULES:
 - Ask friendly, natural questions based on the conversation flow
@@ -44,10 +51,12 @@ RULES:
 - Keep responses to 1-2 sentences max. Be conversational and natural
 - NEVER mention JSON or technical terms to the user
 - When suggesting deadlines, remember we are in ${currentYear}, not 2024!
+- When asking about time commitment, be encouraging and emphasize being realistic
 
 CRITICAL HANDOFF INSTRUCTION:
-- When you believe you have gathered ALL the necessary information (Core Activity, Type, and Deadline for projects), your VERY NEXT response must ONLY be the JSON object: {"status": "ready_to_generate", "intel": {"title": "goal title", "modality": "project" or "checklist", "deadline": "YYYY-MM-DD or null", "context": "actual goal description"}}.
-- Do NOT say anything else when returning the JSON. The frontend will handle the transition messaging.
+- When you have gathered ALL the necessary information (Goal, Type, Deadline for projects, AND Time Commitment), your VERY NEXT response must ONLY be the JSON object: {"status": "commitment_needed"}.
+- This will trigger the frontend to show the time commitment UI instead of continuing the conversation.
+- Do NOT return the full intel JSON yet - the frontend will handle commitment gathering and final handoff.
 
 🚨 CRITICAL CONTEXT RULE - EXTREMELY DANGEROUS TO IGNORE:
 - The "context" field MUST be an actual description of the user's goal - what they want to achieve and why
@@ -202,6 +211,14 @@ serve(async (req) => {
     // 4. CALL THE AI FOR THE NEXT CHAT RESPONSE
     const aiResponse = await callConversationalAI(messagesForAI);
     
+  // Update backend to handle commitment_needed status first
+  // Check if this response is actually the special commitment trigger JSON
+  if (aiResponse.includes('"status": "commitment_needed"')) {
+    console.log("⏰ AI signaled commitment gathering needed");
+    return new Response(JSON.stringify({ status: "commitment_needed" }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
     // 4.5 CHECK IF THIS IS A COMPLETE JSON HANDOFF (NOT PARTIAL/MIXED CONTENT)
     // Only attempt JSON parsing if the ENTIRE response is a complete JSON object
     try {
