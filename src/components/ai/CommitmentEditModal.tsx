@@ -3,23 +3,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
-import { Calendar, Clock } from "lucide-react";
-
-interface DailyBudget {
-  mon: number;
-  tue: number;
-  wed: number;
-  thu: number;
-  fri: number;
-  sat: number;
-  sun: number;
-}
-
-interface UserConstraints {
-  deadline?: string | null;
-  hoursPerWeek: number;
-  dailyBudget?: DailyBudget;
-}
+import { Clock } from "lucide-react";
+import { DailyBudget, UserConstraints } from "@/types/onboarding";
 
 interface CommitmentEditModalProps {
   open: boolean;

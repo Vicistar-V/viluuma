@@ -5,22 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Clock, Calendar, Sparkles } from "lucide-react";
-
-interface DailyBudget {
-  mon: number;
-  tue: number;
-  wed: number;
-  thu: number;
-  fri: number;
-  sat: number;
-  sun: number;
-}
-
-interface CommitmentData {
-  type: "daily" | "weekly";
-  dailyBudget: DailyBudget;
-  totalHoursPerWeek: number;
-}
+import { DailyBudget, CommitmentData } from "@/types/onboarding";
 
 interface CommitmentProfileUIProps {
   onCommitmentSet: (commitment: CommitmentData) => void;

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
@@ -9,28 +9,7 @@ import PlanOutlineView from "@/components/plan/PlanOutlineView";
 import ProjectActionFooter from "@/components/plan/ProjectActionFooter";
 import ChecklistActionFooter from "@/components/plan/ChecklistActionFooter";
 import { addBusinessDays } from "date-fns";
-interface Intel {
-  title: string;
-  modality: "project" | "checklist";
-  context?: string;
-  levelOfDetail?: "condensed" | "standard" | "comprehensive";
-}
-
-interface DailyBudget {
-  mon: number;
-  tue: number;
-  wed: number;
-  thu: number;
-  fri: number;
-  sat: number;
-  sun: number;
-}
-
-interface UserConstraints {
-  deadline: string | null;
-  hoursPerWeek?: number;
-  dailyBudget?: DailyBudget;
-}
+import { Intel, DailyBudget, UserConstraints } from "@/types/onboarding";
 
 interface ScheduledTask {
   id: string;

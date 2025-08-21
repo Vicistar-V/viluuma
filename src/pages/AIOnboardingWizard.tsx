@@ -9,40 +9,17 @@ import ChatMessage from "@/components/ai/ChatMessage";
 import TypingIndicator from "@/components/ai/TypingIndicator";
 import HandoffConfirmation from "@/components/ai/HandoffConfirmation";
 import CommitmentProfileUI from "@/components/ai/CommitmentProfileUI";
-
-interface ChatMessageType {
-  role: "user" | "assistant";
-  content: string;
-}
-
-interface Intel {
-  title: string;
-  modality: "project" | "checklist";
-  deadline?: string | null;
-  context: string;
-}
-
-interface DailyBudget {
-  mon: number;
-  tue: number;
-  wed: number;
-  thu: number;
-  fri: number;
-  sat: number;
-  sun: number;
-}
-
-interface CommitmentData {
-  type: "daily" | "weekly";
-  dailyBudget: DailyBudget;
-  totalHoursPerWeek: number;
-}
-
-interface UserConstraints {
-  deadline?: string | null;
-  hoursPerWeek: number;
-  dailyBudget?: DailyBudget;
-}
+import { 
+  ChatMessageType, 
+  Intel, 
+  DailyBudget, 
+  CommitmentData, 
+  UserConstraints,
+  extractDeadlineFromConversation,
+  extractGoalFromConversation,
+  determineModalityFromConversation,
+  createDefaultDailyBudget
+} from "@/types/onboarding";
 
 const AIOnboardingWizard = () => {
   const [messages, setMessages] = useState<ChatMessageType[]>([
@@ -94,64 +71,67 @@ const AIOnboardingWizard = () => {
 
       console.log("📥 Received response:", data);
 
-      // Check for commitment UI trigger
-      if (data?.status === "commitment_needed") {
-        console.log("⏰ Commitment gathering needed, showing commitment UI");
-        
-        setIsAITyping(false);
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "assistant",
-            content: "Perfect! Last question to make this plan super realistic for you: roughly how many hours per day do you think you can put towards this?",
-          },
-        ]);
-        
-        // Extract intel from conversation history for commitment phase
-        const conversationIntel = extractIntelFromConversation(updatedMessages);
-        setPendingIntel(conversationIntel);
-        setShowCommitmentUI(true);
-        return;
-      }
-
-      // Check for final handoff to plan generation
+      // Check for final handoff to plan generation  
       if (data?.status === "ready_to_generate" && data?.intel) {
-        console.log("🎯 Final handoff detected, showing confirmation UI");
+        console.log("🎯 Complete handoff detected with all data including commitment");
         
         setIsAITyping(false);
         setMessages((prev) => [
           ...prev,
           {
-            role: "assistant",
-            content: "Okay, I think I've got a great starting point! Here's the briefing I've put together. Does this look right to you?",
+            role: "assistant", 
+            content: "Awesome! I've got everything I need. Here's the briefing I've put together. Does this look right to you?",
           },
         ]);
+        
+        // Create user constraints from the intel data and default commitment
+        const userConstraints: UserConstraints = {
+          deadline: data.intel.deadline,
+          hoursPerWeek: 10, // Default 2 hours * 5 days
+          dailyBudget: createDefaultDailyBudget(2) // Default 2 hours per weekday
+        };
         
         // Show the handoff confirmation UI
         setHandoffData({
           intel: data.intel,
-          userConstraints: data.userConstraints
+          userConstraints: userConstraints
         });
         setShowHandoff(true);
         return;
       }
 
-      // Handle normal conversation response
+      // Handle normal conversation response with smart commitment detection
       if (data?.content) {
         setIsAITyping(false);
         setMessages((prev) => [
           ...prev, 
           { role: "assistant", content: data.content }
         ]);
-      } else {
-        console.warn("⚠️ Unexpected response format:", data);
-        setIsAITyping(false);
-        toast({ 
-          title: "Unexpected response format", 
-          description: "Please try again.",
-          variant: "destructive" 
-        });
+        
+        // Smart detection: if AI is asking about hours/commitment, show commitment UI
+        const isAskingAboutCommitment = data.content.toLowerCase().includes("hours per day") ||
+                                       data.content.toLowerCase().includes("time commitment") ||
+                                       data.content.toLowerCase().includes("how much time");
+                                       
+        if (isAskingAboutCommitment) {
+          console.log("⏰ AI asked about commitment, showing commitment UI");
+          
+          // Extract intel from conversation for commitment phase
+          const conversationIntel = extractIntelFromConversation(updatedMessages);
+          setPendingIntel(conversationIntel);
+          setShowCommitmentUI(true);
+        }
+        return;
       }
+
+      // If no content or unexpected format
+      console.warn("⚠️ Unexpected response format:", data);
+      setIsAITyping(false);
+      toast({ 
+        title: "Unexpected response format", 
+        description: "Please try again.",
+        variant: "destructive" 
+      });
 
     } catch (error: any) {
       console.error("❌ Error in conversation:", error);
@@ -198,18 +178,15 @@ const AIOnboardingWizard = () => {
 
   // Extract intel from conversation for commitment phase
   const extractIntelFromConversation = (messages: ChatMessageType[]): Intel => {
-    // Simple extraction logic - in a real implementation, this could be more sophisticated
-    const userMessages = messages.filter(m => m.role === 'user').map(m => m.content).join(' ');
-    
-    // Basic heuristics to extract goal info from conversation
-    const title = userMessages.length > 10 ? userMessages.substring(0, 100) + '...' : userMessages;
-    const modality = userMessages.toLowerCase().includes('deadline') || 
-                    userMessages.toLowerCase().includes('by ') ? 'project' : 'checklist';
+    const { title, context } = extractGoalFromConversation(messages);
+    const deadline = extractDeadlineFromConversation(messages);
+    const modality = determineModalityFromConversation(messages);
     
     return {
-      title: title || 'My Goal',
-      modality: modality as 'project' | 'checklist',
-      context: userMessages
+      title,
+      modality,
+      deadline,
+      context
     };
   };
 
@@ -219,9 +196,12 @@ const AIOnboardingWizard = () => {
     console.log("⏰ Commitment set:", commitment);
     
     // Create final intel and constraints with commitment data
-    const finalIntel: Intel = pendingIntel;
+    const finalIntel: Intel = {
+      ...pendingIntel,
+      deadline: pendingIntel.deadline || extractDeadlineFromConversation(messages)
+    };
     const finalConstraints: UserConstraints = {
-      deadline: null, // Will be extracted from conversation if needed
+      deadline: finalIntel.deadline,
       hoursPerWeek: commitment.totalHoursPerWeek,
       dailyBudget: commitment.dailyBudget
     };

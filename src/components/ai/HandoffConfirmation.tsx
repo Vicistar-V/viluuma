@@ -8,34 +8,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Slider } from "@/components/ui/slider";
 import CommitmentEditModal from "@/components/ai/CommitmentEditModal";
 import { CalendarIcon, Target, Calendar as CalendarIconLucide, FileText, Edit3, Clock } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-
-interface Intel {
-  title: string;
-  modality: "project" | "checklist";
-  deadline?: string | null;
-  context: string;
-}
-
-interface DailyBudget {
-  mon: number;
-  tue: number;
-  wed: number;
-  thu: number;
-  fri: number;
-  sat: number;
-  sun: number;
-}
-
-interface UserConstraints {
-  deadline?: string | null;
-  hoursPerWeek: number;
-  dailyBudget?: DailyBudget;
-}
+import { Intel, DailyBudget, UserConstraints } from "@/types/onboarding";
 
 interface HandoffConfirmationProps {
   intel: Intel;

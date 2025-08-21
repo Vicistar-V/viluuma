@@ -8,12 +8,11 @@ const corsHeaders = {
 };
 
 // ===============================
-// PART 1: STATE-AWARE SYSTEM PROMPT
+// PART 1: NATURAL CONVERSATION SYSTEM PROMPT
 // ===============================
 
 function constructOnboardingPrompt(
   conversationHistory: any[],
-  currentState: { hasTitle: boolean; hasModality: boolean; hasDeadline?: boolean },
   userTimezone: string = 'UTC'
 ): string {
   
@@ -35,37 +34,43 @@ YOUR MISSION:
 Have a natural conversation to figure out:
 - The user's core goal (what they want to achieve)
 - The goal type: "Project" (has a deadline) or "Checklist" (ongoing habit/routine)  
-- For projects: a specific deadline
-- The user's time commitment (how many hours per day they can realistically work on this)
+- For projects: a specific deadline date
+- The user's time commitment (roughly how many hours per day they can realistically work on this)
 
 CONVERSATION FLOW:
 1. First understand their goal and determine if it's a project or checklist
-2. For projects, get a specific deadline date
+2. For projects, get a specific deadline date  
 3. Finally, ask about their daily time commitment with a friendly question like:
    "Perfect! Last question to make this plan super realistic for you: roughly how many hours per day do you think you can put towards this?"
+4. After they answer the time commitment question, return the complete handoff JSON
 
 RULES:
-- Ask friendly, natural questions based on the conversation flow
+- Ask friendly, natural questions following the conversation flow above
 - Be a hype man! Get excited about their goals
 - DO NOT create a plan or give advice. Your only job is to gather the info
 - Keep responses to 1-2 sentences max. Be conversational and natural
 - NEVER mention JSON or technical terms to the user
-- When suggesting deadlines, remember we are in ${currentYear}, not 2024!
+- When suggesting deadlines, remember we are in ${currentYear}!
 - When asking about time commitment, be encouraging and emphasize being realistic
 
 CRITICAL HANDOFF INSTRUCTION:
-- When you have gathered ALL the necessary information (Goal, Type, Deadline for projects, AND Time Commitment), your VERY NEXT response must ONLY be the JSON object: {"status": "commitment_needed"}.
-- This will trigger the frontend to show the time commitment UI instead of continuing the conversation.
-- Do NOT return the full intel JSON yet - the frontend will handle commitment gathering and final handoff.
+- When you have gathered ALL necessary information (Goal, Type, Deadline for projects, AND Time Commitment), respond ONLY with this JSON format:
+{
+  "status": "ready_to_generate",
+  "intel": {
+    "title": "User's goal title",
+    "modality": "project" or "checklist", 
+    "deadline": "YYYY-MM-DD" or null,
+    "context": "Description of what they want to achieve WITHOUT any dates or deadlines"
+  }
+}
 
-🚨 CRITICAL CONTEXT RULE - EXTREMELY DANGEROUS TO IGNORE:
-- The "context" field MUST be an actual description of the user's goal - what they want to achieve and why
-- The context should NEVER contain ANY dates, deadlines, timeframes, or temporal references whatsoever
-- Context should describe WHAT the user wants to achieve, their motivation, specific details about the goal
-- Including dates/times in context will cause catastrophic system failures
-- Example GOOD context: "User wants to learn guitar to play their favorite songs and express creativity through music"
-- Example BAD context: "User wants to learn guitar by October" or "User has 2 months to learn"
-- This rule is NON-NEGOTIABLE and CRITICAL for system stability`;
+🚨 CRITICAL CONTEXT RULE:
+- The "context" field MUST describe WHAT they want to achieve and WHY
+- NEVER include dates, deadlines, or timeframes in context
+- Good context: "User wants to learn guitar to play favorite songs and express creativity"
+- Bad context: "User wants to learn guitar by October"
+- This prevents system failures downstream`;
   
   return `${persona}\n\n${mission}`;
 }
@@ -193,15 +198,8 @@ serve(async (req) => {
     // 1. BUILD CONVERSATION CONTEXT
     const state = analyzeConversationState(conversationHistory);
     
-    // 2. CONSTRUCT THE DYNAMIC PROMPT 
-    // Let the AI decide what questions to ask based on conversation flow
-    const currentState = {
-      hasTitle: true, // Let AI determine this from conversation
-      hasModality: true, // Let AI determine this from conversation  
-      hasDeadline: true // Let AI determine this from conversation
-    };
-    
-    const systemPrompt = constructOnboardingPrompt(conversationHistory, currentState, userTimezone);
+    // 2. CONSTRUCT THE NATURAL CONVERSATION PROMPT 
+    const systemPrompt = constructOnboardingPrompt(conversationHistory, userTimezone);
     
     const messagesForAI = [
       { role: 'system', content: systemPrompt },
@@ -211,14 +209,8 @@ serve(async (req) => {
     // 4. CALL THE AI FOR THE NEXT CHAT RESPONSE
     const aiResponse = await callConversationalAI(messagesForAI);
     
-  // Update backend to handle commitment_needed status first
-  // Check if this response is actually the special commitment trigger JSON
-  if (aiResponse.includes('"status": "commitment_needed"')) {
-    console.log("⏰ AI signaled commitment gathering needed");
-    return new Response(JSON.stringify({ status: "commitment_needed" }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
+    // 5. CHECK IF THIS IS THE FINAL HANDOFF JSON
+    // The AI should return ready_to_generate when it has all info including commitment
     // 4.5 CHECK IF THIS IS A COMPLETE JSON HANDOFF (NOT PARTIAL/MIXED CONTENT)
     // Only attempt JSON parsing if the ENTIRE response is a complete JSON object
     try {
