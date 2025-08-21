@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { addBusinessDays, differenceInBusinessDays, addDays, differenceInCalendarDays } from 'https://esm.sh/date-fns@3.6.0';
+import { toZonedTime } from 'https://esm.sh/date-fns-tz@3.0.0';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -443,9 +444,10 @@ function analyzePlanQuality(
   const timezone = userTimezone || 'UTC';
   console.log(`🌍 Station 5: Using timezone: ${timezone}`);
   
-  // Get today in user's timezone
+  // Get today in user's timezone using reliable date-fns-tz
   const now = new Date();
-  const todayInUsersTimezone = new Date(now.toLocaleString("en-US", {timeZone: timezone}));
+  const todayInUsersTimezone = toZonedTime(now, timezone);
+  todayInUsersTimezone.setHours(0, 0, 0, 0); // Normalize to start of day
   
   // Use totalProjectDays directly - Station 4 already calculated the correct timeline
   const totalWorkdays = totalProjectDays;
@@ -492,21 +494,21 @@ function analyzePlanQuality(
   console.log(`  - Total workdays needed: ${totalWorkdays}`);
   console.log(`  - Calculated end date: ${calculatedEndDateString}`);
 
-  // Check if plan ends exactly on or before deadline
-  if (calculatedEndDate <= deadlineDate) {
-    console.log('✅ Station 5: Plan fits within timeline.');
+  // Simplified over-scoped check: compare day counts directly
+  if (totalWorkdays > calendarDaysAvailable) {
+    console.log(`⚠️ Station 5: Over-scoped. Need ${totalWorkdays} days, have ${calendarDaysAvailable} days.`);
     return {
-      status: 'success',
-      message: 'Your personalized plan is ready!',
+      status: 'over_scoped',
+      message: `Heads up! This plan is ambitious and needs about ${totalWorkdays} workdays, which goes past your deadline.`,
       calculatedEndDate: calculatedEndDateString,
     };
   }
 
-  // Plan goes past deadline - over scoped
-  console.log(`⚠️ Station 5: Over-scoped. Plan ends ${calculatedEndDateString}, past deadline ${deadlineString}.`);
+  // Plan fits within timeline
+  console.log('✅ Station 5: Plan fits within timeline.');
   return {
-    status: 'over_scoped',
-    message: `Heads up! This plan is ambitious and needs about ${totalWorkdays} workdays, which goes past your deadline.`,
+    status: 'success',
+    message: 'Your personalized plan is ready!',
     calculatedEndDate: calculatedEndDateString,
   };
 }
