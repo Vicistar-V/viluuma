@@ -1,6 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { addBusinessDays, differenceInBusinessDays } from 'https://esm.sh/date-fns@3.6.0';
+import { addBusinessDays, differenceInBusinessDays, addDays, differenceInCalendarDays } from 'https://esm.sh/date-fns@3.6.0';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -481,37 +481,34 @@ function analyzePlanQuality(
     };
   }
 
-  // Calculate workdays available (including the deadline day)
-  const workdaysAvailable = differenceInBusinessDays(deadlineDate, todayInUsersTimezone) + 1;
-  const calculatedEndDate = addBusinessDays(todayInUsersTimezone, totalWorkdays - 1);
+  // Use calendar days to match the Hour-Aware Calculator logic
+  const calendarDaysAvailable = differenceInCalendarDays(deadlineDate, todayInUsersTimezone) + 1;
+  const calculatedEndDate = addDays(todayInUsersTimezone, totalWorkdays - 1);
   const calculatedEndDateString = calculatedEndDate.toISOString().split('T')[0];
+  const deadlineString = deadlineDate.toISOString().split('T')[0];
 
-  console.log(`📊 Station 5: Workdays available: ${workdaysAvailable}, workdays needed: ${totalWorkdays} (timezone: ${timezone})`);
+  console.log(`📊 Station 5 Debug:`);
+  console.log(`  - Today (user TZ): ${todayInUsersTimezone.toISOString().split('T')[0]}`);
+  console.log(`  - Deadline: ${deadlineString}`);
+  console.log(`  - Calendar days available: ${calendarDaysAvailable}`);
+  console.log(`  - Total workdays needed: ${totalWorkdays}`);
+  console.log(`  - Calculated end date: ${calculatedEndDateString}`);
 
-  // Only mark as over-scoped if plan truly exceeds available time
-  if (totalWorkdays > workdaysAvailable) {
-    console.log(`⚠️ Station 5: Over-scoped. Plan needs ${totalWorkdays} workdays, but only ${workdaysAvailable} are available.`);
+  // Check if plan ends exactly on or before deadline
+  if (calculatedEndDate <= deadlineDate) {
+    console.log('✅ Station 5: Plan fits within timeline.');
     return {
-      status: 'over_scoped',
-      message: `Heads up! This plan is ambitious and needs about ${totalWorkdays} workdays, which goes past your deadline.`,
+      status: 'success',
+      message: 'Your personalized plan is ready!',
       calculatedEndDate: calculatedEndDateString,
     };
   }
 
-  const UNDER_SCOPED_THRESHOLD_DAYS = 14;
-  if (workdaysAvailable - totalWorkdays > UNDER_SCOPED_THRESHOLD_DAYS) {
-    console.log(`📈 Station 5: Under-scoped. Plan finishes ${workdaysAvailable - totalWorkdays} workdays early.`);
-    return {
-      status: 'under_scoped',
-      message: `Great news! This plan should be done way ahead of schedule, around ${calculatedEndDateString}.`,
-      calculatedEndDate: calculatedEndDateString,
-    };
-  }
-
-  console.log('✅ Station 5: Project plan is a perfect fit for the timeline.');
+  // Plan goes past deadline - over scoped
+  console.log(`⚠️ Station 5: Over-scoped. Plan ends ${calculatedEndDateString}, past deadline ${deadlineString}.`);
   return {
-    status: 'success',
-    message: 'Your personalized plan is ready!',
+    status: 'over_scoped',
+    message: `Heads up! This plan is ambitious and needs about ${totalWorkdays} workdays, which goes past your deadline.`,
     calculatedEndDate: calculatedEndDateString,
   };
 }
