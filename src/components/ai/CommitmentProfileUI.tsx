@@ -20,10 +20,10 @@ const CommitmentProfileUI = ({ onCommitmentSet, className = "" }: CommitmentProf
   });
 
   const weeklyOptions = [
-    { value: 5, label: "5 hrs", description: "Light commitment", perDay: "~1hr/day" },
-    { value: 10, label: "10 hrs", description: "Steady progress", perDay: "~2hrs/day" },
-    { value: 20, label: "20 hrs", description: "Intensive focus", perDay: "~4hrs/day" },
-    { value: 40, label: "40 hrs", description: "Full dedication", perDay: "~8hrs/day" },
+    { dailyHours: 1, label: "1 hr/day", description: "Light commitment", weeklyTotal: "5 hrs/week" },
+    { dailyHours: 2, label: "2 hrs/day", description: "Steady progress", weeklyTotal: "10 hrs/week" },
+    { dailyHours: 4, label: "4 hrs/day", description: "Intensive focus", weeklyTotal: "20 hrs/week" },
+    { dailyHours: 8, label: "8 hrs/day", description: "Full dedication", weeklyTotal: "40 hrs/week" },
   ];
 
   const handleWeeklyChoice = () => {
@@ -34,10 +34,10 @@ const CommitmentProfileUI = ({ onCommitmentSet, className = "" }: CommitmentProf
     setCommitmentType("custom");
   };
 
-  const handleWeeklySelect = (totalHours: number) => {
-    const hoursPerDay = Math.round(totalHours / 5); // Distribute across weekdays
+  const handleWeeklySelect = (dailyHours: number) => {
+    const totalWeeklyHours = dailyHours * 5; // 5 weekdays
     const newDailyBudget: DailyBudget = {
-      mon: hoursPerDay, tue: hoursPerDay, wed: hoursPerDay, thu: hoursPerDay, fri: hoursPerDay,
+      mon: dailyHours, tue: dailyHours, wed: dailyHours, thu: dailyHours, fri: dailyHours,
       sat: 0, sun: 0
     };
     setDailyBudget(newDailyBudget);
@@ -45,7 +45,7 @@ const CommitmentProfileUI = ({ onCommitmentSet, className = "" }: CommitmentProf
     const commitment: CommitmentData = {
       type: "daily",
       dailyBudget: newDailyBudget,
-      totalHoursPerWeek: totalHours
+      totalHoursPerWeek: totalWeeklyHours
     };
     onCommitmentSet(commitment);
   };
@@ -91,10 +91,10 @@ const CommitmentProfileUI = ({ onCommitmentSet, className = "" }: CommitmentProf
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-lg">
             <Clock className="h-5 w-5 text-primary" />
-            Weekly Time Goal
+            Daily Time Commitment
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Pick a total that feels realistic and sustainable.
+            Choose how many hours you can dedicate each day.
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -102,14 +102,14 @@ const CommitmentProfileUI = ({ onCommitmentSet, className = "" }: CommitmentProf
           <div className="grid grid-cols-2 gap-3">
             {weeklyOptions.map((option) => (
               <Button
-                key={option.value}
+                key={option.dailyHours}
                 variant="outline"
                 className="flex flex-col h-auto py-4 px-3 hover:bg-primary/5 hover:border-primary/30"
-                onClick={() => handleWeeklySelect(option.value)}
+                onClick={() => handleWeeklySelect(option.dailyHours)}
               >
                 <span className="font-semibold text-lg">{option.label}</span>
                 <span className="text-xs opacity-80">{option.description}</span>
-                <span className="text-xs text-primary font-medium">{option.perDay}</span>
+                <span className="text-xs text-primary font-medium">{option.weeklyTotal}</span>
               </Button>
             ))}
           </div>
