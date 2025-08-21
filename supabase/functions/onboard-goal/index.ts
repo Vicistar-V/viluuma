@@ -92,7 +92,7 @@ async function callAIStateEngine(messages: any[]): Promise<any> {
   console.log("🤖 Calling AI State Engine with", managedMessages.length, "messages (original:", messages.length, ")");
   
   const requestPayload = {
-    model: "moonshotai/kimi-k2:free", // Free model for conversation flow
+    model: "mistralai/mistral-small-3.2-24b-instruct:free", // Free model for conversation flow
     temperature: 0.3, // Lower temperature for more consistent JSON output
     max_tokens: 800, // Increased for longer conversations and JSON responses
     messages: managedMessages,
