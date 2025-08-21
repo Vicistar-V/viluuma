@@ -235,10 +235,16 @@ const AIOnboardingWizard = () => {
 
   const handleCommitmentSet = (commitment: CommitmentData) => {
     console.log("⏰ Commitment set:", commitment);
-    setStoredCommitmentData(commitment); // Store the actual commitment data
+    setStoredCommitmentData(commitment); // Store the actual commitment data FIRST
     setShowCommitmentUI(false);
     
-    const commitmentMessage = `I can commit ${commitment.totalHoursPerWeek} hours per week to this goal.`;
+    // Send the commitment details including daily breakdown
+    const dailyBreakdown = Object.entries(commitment.dailyBudget)
+      .filter(([_, hours]) => hours > 0)
+      .map(([day, hours]) => `${day}: ${hours}hrs`)
+      .join(', ');
+    
+    const commitmentMessage = `I can commit ${commitment.totalHoursPerWeek} hours per week (${dailyBreakdown}) to this goal.`;
     handleSend(commitmentMessage);
   };
 
