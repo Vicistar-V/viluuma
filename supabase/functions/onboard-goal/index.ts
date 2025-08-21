@@ -84,10 +84,13 @@ When you have everything:
   }
 }
 
-CRITICAL COMMITMENT FORMAT RULES:
-- For projects: commitment should be in format like "1-2 hours", "30 minutes", "2-3 hours" (daily time range, NOT "X hours daily")
+**CRITICAL COMMITMENT CAPTURE AND FORMAT RULES:**
+- ALWAYS use the EXACT commitment data the user provided - NEVER make up values
+- When user says "I can commit X hours per week", use "X hours" in commitment field
+- When user says "I can commit X hours per day", use "X hours" in commitment field  
+- If user selected from slider (like "4 hrs/day"), reflect that: "4 hours"
+- Match the user's actual selection precisely - do not approximate or round
 - For ongoing goals: commitment can be null since they don't have deadlines
-- Always use simple time ranges without "daily" or "per day" suffix
 
 **CRITICAL RULES:**
 - ALWAYS return valid JSON with say_to_user and next_action
