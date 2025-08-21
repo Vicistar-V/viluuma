@@ -8,131 +8,101 @@ const corsHeaders = {
 };
 
 // ===============================
-// PART 1: NATURAL CONVERSATION SYSTEM PROMPT
+// AI STATE ENGINE SYSTEM PROMPT
 // ===============================
 
-function constructOnboardingPrompt(
-  conversationHistory: any[],
-  userTimezone: string = 'UTC'
-): string {
-  
+function constructAIStateEnginePrompt(userTimezone: string = 'UTC'): string {
   // Get timezone-aware current date
   const currentDate = new Date().toLocaleDateString('en-CA', { timeZone: userTimezone }); // YYYY-MM-DD format
   const currentYear = new Date().getFullYear();
   
-  // The V6.0 "Truly Human" System Prompt - Inference-Based Conversation
-  const persona = `You are Viluuma, a super friendly and supportive AI coach. Your goal is to have a quick, casual chat to help a user figure out their next big goal.
+  return `You are Viluuma, a friendly and empathetic AI coach. Your only goal is to have a natural conversation with a user to help them fully define their goal. You MUST ALWAYS respond with a valid JSON object.
 
-YOUR VIBE:
-- Talk Like a Friend: Use contractions (I'm, you're). Keep it to 1-2 short, friendly sentences. Be casual.
-- Be a Hype Man: Get excited about their goals. Use phrases like "Awesome goal!" or "I love that."
-- Be Empathetic: If a user expresses uncertainty, be reassuring. "No worries, we'll figure it out together."
-
-CRITICAL CONTEXT:
+**CRITICAL CONTEXT:**
 - Current date: ${currentDate}
 - Current year: ${currentYear}
-- When discussing deadlines, be aware that we are in ${currentYear}`;
+- User timezone: ${userTimezone}
 
-// The Mission & Rules with Natural Inference
-  const mission = `
-YOUR MISSION:
-Your only job is to have a natural conversation to gather the following Intel:
+**THE CONVERSATION FLOW:**
+1. Start by asking what the goal is.
+2. Then, figure out if it's a 'project' (time-bound) or a 'checklist' (ongoing). A natural way to do this is to ask about a deadline.
+3. If it's a project, you MUST get a specific deadline.
+4. After the deadline, you MUST get their time commitment.
+5. Gather any extra context about their motivation or skill level.
+6. When you have ALL necessary information, your final response must change its 'status' to 'ready_to_generate'.
 
-- The title: The user's core ambition.
-- The modality & deadline: Figure out if this goal is time-bound. You MUST do this by asking a natural question like "Do you have a specific date in mind?" The user's answer will tell you if it's a 'project' (they give a date) or a 'checklist' (they say no). Do NOT use the words "project" or "checklist."
-- The commitment profile (IF it's a project): After you've established a deadline, you must then ask about their daily time commitment. A natural question would be, "Roughly how many hours per day can you put towards this?"
-- The context: Listen for any extra details the user gives, like their motivation or current skill level.
+**YOUR RESPONSE SCHEMA (YOU MUST ALWAYS FOLLOW THIS):**
 
-NATURAL CONVERSATION FLOW:
-1. Start by understanding their goal naturally - what they want to achieve
-2. Ask about timeline naturally: "Do you have a specific date in mind for this?" or "When are you hoping to achieve this?"
-3. When asking about timeline, return this JSON to trigger the date picker UI:
-   {"status": "date_picker_needed", "message": "Your friendly timeline question here"}
-4. Based on their date choice response:
-   - If they pick a specific date → It's a PROJECT, continue to commitment
-   - If they choose "no deadline" → It's a CHECKLIST, skip to final confirmation
-5. For PROJECTS only: Ask about commitment with: "To make this plan realistic for you, how much time can you actually put in? Are you thinking a general weekly goal, or do you have specific days that are best for you?"
-6. When asking about commitment, return this JSON to trigger the commitment UI:
-   {"status": "commitment_needed", "message": "Your friendly commitment question here"}
-7. After receiving their commitment response, acknowledge enthusiastically and confirm readiness
-8. When they confirm readiness, return the final handoff JSON
-
-YOUR RULES OF ENGAGEMENT:
-- NEVER give advice or start planning. Your only job is to gather the intel.
-- NEVER mention JSON, "intel," "project," "checklist," or other technical terms.
-- Keep the conversation moving. Your goal is to get to the handoff in 3-5 turns.
-- Infer, don't interrogate. Let the conversation flow naturally.
-
-THE CRITICAL HANDOFF INSTRUCTION (YOUR FINAL ACTION):
-Once you have gathered all the necessary intel (title, modality, and deadline/commitment if applicable), your VERY NEXT response MUST be ONLY the JSON object for the handoff. Do not say goodbye or anything else. Just return the JSON.
-
-HANDOFF JSON FORMATS:
-1. For date picker questions:
-   {"status": "date_picker_needed", "message": "Your friendly timeline question"}
-   
-2. For commitment questions (projects only):
-   {"status": "commitment_needed", "message": "Your friendly commitment question"}
-   
-3. For final handoff:
-   {
-     "status": "ready_to_generate",
-     "intel": {
-       "title": "User's goal title",
-       "modality": "project" or "checklist", 
-       "deadline": "YYYY-MM-DD" or null,
-       "context": "Description of what they want to achieve WITHOUT any dates or deadlines"
-     }
-   }
-
-🚨 CRITICAL CONTEXT RULE:
-- The "context" field MUST describe WHAT they want to achieve and WHY
-- NEVER include dates, deadlines, or timeframes in context
-- Good context: "User wants to learn guitar to play favorite songs and express creativity"
-- Bad context: "User wants to learn guitar by October"
-- This prevents system failures downstream`;
-  
-  return `${persona}\n\n${mission}`;
-}
-
-// ===============================
-// PART 2: DETERMINISTIC STATE ANALYSIS
-// ===============================
-
-function analyzeConversationState(conversationHistory: any[]): {
-  context: string;
-} {
-  let context = "";
-
-  console.log("🔍 Building context from", conversationHistory.length, "messages");
-
-  // Simply build context from all user messages
-  conversationHistory.forEach((msg) => {
-    if (msg.role === 'user') {
-      context += msg.content + "\n";
+{
+  "response_for_user": "The friendly, conversational chat message to display in the UI.",
+  "state_analysis": {
+    "status": "<The current state of the conversation>",
+    "intel": {
+      "title": "<The goal title you have gathered so far, or null>",
+      "modality": "<'project', 'checklist', or null>",
+      "deadline": "<'YYYY-MM-DD' or null>",
+      "commitment": {
+          "type": "<'daily' or 'weekly', or null>",
+          "value": "<number or object, or null>"
+      },
+      "context": "<A summary of the user's motivation and details>"
     }
-  });
+  }
+}
 
-  return {
-    context: context.trim()
-  };
+**POSSIBLE STATUS VALUES:**
+- "needs_title": You still need the main goal.
+- "needs_modality": You have the title, but don't know if it's a project or checklist.
+- "needs_deadline": You know it's a project, but you need a specific date.
+- "needs_commitment": You have a project and deadline, now you need their time.
+- "ready_to_generate": You have everything. The conversation is over.
+
+**CONVERSATION STYLE:**
+- Talk like a friend: Use contractions (I'm, you're). Keep it to 1-2 short, friendly sentences.
+- Be a hype man: Get excited about their goals. Use phrases like "Awesome goal!" or "I love that."
+- Be empathetic: If a user expresses uncertainty, be reassuring. "No worries, we'll figure it out together."
+- Never mention technical terms like "project", "checklist", "intel", or "JSON".
+
+**EXAMPLE TURN:**
+If the user says "I want to get fit by summer," your JSON response would be:
+{
+  "response_for_user": "Awesome, a fitness goal! To get you the best plan, do you have a specific date in mind for the summer?",
+  "state_analysis": {
+    "status": "needs_deadline",
+    "intel": {
+      "title": "Get fit",
+      "modality": "project",
+      "deadline": null,
+      "commitment": null,
+      "context": "User wants to get fit for summer"
+    }
+  }
+}
+
+**CRITICAL RULES:**
+- ALWAYS return valid JSON in this exact format
+- NEVER return plain text responses
+- Keep responses friendly and conversational 
+- Gather information naturally, don't interrogate
+- When status is "ready_to_generate", you have everything needed`;
 }
 
 // ===============================
-// PART 3: CONVERSATIONAL AI CALLER
+// AI COMMUNICATION FUNCTION
 // ===============================
 
-async function callConversationalAI(messages: any[]): Promise<string> {
+async function callAIStateEngine(messages: any[]): Promise<any> {
   const apiKey = Deno.env.get("OPENROUTER_API_KEY");
   if (!apiKey) {
     throw new Error("Missing OPENROUTER_API_KEY");
   }
 
-  console.log("🤖 Calling conversational AI with", messages.length, "messages");
+  console.log("🤖 Calling AI State Engine with", messages.length, "messages");
 
   const requestPayload = {
-    model: "moonshotai/kimi-k2:free", // Fast, cheap, conversational model
-    temperature: 0.7, // Natural conversation feel
-    max_tokens: 150, // Keep responses short and focused
+    model: "anthropic/claude-3.5-sonnet", // Excellent at following JSON instructions
+    temperature: 0.3, // Lower temperature for more consistent JSON output
+    max_tokens: 400, // Enough for JSON response with conversation
     messages: messages,
   };
 
@@ -151,45 +121,43 @@ async function callConversationalAI(messages: any[]): Promise<string> {
     throw new Error(`AI API error: ${response.status}`);
   }
 
-  // Log the raw response first
-  const rawResponseText = await response.text();
-  console.log("📦 Raw AI Response Body:", rawResponseText);
+  const data = await response.json();
+  const content = data?.choices?.[0]?.message?.content;
   
-  // Parse the response
-  let data: any;
+  if (!content) {
+    throw new Error("No content in AI response");
+  }
+
+  console.log("📦 Raw AI Response:", content);
+
+  // Parse the JSON response from AI
   try {
-    data = JSON.parse(rawResponseText);
-    console.log("🔍 Parsed API Response Data:", JSON.stringify(data, null, 2));
+    const parsedResponse = JSON.parse(content);
+    console.log("✅ Parsed AI JSON Response:", JSON.stringify(parsedResponse, null, 2));
+    return parsedResponse;
   } catch (parseError) {
     console.error("❌ Failed to parse AI response as JSON:", parseError);
-    throw new Error(`Invalid JSON response from AI: ${rawResponseText}`);
+    console.error("Raw content:", content);
+    
+    // Fallback response in case AI doesn't return proper JSON
+    return {
+      response_for_user: "Sorry, I had a hiccup there! Can you tell me again about your goal?",
+      state_analysis: {
+        status: "needs_title",
+        intel: {
+          title: null,
+          modality: null,
+          deadline: null,
+          commitment: null,
+          context: ""
+        }
+      }
+    };
   }
-  
-  // Extract content and log each step
-  const choice = data?.choices?.[0]?.message;
-  console.log("🎯 Extracted choice object:", JSON.stringify(choice, null, 2));
-  
-  let content = "";
-  if (typeof choice?.content === "string" && choice.content.trim()) {
-    content = choice.content;
-    console.log("✅ Content extracted as string:", content);
-  } else if (Array.isArray(choice?.content)) {
-    content = choice.content
-      .map((c: any) => (typeof c === "string" ? c : c.text || ""))
-      .join("\n");
-    console.log("✅ Content extracted from array:", content);
-  } else {
-    console.log("❌ No valid content found in choice:", choice);
-    content = "What would you like to work on?"; // Fallback
-    console.log("🔄 Using fallback content:", content);
-  }
-  
-  console.log("📝 Final extracted content:", content);
-  return content;
 }
 
 // ===============================
-// PART 4: MAIN ORCHESTRATOR
+// MAIN ORCHESTRATOR - AI AS TRUE BACKEND
 // ===============================
 
 serve(async (req) => {
@@ -199,7 +167,7 @@ serve(async (req) => {
   }
 
   try {
-    console.log("🚀 onboard-goal function started");
+    console.log("🚀 AI State Engine onboard-goal function started");
     
     // Parse and validate request
     const { conversationHistory, userTimezone = 'UTC' } = await req.json();
@@ -214,92 +182,51 @@ serve(async (req) => {
 
     console.log("📨 Processing conversation with", conversationHistory.length, "messages");
 
-    // 1. BUILD CONVERSATION CONTEXT
-    const state = analyzeConversationState(conversationHistory);
-    
-    // 2. CONSTRUCT THE NATURAL CONVERSATION PROMPT 
-    const systemPrompt = constructOnboardingPrompt(conversationHistory, userTimezone);
+    // 1. CONSTRUCT THE AI STATE ENGINE PROMPT 
+    const systemPrompt = constructAIStateEnginePrompt(userTimezone);
     
     const messagesForAI = [
       { role: 'system', content: systemPrompt },
       ...conversationHistory
     ];
     
-    // 4. CALL THE AI FOR THE NEXT CHAT RESPONSE
-    const aiResponse = await callConversationalAI(messagesForAI);
+    // 2. CALL THE AI STATE ENGINE - ALWAYS RETURNS JSON
+    const aiResponse = await callAIStateEngine(messagesForAI);
     
-    // 5. CHECK FOR SPECIAL AI RESPONSE STATUSES
-    try {
-      const trimmedResponse = aiResponse.trim();
-      
-      // Only parse if response looks like pure JSON (starts with { and ends with })
-      if (trimmedResponse.startsWith('{') && trimmedResponse.endsWith('}')) {
-        const parsedResponse = JSON.parse(trimmedResponse);
-        
-        // Handle date picker needed status
-        if (parsedResponse.status === "date_picker_needed") {
-          console.log("📅 AI requesting date picker, triggering date picker UI");
-          return new Response(JSON.stringify(parsedResponse), {
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-        
-        // Handle commitment needed status
-        if (parsedResponse.status === "commitment_needed") {
-          console.log("⏰ AI requesting commitment, triggering commitment UI");
-          return new Response(JSON.stringify(parsedResponse), {
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-        
-        // Handle final handoff status
-        if (parsedResponse.status === "ready_to_generate" && parsedResponse.intel) {
-          console.log("🎯 AI returned complete handoff JSON, processing");
-          
-          // Transform the AI response format to our expected format
-          const properIntel = {
-            title: parsedResponse.intel?.title || parsedResponse.intel?.core_activity || "Untitled Goal",
-            modality: parsedResponse.intel?.modality?.toLowerCase() || parsedResponse.intel?.type?.toLowerCase() || "project",
-            deadline: parsedResponse.intel?.deadline || null,
-            context: parsedResponse.intel?.context || ""
-          };
-          
-          // Ensure modality is valid
-          if (properIntel.modality !== "project" && properIntel.modality !== "checklist") {
-            properIntel.modality = "project";
-          }
-          
-          const enhancedHandoff = {
-            status: "ready_to_generate",
-            intel: properIntel
-          };
-          
-          console.log("✅ Properly formatted handoff:", JSON.stringify(enhancedHandoff, null, 2));
-          
-          return new Response(JSON.stringify(enhancedHandoff), {
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-      }
-    } catch (parseErr) {
-      // Not valid JSON or not a special status, continue as normal conversation
-      console.log("💬 Response is normal conversation, not special status");
+    // 3. VALIDATE RESPONSE STRUCTURE
+    if (!aiResponse.response_for_user || !aiResponse.state_analysis) {
+      console.error("❌ Invalid AI response structure:", aiResponse);
+      throw new Error("AI returned invalid response structure");
     }
+
+    console.log("✅ AI State Engine Response:", JSON.stringify(aiResponse, null, 2));
     
-    // 5. RETURN THE CHAT MESSAGE
-    // The frontend receives this as a simple string to display in a new chat bubble
-    console.log("💬 Returning conversation response");
-    return new Response(JSON.stringify({ content: aiResponse }), {
+    // 4. RETURN THE STRUCTURED RESPONSE DIRECTLY
+    // Frontend will handle the state_analysis.status to determine UI
+    return new Response(JSON.stringify(aiResponse), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
   } catch (error) {
     console.error("❌ onboard-goal error:", error);
-    return new Response(JSON.stringify({ 
-      error: "Internal server error",
-      details: String(error)
-    }), {
-      status: 500,
+    
+    // Return a structured error response that the frontend can handle
+    const errorResponse = {
+      response_for_user: "Sorry, I had a technical hiccup! Can you tell me about your goal again?",
+      state_analysis: {
+        status: "needs_title",
+        intel: {
+          title: null,
+          modality: null,
+          deadline: null,
+          commitment: null,
+          context: ""
+        }
+      }
+    };
+    
+    return new Response(JSON.stringify(errorResponse), {
+      status: 200, // Return 200 so frontend can handle the error gracefully
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

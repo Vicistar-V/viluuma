@@ -10,17 +10,33 @@ import TypingIndicator from "@/components/ai/TypingIndicator";
 import HandoffConfirmation from "@/components/ai/HandoffConfirmation";
 import CommitmentProfileUI from "@/components/ai/CommitmentProfileUI";
 import DatePickerInChat from "@/components/ai/DatePickerInChat";
+import ChoiceButtons from "@/components/ai/ChoiceButtons";
 import { 
   ChatMessageType, 
   Intel, 
   DailyBudget, 
   CommitmentData, 
   UserConstraints,
-  extractDeadlineFromConversation,
-  extractGoalFromConversation,
-  determineModalityFromConversation,
   createDefaultDailyBudget
 } from "@/types/onboarding";
+
+// AI State Engine Response Types
+interface AIStateResponse {
+  response_for_user: string;
+  state_analysis: {
+    status: "needs_title" | "needs_modality" | "needs_deadline" | "needs_commitment" | "ready_to_generate";
+    intel: {
+      title: string | null;
+      modality: "project" | "checklist" | null;
+      deadline: string | null;
+      commitment: {
+        type: "daily" | "weekly" | null;
+        value: number | object | null;
+      } | null;
+      context: string;
+    };
+  };
+}
 
 const AIOnboardingWizard = () => {
   const [messages, setMessages] = useState<ChatMessageType[]>([
@@ -31,10 +47,9 @@ const AIOnboardingWizard = () => {
   ]);
   const [userInput, setUserInput] = useState("");
   const [isAITyping, setIsAITyping] = useState(false);
+  const [currentAIState, setCurrentAIState] = useState<AIStateResponse | null>(null);
   const [showHandoff, setShowHandoff] = useState(false);
-  const [showCommitmentUI, setShowCommitmentUI] = useState(false);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [pendingIntel, setPendingIntel] = useState<(Intel & { dailyBudget: DailyBudget }) | null>(null);
+  const [showChoices, setShowChoices] = useState(false);
   const [handoffData, setHandoffData] = useState<{intel: Intel, userConstraints: UserConstraints} | null>(null);
   const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
   const navigate = useNavigate();
@@ -45,19 +60,22 @@ const AIOnboardingWizard = () => {
     inputRef.current?.focus();
   }, []);
 
-  const handleSend = async () => {
-    const trimmed = userInput.trim();
-    if (!trimmed || isAITyping) return;
+  const handleSend = async (userMessage?: string) => {
+    const message = userMessage || userInput.trim();
+    if (!message || isAITyping) return;
 
     // Add user message to conversation
-    const newUserMessage: ChatMessageType = { role: "user", content: trimmed };
+    const newUserMessage: ChatMessageType = { role: "user", content: message };
     const updatedMessages = [...messages, newUserMessage];
     setMessages(updatedMessages);
     setUserInput("");
     setIsAITyping(true);
 
+    // Hide any UI elements
+    setShowChoices(false);
+
     try {
-      console.log("📤 Sending conversation to onboard-goal function");
+      console.log("📤 Sending conversation to AI State Engine");
       
       const { data, error } = await supabase.functions.invoke("onboard-goal", {
         body: { 
@@ -71,86 +89,20 @@ const AIOnboardingWizard = () => {
         throw error;
       }
 
-      console.log("📥 Received response:", data);
+      console.log("📥 AI State Engine Response:", data);
 
-      // Check for final handoff to plan generation  
-      if (data?.status === "ready_to_generate" && data?.intel) {
-        console.log("🎯 Complete handoff detected - showing handoff confirmation");
-        
-        // Create final constraints from pending intel or defaults
-        const finalIntel: Intel = data.intel;
-        const finalConstraints: UserConstraints = {
-          deadline: finalIntel.deadline,
-          hoursPerWeek: pendingIntel ? calculateWeeklyHours(pendingIntel.dailyBudget) : (finalIntel.modality === "project" ? 10 : 0),
-          dailyBudget: pendingIntel ? pendingIntel.dailyBudget : (finalIntel.modality === "project" ? createDefaultDailyBudget(2) : undefined)
-        };
-        
-        // Show handoff confirmation modal
-        setIsAITyping(false);
-        setHandoffData({
-          intel: finalIntel,
-          userConstraints: finalConstraints
-        });
-        setShowHandoff(true);
-        return;
-      }
-
-      // Handle date picker request from AI
-      if (data?.status === "date_picker_needed" && data?.message) {
-        console.log("📅 AI requesting date picker, showing date picker UI");
-        setIsAITyping(false);
-        
-        // Add the AI's timeline question to messages
-        setMessages((prev) => [
-          ...prev, 
-          { role: "assistant", content: data.message }
-        ]);
-        
-        // Extract intel from conversation for date picker phase
-        const conversationIntel = extractIntelFromConversation(updatedMessages);
-        setPendingIntel(conversationIntel);
-        setShowDatePicker(true);
-        return;
-      }
-
-      // Handle commitment request from AI (for projects only)
-      if (data?.status === "commitment_needed" && data?.message) {
-        console.log("⏰ AI requesting commitment, showing commitment UI");
-        setIsAITyping(false);
-        
-        // Add the AI's commitment question to messages
-        setMessages((prev) => [
-          ...prev, 
-          { role: "assistant", content: data.message }
-        ]);
-        
-        // Extract existing intel or use conversation data
-        if (!pendingIntel) {
-          const conversationIntel = extractIntelFromConversation(updatedMessages);
-          setPendingIntel(conversationIntel);
-        }
-        setShowCommitmentUI(true);
-        return;
-      }
-
-      // Handle normal conversation response
-      if (data?.content) {
-        setIsAITyping(false);
-        setMessages((prev) => [
-          ...prev, 
-          { role: "assistant", content: data.content }
-        ]);
-        return;
-      }
-
-      // If no content or unexpected format
-      console.warn("⚠️ Unexpected response format:", data);
+      // Set the AI state for further processing
+      setCurrentAIState(data);
       setIsAITyping(false);
-      toast({ 
-        title: "Unexpected response format", 
-        description: "Please try again.",
-        variant: "destructive" 
-      });
+
+      // Add AI response to messages
+      setMessages((prev) => [
+        ...prev, 
+        { role: "assistant", content: data.response_for_user }
+      ]);
+
+      // Handle different states based on AI's analysis
+      handleAIState(data);
 
     } catch (error: any) {
       console.error("❌ Error in conversation:", error);
@@ -171,6 +123,65 @@ const AIOnboardingWizard = () => {
         variant: "destructive" 
       });
     }
+  };
+
+  const handleAIState = (aiResponse: AIStateResponse) => {
+    const { status, intel } = aiResponse.state_analysis;
+    
+    console.log("🎯 AI State:", status, "Intel:", intel);
+
+    switch (status) {
+      case "needs_modality":
+        // Show project vs checklist choice buttons
+        setShowChoices(true);
+        break;
+        
+      case "needs_deadline":
+        // This would typically show a date picker, but let's keep it simple for now
+        // The AI will naturally ask for the date and user can type it
+        break;
+        
+      case "needs_commitment":
+        // Show commitment UI for projects
+        if (intel.modality === "project") {
+          // We could show a commitment UI here, but for simplicity, let AI handle it
+        }
+        break;
+        
+      case "ready_to_generate":
+        // Show handoff confirmation
+        handleReadyToGenerate(intel);
+        break;
+        
+      default:
+        // Continue normal conversation
+        break;
+    }
+  };
+
+  const handleReadyToGenerate = (intel: any) => {
+    console.log("🎯 Ready to generate plan with intel:", intel);
+    
+    // Convert AI intel to our Intel format
+    const finalIntel: Intel = {
+      title: intel.title || "Untitled Goal",
+      modality: intel.modality || "project",
+      deadline: intel.deadline,
+      context: intel.context || ""
+    };
+    
+    // Create user constraints with defaults
+    const finalConstraints: UserConstraints = {
+      deadline: intel.deadline,
+      hoursPerWeek: intel.modality === "project" ? 10 : 0, // Default hours
+      dailyBudget: intel.modality === "project" ? createDefaultDailyBudget(2) : undefined
+    };
+    
+    setHandoffData({
+      intel: finalIntel,
+      userConstraints: finalConstraints
+    });
+    setShowHandoff(true);
   };
 
   const handleConfirmPlan = async (updatedIntel: Intel, updatedConstraints: UserConstraints) => {
@@ -195,148 +206,23 @@ const AIOnboardingWizard = () => {
     }
   };
 
-  // Enhanced intel extraction that preserves commitment data
-  const extractIntelFromConversation = (messages: ChatMessageType[]): Intel & { dailyBudget: DailyBudget } => {
-    const { title, context } = extractGoalFromConversation(messages);
-    const deadline = extractDeadlineFromConversation(messages);
-    const modality = determineModalityFromConversation(messages);
+  const handleChoice = (choiceId: string) => {
+    console.log("🎯 User choice:", choiceId);
+    setShowChoices(false);
     
-    return {
-      title,
-      modality,
-      deadline,
-      context,
-      dailyBudget: createDefaultDailyBudget(2) // Default commitment
-    };
-  };
-
-  // Helper to calculate weekly hours from daily budget
-  const calculateWeeklyHours = (dailyBudget: DailyBudget): number => {
-    return Object.values(dailyBudget).reduce((sum, hours) => sum + hours, 0);
-  };
-
-  const handleCommitmentSet = (commitment: CommitmentData) => {
-    if (!pendingIntel) return;
+    // Send choice back to AI
+    const choiceText = choiceId === "project" 
+      ? "I'd like to set a specific deadline for this goal."
+      : "This is more of an ongoing goal without a specific deadline.";
     
-    console.log("⏰ Commitment set:", commitment);
-    
-    // Update pending intel with commitment data  
-    const updatedIntel = {
-      ...pendingIntel,
-      dailyBudget: commitment.dailyBudget
-    };
-    setPendingIntel(updatedIntel);
-    
-    // Send commitment response back to conversation to continue natural flow
-    const commitmentResponse = `Perfect! I can work with ${commitment.totalHoursPerWeek} hours per week. That's a great, realistic commitment!`;
-    const newMessage: ChatMessageType = { role: "user", content: commitmentResponse };
-    const updatedMessages = [...messages, newMessage];
-    
-    // Hide commitment UI and continue conversation
-    setShowCommitmentUI(false);
-    setMessages(updatedMessages);
-    setUserInput("");
-    setIsAITyping(true);
-
-    // Continue the conversation with commitment info
-    handleContinueConversation(updatedMessages);
-  };
-
-  const handleContinueConversation = async (updatedMessages: ChatMessageType[]) => {
-    try {
-      const { data, error } = await supabase.functions.invoke("onboard-goal", {
-        body: { 
-          conversationHistory: updatedMessages,
-          userTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-        },
-      });
-      
-      if (error) throw error;
-
-      // Check for final handoff after commitment
-      if (data?.status === "ready_to_generate" && data?.intel) {
-        console.log("🎯 Complete handoff detected after commitment");
-        
-        const finalIntel: Intel = data.intel;
-        const finalConstraints: UserConstraints = {
-          deadline: pendingIntel?.deadline || finalIntel.deadline,
-          hoursPerWeek: pendingIntel ? calculateWeeklyHours(pendingIntel.dailyBudget) : 10,
-          dailyBudget: pendingIntel ? pendingIntel.dailyBudget : createDefaultDailyBudget(2)
-        };
-        
-        setIsAITyping(false);
-        setHandoffData({
-          intel: { ...finalIntel, ...pendingIntel },
-          userConstraints: finalConstraints
-        });
-        setShowHandoff(true);
-        return;
-      }
-
-      // Handle normal conversation response
-      if (data?.content) {
-        setIsAITyping(false);
-        setMessages((prev) => [
-          ...prev, 
-          { role: "assistant", content: data.content }
-        ]);
-      }
-    } catch (error: any) {
-      console.error("❌ Error continuing conversation:", error);
-      setIsAITyping(false);
-      toast({ 
-        title: "Connection issue", 
-        description: "Please try again.",
-        variant: "destructive" 
-      });
-    }
-  };
-
-  const handleDateSelect = (selectedDate: Date | null) => {
-    if (!pendingIntel) return;
-    
-    console.log("📅 Date selected:", selectedDate);
-    
-    // Determine modality based on date selection
-    const modality: "project" | "checklist" = selectedDate ? "project" : "checklist";
-    const deadline = selectedDate ? selectedDate.toISOString() : null;
-    
-    // Update pending intel with date and modality
-    const updatedIntel: Intel & { dailyBudget: DailyBudget } = {
-      ...pendingIntel,
-      modality,
-      deadline
-    };
-    setPendingIntel(updatedIntel);
-    
-    // Create response message about the date choice
-    const dateResponse = selectedDate 
-      ? `Perfect! I'll aim for ${selectedDate.toLocaleDateString()}. That gives us a great timeline to work with!`
-      : `Got it! This is an ongoing goal with no specific deadline. That's totally fine!`;
-    
-    const newMessage: ChatMessageType = { role: "user", content: dateResponse };
-    const updatedMessages = [...messages, newMessage];
-    
-    // Hide date picker and continue conversation
-    setShowDatePicker(false);
-    setMessages(updatedMessages);
-    setIsAITyping(true);
-    
-    // Continue the conversation with date info
-    handleContinueConversation(updatedMessages);
-  };
-
-  const handleDatePickerCancel = () => {
-    setShowDatePicker(false);
-    // Don't clear pendingIntel, just return to conversation
+    handleSend(choiceText);
   };
 
   const handleStartOver = () => {
     setShowHandoff(false);
-    setShowCommitmentUI(false);
-    setShowDatePicker(false);
+    setShowChoices(false);
+    setCurrentAIState(null);
     setHandoffData(null);
-    setPendingIntel(null);
     setMessages([
       {
         role: "assistant",
@@ -364,20 +250,29 @@ const AIOnboardingWizard = () => {
         {isAITyping && <TypingIndicator />}
       </div>
 
-      {/* Date Picker UI */}
-      {showDatePicker && (
-        <div className="fixed inset-x-0 bottom-0 p-4 max-w-screen-sm mx-auto">
-          <DatePickerInChat 
-            onDateSelect={handleDateSelect}
-            onCancel={handleDatePickerCancel}
+      {/* Choice Buttons for Project vs Checklist */}
+      {showChoices && currentAIState?.state_analysis.status === "needs_modality" && (
+        <div className="mb-4">
+          <ChoiceButtons
+            title="What type of goal is this?"
+            choices={[
+              {
+                id: "project",
+                label: "Set a deadline",
+                description: "I want to complete this by a specific date",
+                icon: "📅",
+                variant: "outline"
+              },
+              {
+                id: "checklist",
+                label: "Ongoing goal",
+                description: "This is something I want to work on regularly",
+                icon: "📋", 
+                variant: "outline"
+              }
+            ]}
+            onChoice={handleChoice}
           />
-        </div>
-      )}
-
-      {/* Commitment UI */}
-      {showCommitmentUI && (
-        <div className="fixed inset-x-0 bottom-0 p-4 max-w-screen-sm mx-auto">
-          <CommitmentProfileUI onCommitmentSet={handleCommitmentSet} />
         </div>
       )}
 
@@ -395,7 +290,7 @@ const AIOnboardingWizard = () => {
       )}
 
       {/* Input Area - Only show if not in any modal mode */}
-      {!showHandoff && !showCommitmentUI && !showDatePicker && (
+      {!showHandoff && (
         <Card className="fixed inset-x-0 bottom-0 mx-auto max-w-screen-sm border-t">
           <CardContent className="flex items-center gap-2 p-3">
             <Input
@@ -413,7 +308,7 @@ const AIOnboardingWizard = () => {
               className="flex-1"
             />
             <Button 
-              onClick={handleSend} 
+              onClick={() => handleSend()} 
               disabled={!userInput.trim() || isAITyping}
               size="sm"
             >
