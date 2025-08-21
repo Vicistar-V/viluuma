@@ -13,7 +13,7 @@ interface CommitmentProfileUIProps {
 }
 
 const CommitmentProfileUI = ({ onCommitmentSet, className = "" }: CommitmentProfileUIProps) => {
-  const [commitmentType, setCommitmentType] = useState<"weekly" | "custom" | null>(null);
+  const [commitmentType, setCommitmentType] = useState<"weekly" | "custom">("custom"); // Default to daily/custom
   const [selectedHours, setSelectedHours] = useState(2);
   const [dailyBudget, setDailyBudget] = useState<DailyBudget>({
     mon: 2, tue: 2, wed: 2, thu: 2, fri: 2, sat: 0, sun: 0
@@ -83,54 +83,6 @@ const CommitmentProfileUI = ({ onCommitmentSet, className = "" }: CommitmentProf
     fri: "Fri", sat: "Sat", sun: "Sun"
   };
 
-  // Initial Choice Screen
-  if (!commitmentType) {
-    return (
-      <Card className={`border-primary/20 bg-gradient-to-r from-primary/5 to-secondary/5 ${className}`}>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Clock className="h-5 w-5 text-primary" />
-            Your Time Commitment
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            How would you like to set up your weekly schedule?
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Choice Buttons */}
-          <div className="grid grid-cols-1 gap-3">
-            <Button
-              variant="outline"
-              onClick={handleWeeklyChoice}
-              className="flex items-center justify-start gap-3 h-auto py-4 px-4 text-left hover:bg-primary/5 hover:border-primary/30"
-            >
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                <Clock className="h-5 w-5 text-primary" />
-              </div>
-              <div className="flex-1">
-                <p className="font-semibold">⏰ A Weekly Goal</p>
-                <p className="text-sm text-muted-foreground">Simple total hours per week</p>
-              </div>
-            </Button>
-
-            <Button
-              variant="outline"
-              onClick={handleCustomChoice}
-              className="flex items-center justify-start gap-3 h-auto py-4 px-4 text-left hover:bg-secondary/5 hover:border-secondary/30"
-            >
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary/10">
-                <CalendarDays className="h-5 w-5 text-secondary-foreground" />
-              </div>
-              <div className="flex-1">
-                <p className="font-semibold">🗓️ Customize My Week</p>
-                <p className="text-sm text-muted-foreground">Set hours for each day individually</p>
-              </div>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
 
   // Weekly Goal Selection
   if (commitmentType === "weekly") {
@@ -162,14 +114,14 @@ const CommitmentProfileUI = ({ onCommitmentSet, className = "" }: CommitmentProf
             ))}
           </div>
 
-          {/* Back Button */}
+          {/* Switch to Daily Button */}
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setCommitmentType(null)}
+            onClick={() => setCommitmentType("custom")}
             className="w-full text-muted-foreground hover:text-foreground"
           >
-            ← Back to options
+            ← Switch to daily planning
           </Button>
         </CardContent>
       </Card>
@@ -225,10 +177,10 @@ const CommitmentProfileUI = ({ onCommitmentSet, className = "" }: CommitmentProf
         <div className="flex gap-2">
           <Button
             variant="outline"
-            onClick={() => setCommitmentType(null)}
+            onClick={() => setCommitmentType("weekly")}
             className="flex-1"
           >
-            ← Back
+            Switch to weekly goal
           </Button>
           <Button
             onClick={handleCustomConfirm}
