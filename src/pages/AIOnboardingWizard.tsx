@@ -24,21 +24,13 @@ import {
 // AI State Engine Response Types
 interface AIStateResponse {
   say_to_user: string;
-  update_state?: {
-    title: string | null;
-    modality: "project" | "checklist" | null;
+  next_action: "WAIT_FOR_TEXT_INPUT" | "SHOW_MODALITY_CHOICE" | "SHOW_CALENDAR_PICKER" | "SHOW_COMMITMENT_SLIDER" | "FINALIZE_AND_HANDOFF";
+  intel?: {
+    title: string;
+    modality: "project" | "checklist";
     deadline: string | null;
     commitment: string | null;
     context: string;
-  };
-  finalize_and_handoff?: {
-    intel: {
-      title: string;
-      modality: "project" | "checklist";
-      deadline: string | null;
-      commitment: string | null;
-      context: string;
-    };
   };
 }
 
@@ -136,41 +128,33 @@ const AIOnboardingWizard = () => {
   const handleAIState = (aiResponse: AIStateResponse) => {
     console.log("🎯 AI Response:", aiResponse);
 
-    // Check if this is the final handoff
-    if (aiResponse.finalize_and_handoff) {
-      handleReadyToGenerate(aiResponse.finalize_and_handoff.intel);
-      return;
+    // Handle the new next_action based system
+    switch (aiResponse.next_action) {
+      case "WAIT_FOR_TEXT_INPUT":
+        // Continue normal conversation - no special UI needed
+        break;
+        
+      case "SHOW_MODALITY_CHOICE":
+        setShowChoices(true);
+        break;
+        
+      case "SHOW_CALENDAR_PICKER":
+        setShowDatePicker(true);
+        break;
+        
+      case "SHOW_COMMITMENT_SLIDER":
+        setShowCommitmentUI(true);
+        break;
+        
+      case "FINALIZE_AND_HANDOFF":
+        if (aiResponse.intel) {
+          handleReadyToGenerate(aiResponse.intel);
+        }
+        break;
+        
+      default:
+        console.warn("Unknown next_action:", aiResponse.next_action);
     }
-
-    // Handle ongoing conversation based on what information is missing
-    const intel = aiResponse.update_state;
-    if (!intel) return;
-
-    // Determine what UI to show based on missing information
-    if (!intel.title) {
-      // Continue normal conversation - no special UI needed
-      return;
-    }
-
-    if (!intel.modality) {
-      // Show project vs checklist choice buttons
-      setShowChoices(true);
-      return;
-    }
-
-    if (intel.modality === "project" && !intel.deadline) {
-      // Show date picker UI
-      setShowDatePicker(true);
-      return;
-    }
-
-    if (intel.modality === "project" && intel.deadline && !intel.commitment) {
-      // Show commitment UI for projects
-      setShowCommitmentUI(true);
-      return;
-    }
-
-    // If we have all the info but haven't triggered handoff, continue conversation
   };
 
   const handleReadyToGenerate = (intel: any) => {
