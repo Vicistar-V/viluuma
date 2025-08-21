@@ -78,11 +78,16 @@ When you have everything:
   "intel": {
     "title": "Run a marathon",
     "modality": "project",
-    "deadline": "${currentDate}",
-    "commitment": "1 hour daily",
+    "deadline": "2025-06-15",
+    "commitment": "1-2 hours",
     "context": "Training for a specific marathon race"
   }
 }
+
+CRITICAL COMMITMENT FORMAT RULES:
+- For projects: commitment should be in format like "1-2 hours", "30 minutes", "2-3 hours" (daily time range, NOT "X hours daily")
+- For ongoing goals: commitment can be null since they don't have deadlines
+- Always use simple time ranges without "daily" or "per day" suffix
 
 **CRITICAL RULES:**
 - ALWAYS return valid JSON with say_to_user and next_action
