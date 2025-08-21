@@ -13,10 +13,12 @@ const corsHeaders = {
 
 function constructOnboardingPrompt(
   conversationHistory: any[],
-  currentState: { hasTitle: boolean; hasModality: boolean; hasDeadline?: boolean }
+  currentState: { hasTitle: boolean; hasModality: boolean; hasDeadline?: boolean },
+  userTimezone: string = 'UTC'
 ): string {
   
-  const currentDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+  // Get timezone-aware current date
+  const currentDate = new Date().toLocaleDateString('en-CA', { timeZone: userTimezone }); // YYYY-MM-DD format
   const currentYear = new Date().getFullYear();
   
   // The Persona with Current Date Context
@@ -167,7 +169,7 @@ serve(async (req) => {
     console.log("🚀 onboard-goal function started");
     
     // Parse and validate request
-    const { conversationHistory } = await req.json();
+    const { conversationHistory, userTimezone = 'UTC' } = await req.json();
     
     if (!conversationHistory || !Array.isArray(conversationHistory)) {
       console.error("❌ Invalid request: conversationHistory is required");
@@ -190,7 +192,7 @@ serve(async (req) => {
       hasDeadline: true // Let AI determine this from conversation
     };
     
-    const systemPrompt = constructOnboardingPrompt(conversationHistory, currentState);
+    const systemPrompt = constructOnboardingPrompt(conversationHistory, currentState, userTimezone);
     
     const messagesForAI = [
       { role: 'system', content: systemPrompt },

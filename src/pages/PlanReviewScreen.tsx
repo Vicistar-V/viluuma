@@ -174,7 +174,9 @@ const PlanReviewScreen = () => {
     
     try {
       setSaving(true);
-      const start = new Date();
+      // Get timezone-aware current date for anchoring
+      const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const start = new Date(new Date().toLocaleDateString('en-CA', { timeZone: userTimezone }) + 'T00:00:00');
       // Prepare tasks with anchored dates on workdays
       const tasksWithDates = planToSave.scheduledTasks.map((t: any) => {
         const startDate = addBusinessDays(start, t.start_day_offset);

@@ -61,7 +61,10 @@ const AIOnboardingWizard = () => {
       console.log("📤 Sending conversation to onboard-goal function");
       
       const { data, error } = await supabase.functions.invoke("onboard-goal", {
-        body: { conversationHistory: updatedMessages },
+        body: { 
+          conversationHistory: updatedMessages,
+          userTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        },
       });
       
       if (error) {
