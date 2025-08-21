@@ -356,28 +356,6 @@ export type Database = {
           total_tasks: number | null
           updated_at: string | null
         }
-        Insert: {
-          completed_tasks?: number | null
-          created_at?: string | null
-          goal_id?: string | null
-          id?: string | null
-          order_index?: number | null
-          status?: never
-          title?: string | null
-          total_tasks?: number | null
-          updated_at?: string | null
-        }
-        Update: {
-          completed_tasks?: number | null
-          created_at?: string | null
-          goal_id?: string | null
-          id?: string | null
-          order_index?: number | null
-          status?: never
-          title?: string | null
-          total_tasks?: number | null
-          updated_at?: string | null
-        }
         Relationships: [
           {
             foreignKeyName: "milestones_goal_id_fkey"
@@ -513,6 +491,18 @@ export type Database = {
           updated_at: string
           user_id: string
           user_snooze_until: string | null
+        }[]
+      }
+      get_secure_goal_stats: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          active_goals: number
+          archived_goals: number
+          completed_goals: number
+          completed_tasks: number
+          completion_rate: number
+          total_goals: number
+          total_tasks: number
         }[]
       }
       get_today_page_payload: {
