@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -50,6 +51,8 @@ const AIOnboardingWizard = () => {
   const [currentAIState, setCurrentAIState] = useState<AIStateResponse | null>(null);
   const [showHandoff, setShowHandoff] = useState(false);
   const [showChoices, setShowChoices] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showCommitmentUI, setShowCommitmentUI] = useState(false);
   const [handoffData, setHandoffData] = useState<{intel: Intel, userConstraints: UserConstraints} | null>(null);
   const [isGeneratingPlan, setIsGeneratingPlan] = useState(false);
   const navigate = useNavigate();
@@ -73,6 +76,8 @@ const AIOnboardingWizard = () => {
 
     // Hide any UI elements
     setShowChoices(false);
+    setShowDatePicker(false);
+    setShowCommitmentUI(false);
 
     try {
       console.log("📤 Sending conversation to AI State Engine");
@@ -137,14 +142,14 @@ const AIOnboardingWizard = () => {
         break;
         
       case "needs_deadline":
-        // This would typically show a date picker, but let's keep it simple for now
-        // The AI will naturally ask for the date and user can type it
+        // Show date picker UI
+        setShowDatePicker(true);
         break;
         
       case "needs_commitment":
         // Show commitment UI for projects
         if (intel.modality === "project") {
-          // We could show a commitment UI here, but for simplicity, let AI handle it
+          setShowCommitmentUI(true);
         }
         break;
         
@@ -218,9 +223,34 @@ const AIOnboardingWizard = () => {
     handleSend(choiceText);
   };
 
+  const handleDateSelect = (date: Date | null) => {
+    console.log("🗓️ Date selected:", date);
+    setShowDatePicker(false);
+    
+    const dateMessage = date 
+      ? `My target date is ${format(date, "MMMM d, yyyy")}.`
+      : "I don't have a specific deadline in mind.";
+    
+    handleSend(dateMessage);
+  };
+
+  const handleDatePickerCancel = () => {
+    setShowDatePicker(false);
+  };
+
+  const handleCommitmentSet = (commitment: CommitmentData) => {
+    console.log("⏰ Commitment set:", commitment);
+    setShowCommitmentUI(false);
+    
+    const commitmentMessage = `I can commit ${commitment.totalHoursPerWeek} hours per week to this goal.`;
+    handleSend(commitmentMessage);
+  };
+
   const handleStartOver = () => {
     setShowHandoff(false);
     setShowChoices(false);
+    setShowDatePicker(false);
+    setShowCommitmentUI(false);
     setCurrentAIState(null);
     setHandoffData(null);
     setMessages([
@@ -276,6 +306,25 @@ const AIOnboardingWizard = () => {
         </div>
       )}
 
+      {/* Date Picker for Deadline */}
+      {showDatePicker && currentAIState?.state_analysis.status === "needs_deadline" && (
+        <div className="mb-4">
+          <DatePickerInChat
+            onDateSelect={handleDateSelect}
+            onCancel={handleDatePickerCancel}
+          />
+        </div>
+      )}
+
+      {/* Commitment UI for Projects */}
+      {showCommitmentUI && currentAIState?.state_analysis.status === "needs_commitment" && (
+        <div className="mb-4">
+          <CommitmentProfileUI
+            onCommitmentSet={handleCommitmentSet}
+          />
+        </div>
+      )}
+
       {/* Handoff Confirmation */}
       {showHandoff && handoffData && (
         <div className="fixed inset-x-0 bottom-0">
@@ -290,7 +339,7 @@ const AIOnboardingWizard = () => {
       )}
 
       {/* Input Area - Only show if not in any modal mode */}
-      {!showHandoff && (
+      {!showHandoff && !showDatePicker && !showCommitmentUI && (
         <Card className="fixed inset-x-0 bottom-0 mx-auto max-w-screen-sm border-t">
           <CardContent className="flex items-center gap-2 p-3">
             <Input
