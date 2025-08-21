@@ -44,19 +44,28 @@ export const useMobileNotificationHandlers = () => {
 
   const handleNotificationTap = (notification: any) => {
     console.log('Handling notification tap:', notification);
+    console.log('Notification details:', {
+      id: notification.id,
+      title: notification.title,
+      body: notification.body
+    });
 
     // Handle different notification types based on ID or title
-    if (notification.id === 1) {
-      // Daily digest - navigate to Today screen
-      navigate('/today');
-    } else if (notification.title?.includes('Task Reminder')) {
-      // Task reminder - navigate to Today screen
-      navigate('/today');
+    if (notification.id === 1 || notification.title?.includes('Daily Digest') || notification.title?.includes('Your Viluuma Daily Digest')) {
+      // Daily digest - navigate to Today screen (which is at root route)
+      console.log('Navigating to / for daily digest');
+      navigate('/');
+    } else if (notification.title?.includes('Task Reminder') || notification.body?.includes('task')) {
+      // Task reminder - navigate to Today screen (which is at root route)
+      console.log('Navigating to / for task reminder');
+      navigate('/');
     } else if (notification.title?.includes('checking in') || notification.body?.includes('back on track')) {
       // Coaching nudge - navigate to Goals screen
+      console.log('Navigating to /goals for coaching nudge');
       navigate('/goals');
     } else {
       // Default - navigate to home
+      console.log('Navigating to / as default');
       navigate('/');
     }
 
