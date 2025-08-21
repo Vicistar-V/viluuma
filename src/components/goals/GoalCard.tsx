@@ -193,9 +193,7 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
           isPressed && "scale-[0.98]",
           // Progressive green background based on progress
           getProgressiveGreenBackground(),
-          goal.status === 'completed' && "ring-1 ring-success/30",
-          // Enhanced padding for better touch targets
-          "pt-4 px-4"
+          goal.status === 'completed' && "ring-1 ring-success/30"
         )}
       >
         
