@@ -193,7 +193,9 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
           isPressed && "scale-[0.98]",
           // Progressive green background based on progress
           getProgressiveGreenBackground(),
-          goal.status === 'completed' && "ring-1 ring-success/30"
+          goal.status === 'completed' && "ring-1 ring-success/30",
+          // Enhanced padding for better touch targets
+          "p-4"
         )}
       >
         
@@ -207,7 +209,7 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
         
         {/* Header with Enhanced Badges */}
         <div className="relative z-10 flex items-start justify-between">
-          <div className="flex items-center gap-2 flex-wrap mb-0">
+          <div className="flex items-center gap-2 flex-wrap">
             {getStatusBadge()}
             {getModalityBadge()}
           </div>
