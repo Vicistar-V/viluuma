@@ -94,7 +94,25 @@ const AIOnboardingWizard = () => {
         return;
       }
 
-      // Handle normal conversation response with smart commitment detection
+      // Handle commitment request from AI
+      if (data?.status === "commitment_needed") {
+        console.log("⏰ AI requesting commitment, showing commitment UI");
+        setIsAITyping(false);
+        
+        // Add the AI's commitment question to messages
+        setMessages((prev) => [
+          ...prev, 
+          { role: "assistant", content: data.message }
+        ]);
+        
+        // Extract intel from conversation for commitment phase
+        const conversationIntel = extractIntelFromConversation(updatedMessages);
+        setPendingIntel(conversationIntel);
+        setShowCommitmentUI(true);
+        return;
+      }
+
+      // Handle normal conversation response
       if (data?.content) {
         setIsAITyping(false);
         setMessages((prev) => [
@@ -102,24 +120,13 @@ const AIOnboardingWizard = () => {
           { role: "assistant", content: data.content }
         ]);
         
-        // Enhanced detection: Check for commitment questions and handoff readiness
-        const isAskingAboutCommitment = data.content.toLowerCase().includes("hours per day") ||
-                                       data.content.toLowerCase().includes("time commitment") ||
-                                       data.content.toLowerCase().includes("how much time") ||
-                                       data.content.toLowerCase().includes("how many hours");
-                                       
+        // Check if AI is ready for handoff after receiving commitment
         const isReadyForHandoff = data.content.toLowerCase().includes("i've got everything i need") ||
                                  data.content.toLowerCase().includes("here's the briefing") ||
-                                 data.content.toLowerCase().includes("does this look right");
-                                       
-        if (isAskingAboutCommitment && !isReadyForHandoff) {
-          console.log("⏰ AI asked about commitment, showing commitment UI");
-          
-          // Extract intel from conversation for commitment phase
-          const conversationIntel = extractIntelFromConversation(updatedMessages);
-          setPendingIntel(conversationIntel);
-          setShowCommitmentUI(true);
-        } else if (isReadyForHandoff && pendingIntel) {
+                                 data.content.toLowerCase().includes("does this look right") ||
+                                 data.content.toLowerCase().includes("ready to build");
+                                 
+        if (isReadyForHandoff && pendingIntel) {
           console.log("📋 AI ready for handoff, showing confirmation UI");
           
           // Calculate final constraints from stored commitment data
@@ -259,7 +266,8 @@ const AIOnboardingWizard = () => {
         // Check if AI is ready for handoff after commitment
         const isReadyForHandoff = data.content.toLowerCase().includes("i've got everything i need") ||
                                  data.content.toLowerCase().includes("here's the briefing") ||
-                                 data.content.toLowerCase().includes("does this look right");
+                                 data.content.toLowerCase().includes("does this look right") ||
+                                 data.content.toLowerCase().includes("ready to build");
                                  
         if (isReadyForHandoff && pendingIntel) {
           console.log("📋 AI ready for handoff after commitment, showing confirmation UI");

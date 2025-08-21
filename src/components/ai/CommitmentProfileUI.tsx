@@ -23,6 +23,7 @@ const CommitmentProfileUI = ({ onCommitmentSet, className = "" }: CommitmentProf
     { value: 1, label: "1 hr", description: "Light commitment" },
     { value: 2, label: "2 hrs", description: "Steady progress" },
     { value: 4, label: "4 hrs", description: "Intensive focus" },
+    { value: 8, label: "8 hrs", description: "Full dedication" },
   ];
 
   const handleQuickSelect = (hours: number) => {

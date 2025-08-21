@@ -42,7 +42,11 @@ CONVERSATION FLOW:
 2. For projects, get a specific deadline date  
 3. Finally, ask about their daily time commitment with a friendly question like:
    "Perfect! Last question to make this plan super realistic for you: roughly how many hours per day do you think you can put towards this?"
-4. IMPORTANT: When they respond with their time commitment, DO NOT immediately return JSON. Instead, acknowledge their commitment with enthusiasm and then say something like "Awesome! I've got everything I need. Here's the briefing I've put together. Does this look right to you?" - this triggers the frontend to show the handoff UI.
+4. When you ask the commitment question, respond ONLY with this JSON to trigger the commitment UI:
+   {"status": "commitment_needed", "message": "Your friendly commitment question here"}
+5. The frontend will handle gathering the commitment and send it back as a user message
+6. Once you receive their commitment response, acknowledge it enthusiastically and ask for final confirmation
+7. When they confirm they're ready to proceed, return the final handoff JSON
 
 RULES:
 - Ask friendly, natural questions following the conversation flow above
@@ -52,21 +56,21 @@ RULES:
 - NEVER mention JSON or technical terms to the user
 - When suggesting deadlines, remember we are in ${currentYear}!
 - When asking about time commitment, be encouraging and emphasize being realistic
-- NEVER return JSON during normal conversation - only return it when you detect a special handoff trigger
 
-SPECIAL HANDOFF TRIGGER:
-- Return the JSON handoff ONLY when you detect the user has confirmed they're ready to proceed with plan generation
-- Look for confirmations like "yes", "looks good", "let's do it", "build my plan", etc.
-- When you detect confirmation, respond ONLY with this JSON format:
-{
-  "status": "ready_to_generate",
-  "intel": {
-    "title": "User's goal title",
-    "modality": "project" or "checklist", 
-    "deadline": "YYYY-MM-DD" or null,
-    "context": "Description of what they want to achieve WITHOUT any dates or deadlines"
-  }
-}
+SPECIAL RESPONSE FORMATS:
+1. For commitment questions, return ONLY:
+   {"status": "commitment_needed", "message": "Your friendly commitment question"}
+   
+2. For final handoff when user confirms readiness, return ONLY:
+   {
+     "status": "ready_to_generate",
+     "intel": {
+       "title": "User's goal title",
+       "modality": "project" or "checklist", 
+       "deadline": "YYYY-MM-DD" or null,
+       "context": "Description of what they want to achieve WITHOUT any dates or deadlines"
+     }
+   }
 
 🚨 CRITICAL CONTEXT RULE:
 - The "context" field MUST describe WHAT they want to achieve and WHY
@@ -212,27 +216,32 @@ serve(async (req) => {
     // 4. CALL THE AI FOR THE NEXT CHAT RESPONSE
     const aiResponse = await callConversationalAI(messagesForAI);
     
-    // 5. CHECK IF THIS IS THE FINAL HANDOFF JSON
-    // The AI should return ready_to_generate when it has all info including commitment
-    // 4.5 CHECK IF THIS IS A COMPLETE JSON HANDOFF (NOT PARTIAL/MIXED CONTENT)
-    // Only attempt JSON parsing if the ENTIRE response is a complete JSON object
+    // 5. CHECK FOR SPECIAL AI RESPONSE STATUSES
     try {
       const trimmedResponse = aiResponse.trim();
       
       // Only parse if response looks like pure JSON (starts with { and ends with })
       if (trimmedResponse.startsWith('{') && trimmedResponse.endsWith('}')) {
-        const parsedHandoff = JSON.parse(trimmedResponse);
+        const parsedResponse = JSON.parse(trimmedResponse);
         
-        // Verify it's actually a handoff with required structure
-        if (parsedHandoff.status === "ready_to_generate" && parsedHandoff.intel) {
+        // Handle commitment needed status
+        if (parsedResponse.status === "commitment_needed") {
+          console.log("⏰ AI requesting commitment, triggering commitment UI");
+          return new Response(JSON.stringify(parsedResponse), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        
+        // Handle final handoff status
+        if (parsedResponse.status === "ready_to_generate" && parsedResponse.intel) {
           console.log("🎯 AI returned complete handoff JSON, processing");
           
           // Transform the AI response format to our expected format
           const properIntel = {
-            title: parsedHandoff.intel?.title || parsedHandoff.intel?.core_activity || "Untitled Goal",
-            modality: parsedHandoff.intel?.modality?.toLowerCase() || parsedHandoff.intel?.type?.toLowerCase() || "project",
-            deadline: parsedHandoff.intel?.deadline || null,
-            context: parsedHandoff.intel?.context || ""
+            title: parsedResponse.intel?.title || parsedResponse.intel?.core_activity || "Untitled Goal",
+            modality: parsedResponse.intel?.modality?.toLowerCase() || parsedResponse.intel?.type?.toLowerCase() || "project",
+            deadline: parsedResponse.intel?.deadline || null,
+            context: parsedResponse.intel?.context || ""
           };
           
           // Ensure modality is valid
@@ -253,8 +262,8 @@ serve(async (req) => {
         }
       }
     } catch (parseErr) {
-      // Not valid JSON or not a handoff, continue as normal conversation
-      console.log("💬 Response is normal conversation, not JSON handoff");
+      // Not valid JSON or not a special status, continue as normal conversation
+      console.log("💬 Response is normal conversation, not special status");
     }
     
     // 5. RETURN THE CHAT MESSAGE
