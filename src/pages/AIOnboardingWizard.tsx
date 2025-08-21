@@ -320,6 +320,7 @@ const AIOnboardingWizard = () => {
           <DatePickerInChat
             onDateSelect={handleDateSelect}
             onCancel={handleDatePickerCancel}
+            openDirectly={true}
           />
         </div>
       )}

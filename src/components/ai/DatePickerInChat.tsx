@@ -9,11 +9,12 @@ interface DatePickerInChatProps {
   onDateSelect: (date: Date | null) => void;
   onCancel: () => void;
   className?: string;
+  openDirectly?: boolean; // New prop to skip the initial modal
 }
 
-const DatePickerInChat = ({ onDateSelect, onCancel, className = "" }: DatePickerInChatProps) => {
+const DatePickerInChat = ({ onDateSelect, onCancel, className = "", openDirectly = false }: DatePickerInChatProps) => {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
-  const [showCalendar, setShowCalendar] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(openDirectly); // Start with calendar open if openDirectly is true
 
   const handleDateSelect = (date: Date | undefined) => {
     setSelectedDate(date);
@@ -42,7 +43,7 @@ const DatePickerInChat = ({ onDateSelect, onCancel, className = "" }: DatePicker
             <Button 
               variant="ghost" 
               size="sm" 
-              onClick={() => setShowCalendar(false)}
+              onClick={onCancel}
               className="h-8 w-8 p-0"
             >
               <X className="h-4 w-4" />
