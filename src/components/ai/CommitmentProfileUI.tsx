@@ -13,7 +13,7 @@ interface CommitmentProfileUIProps {
 }
 
 const CommitmentProfileUI = ({ onCommitmentSet, className = "" }: CommitmentProfileUIProps) => {
-  const [commitmentType, setCommitmentType] = useState<"weekly" | "custom">("custom"); // Default to daily/custom
+  const [commitmentType, setCommitmentType] = useState<"weekly" | "custom">("weekly"); // Default to weekly goal
   const [selectedHours, setSelectedHours] = useState(2);
   const [dailyBudget, setDailyBudget] = useState<DailyBudget>({
     mon: 2, tue: 2, wed: 2, thu: 2, fri: 2, sat: 0, sun: 0
