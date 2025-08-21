@@ -273,7 +273,7 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
         </div>
 
         {/* Enhanced Title and Description */}
-        <div className="relative z-10 mb-3">
+        <div className="relative z-10">
           <h3 className="text-lg font-semibold leading-tight mb-1">
             <Link 
               to={`/goals/${goal.id}`}
@@ -295,7 +295,7 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
         </div>
         
         {/* Enhanced Progress Section */}
-        <div className="relative z-10 mb-3">
+        <div className="relative z-10">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Progress</span>
             <span className={cn(
