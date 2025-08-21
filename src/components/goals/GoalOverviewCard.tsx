@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Clock, Trophy, Target } from "lucide-react";
+import { Calendar, Clock, Trophy, Target, TrendingUp, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { useEffect, useState } from "react";
 import { useGoalStats } from "@/hooks/useGoalStats";
@@ -27,7 +27,9 @@ interface GoalOverviewCardProps {
 export const GoalOverviewCard = ({ goal }: GoalOverviewCardProps) => {
   const [showCelebration, setShowCelebration] = useState(false);
   const { data: goalStats } = useGoalStats(goal.id);
-  const progress = goal.total_tasks > 0 ? Math.round((goal.completed_tasks / goal.total_tasks) * 100) : 0;
+  
+  // Use goalStats completion_rate if available, otherwise calculate manually
+  const progress = goalStats?.completion_rate ?? (goal.total_tasks > 0 ? Math.round((goal.completed_tasks / goal.total_tasks) * 100) : 0);
 
   // Trigger celebration for completed goals
   useEffect(() => {
@@ -43,6 +45,8 @@ export const GoalOverviewCard = ({ goal }: GoalOverviewCardProps) => {
       return "🎉 Goal completed! Great work!";
     } else if (goal.status === 'archived') {
       return "This goal has been archived";
+    } else if (goalStats?.is_overdue) {
+      return "⚠️ This goal is overdue - time to catch up!";
     } else if (progress === 0) {
       return "Ready to get started!";
     } else if (progress < 25) {
@@ -69,11 +73,36 @@ export const GoalOverviewCard = ({ goal }: GoalOverviewCardProps) => {
     } else if (goal.target_date && goal.modality === 'project') {
       const targetDate = new Date(goal.target_date);
       const isOverdue = goalStats?.is_overdue || (targetDate < new Date() && goal.status === 'active');
+      
       stats.push({
-        icon: Calendar,
+        icon: isOverdue ? AlertTriangle : Calendar,
         label: isOverdue ? "Overdue" : "Target",
         value: format(targetDate, "PPP"),
         variant: isOverdue ? "destructive" : "default"
+      });
+
+      // Show days to target if available from goalStats
+      if (goalStats?.days_to_target !== null && goalStats?.days_to_target !== undefined) {
+        const daysLabel = goalStats.days_to_target === 0 ? "Today!" : 
+                         goalStats.days_to_target === 1 ? "Tomorrow" :
+                         goalStats.days_to_target > 0 ? `${goalStats.days_to_target} days left` :
+                         `${Math.abs(goalStats.days_to_target)} days overdue`;
+        
+        stats.push({
+          icon: goalStats.days_to_target >= 0 ? Target : AlertTriangle,
+          label: "Timeline",
+          value: daysLabel,
+          variant: goalStats.days_to_target < 0 ? "destructive" : "default"
+        });
+      }
+    }
+
+    // Show remaining tasks if available from goalStats
+    if (goalStats?.remaining_tasks !== undefined && goal.status === 'active') {
+      stats.push({
+        icon: TrendingUp,
+        label: "Remaining",
+        value: `${goalStats.remaining_tasks} tasks left`
       });
     }
 
@@ -85,23 +114,13 @@ export const GoalOverviewCard = ({ goal }: GoalOverviewCardProps) => {
       });
     }
 
-    if (goal.status === 'active') {
+    // Add goal age from database if available
+    if (goalStats?.days_since_created) {
       stats.push({
-        icon: Target,
-        label: "Status",
-        value: goal.modality === 'project' ? "Time-bound Project" : "Flexible Checklist"
+        icon: Calendar,
+        label: "Age",
+        value: `${goalStats.days_since_created} day${goalStats.days_since_created === 1 ? '' : 's'}`
       });
-    }
-
-    // Add statistics from database if available
-    if (goalStats) {
-      if (goalStats.days_since_created) {
-        stats.push({
-          icon: Calendar,
-          label: "Age",
-          value: `${goalStats.days_since_created} days`
-        });
-      }
     }
 
     return stats;
@@ -129,17 +148,29 @@ export const GoalOverviewCard = ({ goal }: GoalOverviewCardProps) => {
         {/* Progress Bar */}
         <div className="space-y-2">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">{getProgressMessage()}</span>
-            <span className="font-medium">{goal.completed_tasks} / {goal.total_tasks} tasks</span>
+            <span className={`text-muted-foreground ${goalStats?.is_overdue ? 'text-destructive' : ''}`}>
+              {getProgressMessage()}
+            </span>
+            <span className="font-medium">
+              {goalStats?.completed_tasks ?? goal.completed_tasks} / {goalStats?.total_tasks ?? goal.total_tasks} tasks
+            </span>
           </div>
           <Progress 
             value={progress} 
             className={`h-3 transition-all duration-500 ${
-              goal.status === 'completed' ? 'bg-success/20' : ''
+              goal.status === 'completed' ? 'bg-success/20' : 
+              goalStats?.is_overdue ? 'bg-destructive/20' : ''
             }`}
           />
-          <div className="text-right text-sm font-medium text-primary">
-            {progress}%
+          <div className="text-right text-sm font-medium">
+            <span className={goalStats?.is_overdue ? 'text-destructive' : 'text-primary'}>
+              {typeof progress === 'number' ? `${progress}%` : `${Math.round(progress)}%`}
+            </span>
+            {goalStats?.completion_rate && (
+              <span className="text-muted-foreground ml-1 text-xs">
+                (from database)
+              </span>
+            )}
           </div>
         </div>
 
