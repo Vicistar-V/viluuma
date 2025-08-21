@@ -96,8 +96,6 @@ async function callAIStateEngine(messages: any[]): Promise<any> {
     temperature: 0.3, // Lower temperature for more consistent JSON output
     max_tokens: 800, // Increased for longer conversations and JSON responses
     messages: managedMessages,
-    // Enable structured JSON response to ensure reliable formatting
-    response_format: { type: "json_object" },
   };
 
   const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
