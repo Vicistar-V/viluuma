@@ -68,10 +68,16 @@ const PlanReviewScreen = () => {
     const run = async () => {
       try {
         setLoading(true);
+        
+        // Get user's timezone for accurate plan generation
+        const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        
         console.log("Calling generate-plan with intel:", intel);
         console.log("Calling generate-plan with userConstraints:", userConstraints);
+        console.log("Calling generate-plan with userTimezone:", userTimezone);
+        
         const { data, error } = await supabase.functions.invoke("generate-plan", {
-          body: { intel, userConstraints },
+          body: { intel, userConstraints, userTimezone },
         });
         if (import.meta.env.DEV) console.log("Generate-plan response:", { data, error });
         if (error) throw error;
@@ -107,10 +113,15 @@ const PlanReviewScreen = () => {
     if (action.type === 'REGENERATE') {
       try {
         setRecomputing(true);
+        
+        // Get user's timezone for regeneration
+        const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        
         const { data, error } = await supabase.functions.invoke("generate-plan", {
           body: { 
             intel, 
             userConstraints,
+            userTimezone,
             compression_requested: !!action.options?.compression_requested,
             extension_requested: !!action.options?.expansion_requested 
           },
@@ -139,8 +150,12 @@ const PlanReviewScreen = () => {
     if (action.type === 'REGENERATE') {
       try {
         setRecomputing(true);
+        
+        // Get user's timezone for regeneration
+        const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        
         const { data, error } = await supabase.functions.invoke("generate-plan", {
-          body: { intel, userConstraints },
+          body: { intel, userConstraints, userTimezone },
         });
         if (error) throw error;
         setBlueprint(data as Blueprint);

@@ -44,10 +44,15 @@ export interface OverdueTask {
 
 // Hook for the main today page payload (blazing fast single call)
 export const useTodayData = () => {
+  // Get user's timezone
+  const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  
   return useQuery({
-    queryKey: ['todayPayload'],
+    queryKey: ['todayPayload', userTimezone],
     queryFn: async (): Promise<TodayPayload> => {
-      const { data, error } = await supabase.rpc('get_today_page_payload' as any);
+      const { data, error } = await supabase.rpc('get_today_page_payload' as any, { 
+        p_user_timezone: userTimezone 
+      });
       if (error) throw error;
       return data as unknown as TodayPayload;
     },
@@ -58,10 +63,15 @@ export const useTodayData = () => {
 
 // Hook for overdue tasks (called only when accordion expands)
 export const useOverdueTasks = () => {
+  // Get user's timezone
+  const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  
   return useQuery({
-    queryKey: ['overdueTasks'],
+    queryKey: ['overdueTasks', userTimezone],
     queryFn: async (): Promise<OverdueTask[]> => {
-      const { data, error } = await supabase.rpc('get_all_overdue_tasks' as any);
+      const { data, error } = await supabase.rpc('get_all_overdue_tasks' as any, { 
+        p_user_timezone: userTimezone 
+      });
       if (error) throw error;
       return data as unknown as OverdueTask[];
     },

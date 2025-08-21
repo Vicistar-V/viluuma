@@ -324,7 +324,7 @@ function processAIBlueprint(rawJSONString: string): { tasks: ViluumaTask[], mile
 }
 
 // ========================================
-// 🔧 STATION 4: THE CALCULATOR
+// 🔧 STATION 4: THE NEW HOUR-AWARE BUCKET FILLING CALCULATOR
 // ========================================
 interface ScheduledViluumaTask extends ViluumaTask {
   start_day_offset: number;
@@ -338,37 +338,85 @@ function calculateRelativeSchedule(
   const weeklyBudget = intel.hoursPerWeek ?? 20;
   const workdaysPerWeek = 5;
   const dailyBudgetHours = Math.max(1, weeklyBudget / workdaysPerWeek);
+  const MAX_TASKS_PER_DAY = 5; // Anti-bombardment guardrail
 
-  console.log(`🧠 Station 4: Personalizing schedule with a daily budget of ${dailyBudgetHours.toFixed(1)} hours.`);
+  console.log(`🧠 Station 4: NEW Hour-Aware Calculator with daily budget of ${dailyBudgetHours.toFixed(1)} hours and max ${MAX_TASKS_PER_DAY} tasks per day.`);
 
   const scheduledTasks: ScheduledViluumaTask[] = [];
   let currentDayOffset = 0;
+  let hoursSpentToday = 0;
+  let tasksScheduledToday = 0;
 
   for (const task of tasks) {
-    const startDay = currentDayOffset;
-    const durationInDays = Math.max(1, Math.ceil(task.duration_hours / dailyBudgetHours));
-    const endDay = startDay + durationInDays - 1;
+    const taskDuration = task.duration_hours;
 
-    scheduledTasks.push({
-      ...task,
-      start_day_offset: startDay,
-      end_day_offset: endDay,
-    });
+    // CHECK 1: Can this task fit in today's budget (both hours and task limit)?
+    if (
+      (hoursSpentToday + taskDuration) <= dailyBudgetHours &&
+      tasksScheduledToday < MAX_TASKS_PER_DAY
+    ) {
+      // YES! It fits and we haven't hit our task limit.
+      scheduledTasks.push({
+        ...task,
+        start_day_offset: currentDayOffset,
+        end_day_offset: currentDayOffset, // Same-day task
+      });
+      
+      // Update the budget and task count for today
+      hoursSpentToday += taskDuration;
+      tasksScheduledToday++;
 
-    currentDayOffset = endDay + 1;
+    } else {
+      // NO! Either we're out of hours OR we've hit our task limit for today.
+      // Move to the next day.
+      currentDayOffset++;
+      hoursSpentToday = 0;
+      tasksScheduledToday = 0;
+      
+      // CHECK 2: Can this task be completed in a single (new) day?
+      if (taskDuration <= dailyBudgetHours) {
+        // YES! Schedule it for this new day.
+        scheduledTasks.push({
+          ...task,
+          start_day_offset: currentDayOffset,
+          end_day_offset: currentDayOffset,
+        });
+        hoursSpentToday = taskDuration;
+        tasksScheduledToday = 1;
+        
+      } else {
+        // NO! This is a "mega-task" that takes multiple days itself.
+        const daysForMegaTask = Math.ceil(taskDuration / dailyBudgetHours);
+        const startDayForMegaTask = currentDayOffset;
+        const endDayForMegaTask = currentDayOffset + daysForMegaTask - 1;
+
+        scheduledTasks.push({
+          ...task,
+          start_day_offset: startDayForMegaTask,
+          end_day_offset: endDayForMegaTask,
+        });
+
+        // The task ends on a future day, possibly using only a portion of the last day's budget.
+        currentDayOffset = endDayForMegaTask;
+        const hoursOnLastDay = taskDuration % dailyBudgetHours;
+        hoursSpentToday = (hoursOnLastDay === 0) ? dailyBudgetHours : hoursOnLastDay;
+        tasksScheduledToday = 1; // The mega-task counts as 1 task on the final day
+      }
+    }
   }
 
   const totalProjectDays = scheduledTasks.length > 0
     ? scheduledTasks[scheduledTasks.length - 1].end_day_offset + 1
     : 0;
 
-  console.log(`✅ Station 4: Schedule calculated. Total project days: ${totalProjectDays}.`);
+  console.log(`✅ Station 4: Hour-Aware schedule calculated. Total project days: ${totalProjectDays}.`);
+  console.log(`📊 Station 4: Scheduled ${scheduledTasks.length} tasks across ${totalProjectDays} days with intelligent packing.`);
 
   return { scheduledTasks, totalProjectDays };
 }
 
 // ========================================
-// 🔍 STATION 5: THE ANALYST
+// 🔍 STATION 5: THE TIMEZONE-AWARE ANALYST
 // ========================================
 type PlanStatus = 'success' | 'over_scoped' | 'under_scoped' | 'low_quality' | 'success_checklist';
 
@@ -376,9 +424,10 @@ function analyzePlanQuality(
   totalProjectDays: number,
   totalTaskCount: number,
   modality: 'project' | 'checklist',
-  deadline?: string
+  deadline?: string,
+  userTimezone?: string
 ): { status: PlanStatus; message?: string; calculatedEndDate?: string } {
-  console.log("🔍 Station 5: Starting plan quality analysis");
+  console.log("🔍 Station 5: Starting timezone-aware plan quality analysis");
 
   // Low quality check for checklists
   if (modality === 'checklist') {
@@ -390,14 +439,21 @@ function analyzePlanQuality(
     return { status: 'success_checklist' };
   }
 
+  // Use user's timezone for all date calculations
+  const timezone = userTimezone || 'UTC';
+  console.log(`🌍 Station 5: Using timezone: ${timezone}`);
+  
+  // Get today in user's timezone
+  const now = new Date();
+  const todayInUsersTimezone = new Date(now.toLocaleString("en-US", {timeZone: timezone}));
+  
   // Convert relative project days to actual business days for analysis
-  const today = new Date();
   const totalWorkdays = totalProjectDays > 0 
-    ? differenceInBusinessDays(addBusinessDays(today, totalProjectDays - 1), today) + 1
+    ? differenceInBusinessDays(addBusinessDays(todayInUsersTimezone, totalProjectDays - 1), todayInUsersTimezone) + 1
     : 0;
 
-  // Low quality gatekeeper for projects
-  const MIN_WORKDAYS = 3;
+  // Low quality gatekeeper for projects - but be more lenient now with hour-aware scheduling
+  const MIN_WORKDAYS = 1; // Reduced from 3 since we now pack tasks efficiently
   if (totalWorkdays < MIN_WORKDAYS) {
     console.warn(`⚠️ Station 5: Project plan has only ${totalWorkdays} workdays. Flagging as low_quality.`);
     return { status: 'low_quality', message: 'Hmm, that plan seems a bit too simple for a project like this.' };
@@ -416,20 +472,20 @@ function analyzePlanQuality(
     return { status: 'success' };
   }
 
-  // Check for past deadlines first
-  if (deadlineDate < today) {
-    console.warn('⚠️ Station 5: Deadline is in the past.');
+  // Check for past deadlines first - compare with user's timezone
+  if (deadlineDate < todayInUsersTimezone) {
+    console.warn('⚠️ Station 5: Deadline is in the past (user timezone).');
     return { 
       status: 'over_scoped', 
       message: "Heads up! The deadline you've chosen is in the past. Let's pick a new one or see what's possible." 
     };
   }
 
-  const workdaysAvailable = differenceInBusinessDays(deadlineDate, today);
-  const calculatedEndDate = addBusinessDays(today, totalWorkdays - 1);
+  const workdaysAvailable = differenceInBusinessDays(deadlineDate, todayInUsersTimezone);
+  const calculatedEndDate = addBusinessDays(todayInUsersTimezone, totalWorkdays - 1);
   const calculatedEndDateString = calculatedEndDate.toISOString().split('T')[0];
 
-  console.log(`📊 Station 5: Workdays available: ${workdaysAvailable}, workdays needed: ${totalWorkdays}`);
+  console.log(`📊 Station 5: Workdays available: ${workdaysAvailable}, workdays needed: ${totalWorkdays} (timezone: ${timezone})`);
 
   if (totalWorkdays > workdaysAvailable) {
     console.log(`⚠️ Station 5: Over-scoped. Plan needs ${totalWorkdays} workdays, but only ${workdaysAvailable} are available.`);
@@ -524,7 +580,7 @@ serve(async (req) => {
     // ========================================
     // 1. INPUT & VALIDATION
     // ========================================
-    const { intel, userConstraints = {} } = await req.json();
+    const { intel, userConstraints = {}, userTimezone } = await req.json();
     
     // Validate required intel
     if (!intel?.title || typeof intel.title !== "string" || intel.title.trim().length === 0) {
@@ -534,9 +590,10 @@ serve(async (req) => {
       throw new Error("INVALID_MODALITY");
     }
 
-    // Normalize constraints
+    // Normalize constraints and timezone
     const hoursPerWeek = Math.min(80, Math.max(1, Number(userConstraints.hoursPerWeek ?? 20)));
-    console.log(`📊 Input validated: "${intel.title}" (${intel.modality}), ${hoursPerWeek}h/week`);
+    const timezone = userTimezone || 'UTC';
+    console.log(`📊 Input validated: "${intel.title}" (${intel.modality}), ${hoursPerWeek}h/week, timezone: ${timezone}`);
 
     // ========================================
     // 2. STATION 1: THE PROMPTER
@@ -572,7 +629,7 @@ serve(async (req) => {
     // ========================================
     // 6. STATION 5: THE ANALYST
     // ========================================
-    const analysis = analyzePlanQuality(totalProjectDays, enrichedTasks.length, intel.modality, userConstraints.deadline);
+    const analysis = analyzePlanQuality(totalProjectDays, enrichedTasks.length, intel.modality, userConstraints.deadline, timezone);
     console.log("✅ Station 5: Plan quality analyzed");
 
     // ========================================

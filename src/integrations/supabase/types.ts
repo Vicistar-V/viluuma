@@ -462,7 +462,7 @@ export type Database = {
         Returns: undefined
       }
       get_all_overdue_tasks: {
-        Args: Record<PropertyKey, never>
+        Args: Record<PropertyKey, never> | { p_user_timezone?: string }
         Returns: Json
       }
       get_cron_job_status: {
@@ -506,7 +506,7 @@ export type Database = {
         }[]
       }
       get_today_page_payload: {
-        Args: Record<PropertyKey, never>
+        Args: Record<PropertyKey, never> | { p_user_timezone?: string }
         Returns: Json
       }
       get_today_tasks_summary: {
