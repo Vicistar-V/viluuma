@@ -195,7 +195,7 @@ export const GoalCard = ({ goal, onStatusChange, onReopenGoal, onDelete }: GoalC
           getProgressiveGreenBackground(),
           goal.status === 'completed' && "ring-1 ring-success/30",
           // Enhanced padding for better touch targets
-          "p-4"
+          "pt-4 px-4"
         )}
       >
         
