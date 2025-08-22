@@ -85,6 +85,13 @@ const AIOnboardingWizard = () => {
         body: { 
           userMessage: message,
           conversationHistory: updatedMessages.slice(0, -1), // Exclude the current message since we're sending it separately
+          currentData: currentAIState?.intel || null,
+          availableCategories: [
+            "Health & Fitness", "Career & Professional", "Education & Learning", 
+            "Finance & Money", "Relationships & Social", "Personal Development",
+            "Hobbies & Interests", "Travel & Adventure", "Home & Living", "Other"
+          ],
+          currentDateTime: new Date().toISOString(),
           userTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone
         },
       });
