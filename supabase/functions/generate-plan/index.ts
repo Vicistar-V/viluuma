@@ -10,7 +10,7 @@ const corsHeaders = {
 };
 
 // Configuration
-const DEFAULT_MODEL = "moonshotai/kimi-k2:free";
+const DEFAULT_MODEL = "meta-llama/llama-3.1-405b-instruct:free";
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 // ========================================
