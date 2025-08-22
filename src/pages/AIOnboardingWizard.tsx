@@ -81,9 +81,10 @@ const AIOnboardingWizard = () => {
     try {
       console.log("📤 Sending conversation to AI State Engine");
       
-      const { data, error } = await supabase.functions.invoke("onboard-goal", {
+      const { data, error } = await supabase.functions.invoke("google-ai-provider", {
         body: { 
-          conversationHistory: updatedMessages,
+          userMessage: message,
+          conversationHistory: updatedMessages.slice(0, -1), // Exclude the current message since we're sending it separately
           userTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone
         },
       });

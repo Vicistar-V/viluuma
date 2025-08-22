@@ -121,6 +121,39 @@ export type Database = {
           },
         ]
       }
+      oauth_credentials: {
+        Row: {
+          access_token: string
+          created_at: string
+          expiry_date: string | null
+          id: string
+          refresh_token: string | null
+          service: string
+          token_type: string
+          updated_at: string
+        }
+        Insert: {
+          access_token: string
+          created_at?: string
+          expiry_date?: string | null
+          id?: string
+          refresh_token?: string | null
+          service: string
+          token_type?: string
+          updated_at?: string
+        }
+        Update: {
+          access_token?: string
+          created_at?: string
+          expiry_date?: string | null
+          id?: string
+          refresh_token?: string | null
+          service?: string
+          token_type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
