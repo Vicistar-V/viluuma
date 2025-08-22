@@ -149,97 +149,12 @@ async function callAIStateEngine(messages: any[]): Promise<any> {
   
   console.log("🤖 Calling AI State Engine with", managedMessages.length, "messages (original:", messages.length, ")");
   
-  // Define comprehensive JSON schema for structured responses
-  const responseSchema = {
-    type: "object",
-    properties: {
-      say_to_user: {
-        type: "string",
-        description: "Friendly message to display to the user"
-      },
-      next_action: {
-        type: "string",
-        enum: [
-          "WAIT_FOR_TEXT_INPUT",
-          "SHOW_MODALITY_CHOICE", 
-          "SHOW_CALENDAR_PICKER",
-          "SHOW_COMMITMENT_SLIDER",
-          "FINALIZE_AND_HANDOFF"
-        ],
-        description: "Next UI action to take"
-      },
-      intel: {
-        type: "object",
-        properties: {
-          title: {
-            type: "string",
-            description: "Goal title/name"
-          },
-          modality: {
-            type: "string",
-            enum: ["project", "checklist"],
-            description: "Type of goal structure"
-          },
-          deadline: {
-            type: "string",
-            format: "date",
-            description: "Target completion date in YYYY-MM-DD format"
-          },
-          commitment: {
-            type: "object",
-            properties: {
-              totalHoursPerWeek: {
-                type: "number",
-                minimum: 0,
-                description: "Total weekly hours commitment"
-              },
-              dailyBudget: {
-                type: "object",
-                properties: {
-                  mon: { type: "number", minimum: 0 },
-                  tue: { type: "number", minimum: 0 },
-                  wed: { type: "number", minimum: 0 },
-                  thu: { type: "number", minimum: 0 },
-                  fri: { type: "number", minimum: 0 },
-                  sat: { type: "number", minimum: 0 },
-                  sun: { type: "number", minimum: 0 }
-                },
-                required: ["mon", "tue", "wed", "thu", "fri", "sat", "sun"],
-                additionalProperties: false
-              }
-            },
-            required: ["totalHoursPerWeek", "dailyBudget"],
-            additionalProperties: false
-          },
-          context: {
-            type: "string",
-            description: "Additional context or details about the goal"
-          }
-        },
-        required: ["title", "modality"],
-        additionalProperties: false,
-        description: "Complete goal information (only required for FINALIZE_AND_HANDOFF)"
-      }
-    },
-    required: ["say_to_user", "next_action"],
-    additionalProperties: false,
-    if: {
-      properties: { next_action: { const: "FINALIZE_AND_HANDOFF" } }
-    },
-    then: {
-      required: ["say_to_user", "next_action", "intel"]
-    }
-  };
-
   const requestPayload = {
     model: "mistralai/mistral-7b-instruct:free", // Free model for conversation flow
     temperature: 0.3, // Increased for longer conversations and JSON responses
     messages: managedMessages,
-    // Enable structured JSON response with comprehensive schema validation
-    response_format: { 
-      type: "json_object",
-      schema: responseSchema
-    },
+    // Enable structured JSON response to ensure reliable formatting
+    response_format: { type: "json_object" },
   };
 
   const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
