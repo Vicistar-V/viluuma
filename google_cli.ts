@@ -13,70 +13,37 @@ const corsHeaders = {
 };
 // Initialize Supabase client with service role key
 const supabase = createClient(Deno.env.get('SUPABASE_URL'), Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'));
-// Load OAuth credentials from database with hardcoded fallback
+// Load OAuth credentials from database
 async function loadOAuthCredentials() {
   try {
     console.log("Loading OAuth credentials from database...");
     const { data, error } = await supabase.from('oauth_credentials').select('*').eq('service', 'gemini').single();
-    
     if (error || !data) {
-      console.warn("Failed to load OAuth credentials from database:", error);
-      console.log("Falling back to hardcoded credentials");
-      
-      // Return hardcoded credentials as fallback
-      return {
-        access_token: "fallback_access_token", // This will trigger a refresh
-        refresh_token: "1//0erYDTLVjhCnBCgYIARAAGA4SNwF-L9IrvbHeE-1-ykr7VjGqN0iAoUOHTpzqYWg3MWmC3FQfHfr3E3",
-        token_type: "Bearer",
-        expiry_date: new Date().getTime() - 1000, // Expired so it will refresh immediately
-        client_id: OAUTH_CLIENT_ID,
-        client_secret: OAUTH_CLIENT_SECRET
-      };
+      console.error("Failed to load OAuth credentials:", error);
+      throw new Error("OAuth credentials not found in database");
     }
-    
     console.log("Loaded OAuth credentials successfully from database");
-    
-    // Convert database timestamp to milliseconds for consistency
-    const expiryMs = data.expiry_date ? new Date(data.expiry_date).getTime() : (Date.now() - 1000);
-    
     return {
       access_token: data.access_token,
       refresh_token: data.refresh_token,
       token_type: data.token_type,
-      expiry_date: expiryMs,
-      client_id: OAUTH_CLIENT_ID,
-      client_secret: OAUTH_CLIENT_SECRET
+      expiry_date: data.expiry_date
     };
   } catch (error) {
-    console.error("Error loading OAuth credentials, using hardcoded fallback:", error);
-    
-    // Hardcoded fallback with proper OAuth credentials
-    return {
-      access_token: "fallback_access_token",
-      refresh_token: "1//0erYDTLVjhCnBCgYIARAAGA4SNwF-L9IrvbHeE-1-ykr7VjGqN0iAoUOHTpzqYWg3MWmC3FQfHfr3E3",
-      token_type: "Bearer",
-      expiry_date: Date.now() - 1000, // Expired so it will refresh immediately
-      client_id: OAUTH_CLIENT_ID,
-      client_secret: OAUTH_CLIENT_SECRET
-    };
+    console.error("Failed to load OAuth credentials:", error);
+    throw new Error("OAuth credentials not found");
   }
 }
 // Refresh OAuth token if expired
 async function refreshAccessToken(credentials) {
   console.log("Refreshing access token...");
   const tokenUrl = "https://oauth2.googleapis.com/token";
-  
-  // Use client credentials from the loaded credentials object (database first, fallback second)
-  const clientId = credentials.client_id || OAUTH_CLIENT_ID;
-  const clientSecret = credentials.client_secret || OAUTH_CLIENT_SECRET;
-  
   const body = new URLSearchParams({
-    client_id: clientId,
-    client_secret: clientSecret,
+    client_id: OAUTH_CLIENT_ID,
+    client_secret: OAUTH_CLIENT_SECRET,
     refresh_token: credentials.refresh_token,
     grant_type: "refresh_token"
   });
-  
   const response = await fetch(tokenUrl, {
     method: "POST",
     headers: {
@@ -84,69 +51,40 @@ async function refreshAccessToken(credentials) {
     },
     body: body.toString()
   });
-  
   if (!response.ok) {
-    const errorText = await response.text();
-    console.error("Token refresh failed:", response.status, errorText);
-    throw new Error(`Token refresh failed: ${response.status} ${response.statusText} - ${errorText}`);
+    throw new Error(`Token refresh failed: ${response.statusText}`);
   }
-  
   const tokenData = await response.json();
-  console.log("Token refresh successful, expires in:", tokenData.expires_in, "seconds");
-  
   return {
     access_token: tokenData.access_token,
-    refresh_token: credentials.refresh_token, // Keep existing refresh token
+    refresh_token: credentials.refresh_token,
     token_type: tokenData.token_type || "Bearer",
-    expiry_date: Date.now() + (tokenData.expires_in * 1000), // Convert to milliseconds
-    client_id: clientId,
-    client_secret: clientSecret
+    expiry_date: Date.now() + tokenData.expires_in * 1000
   };
 }
 // Ensure we have a valid access token
 async function ensureValidToken() {
   let credentials = await loadOAuthCredentials();
-  
   // Check if token needs refresh (refresh 5 minutes before expiry)
-  const needsRefresh = credentials.expiry_date < Date.now() + 300000;
-  console.log("Token check:", {
-    expiryDate: new Date(credentials.expiry_date).toISOString(),
-    currentTime: new Date().toISOString(),
-    needsRefresh,
-    timeToExpiry: Math.round((credentials.expiry_date - Date.now()) / 1000 / 60)
-  });
-  
-  if (needsRefresh) {
-    console.log("Token expired or expiring soon, refreshing...");
+  if (credentials.expiry_date < Date.now() + 300000) {
+    console.log("Token expired, refreshing...");
+    credentials = await refreshAccessToken(credentials);
+    // Save refreshed credentials back to database
     try {
-      credentials = await refreshAccessToken(credentials);
-      
-      // Save refreshed credentials back to database (convert milliseconds to timestamp)
-      const expiryTimestamp = new Date(credentials.expiry_date).toISOString();
-      
-      const { error } = await supabase.from('oauth_credentials').upsert({
-        service: 'gemini',
+      const { error } = await supabase.from('oauth_credentials').update({
         access_token: credentials.access_token,
-        refresh_token: credentials.refresh_token,
         token_type: credentials.token_type,
-        expiry_date: expiryTimestamp,
-        updated_at: new Date().toISOString()
-      }, {
-        onConflict: 'service'
-      });
-      
+        expiry_date: credentials.expiry_date
+      }).eq('service', 'gemini');
       if (error) {
         console.warn("Failed to save refreshed credentials:", error);
       } else {
-        console.log("Successfully saved refreshed credentials to database");
+        console.log("Saved refreshed credentials to database");
       }
-    } catch (refreshError) {
-      console.error("Failed to refresh token:", refreshError);
-      // If refresh fails, continue with existing token and hope it works
-      console.log("Continuing with potentially expired token...");
+    } catch (error) {
+      console.warn("Failed to save refreshed credentials:", error);
     }
   }
-  
   return credentials.access_token;
 }
 // Discover or retrieve the project ID for Code Assist API

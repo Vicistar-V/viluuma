@@ -26,6 +26,3 @@ verify_jwt = false
 
 [functions.sync-revenuecat-subscription]
 verify_jwt = true
-
-[functions.google-ai-provider]
-verify_jwt = true
