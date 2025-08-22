@@ -150,7 +150,7 @@ async function callAIStateEngine(messages: any[]): Promise<any> {
   console.log("🤖 Calling AI State Engine with", managedMessages.length, "messages (original:", messages.length, ")");
   
   const requestPayload = {
-    model: "meta-llama/llama-3.1-405b-instruct:free", // Free Llama model for conversation flow
+    model: "openai/gpt-oss-20b:free", // Free model for conversation flow
     temperature: 0.3, // Increased for longer conversations and JSON responses
     messages: managedMessages,
     // Enable structured JSON response to ensure reliable formatting
