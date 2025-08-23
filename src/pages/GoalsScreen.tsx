@@ -72,7 +72,7 @@ const GoalsScreen = () => {
         return matchesSearch && matchesModality;
       });
       
-      return { activeGoals, archivedGoals, filteredGoals: filteredArchivedGoals, showingArchivedOnly: true };
+      return { activeGoals, archivedGoals, filteredGoals: filteredArchivedGoals, showingArchivedOnly: true, systemArchivedGoals, userArchivedGoals };
     }
     
     // Otherwise, filter active goals normally
