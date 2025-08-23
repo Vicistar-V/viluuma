@@ -13,6 +13,7 @@ import CommitmentProfileUI from "@/components/ai/CommitmentProfileUI";
 import DatePickerInChat from "@/components/ai/DatePickerInChat";
 import ChoiceButtons from "@/components/ai/ChoiceButtons";
 import { useStreamingAI } from "@/hooks/useStreamingAI";
+import { useStreamingParser } from "@/hooks/useStreamingParser";
 import { 
   ChatMessageType, 
   Intel, 
@@ -47,7 +48,9 @@ const AIOnboardingWizard = () => {
   ]);
   const [userInput, setUserInput] = useState("");
   const [isAITyping, setIsAITyping] = useState(false);
-  const [streamingMessage, setStreamingMessage] = useState("");
+  
+  // Initialize streaming parser
+  const streamingParser = useStreamingParser();
   const [currentAIState, setCurrentAIState] = useState<AIStateResponse | null>(null);
   const [showHandoff, setShowHandoff] = useState(false);
   const [showChoices, setShowChoices] = useState(false);
@@ -60,35 +63,42 @@ const AIOnboardingWizard = () => {
   const { toast } = useToast();
   const inputRef = useRef<HTMLInputElement | null>(null);
 
+  const handleAIResponse = (response: AIStateResponse) => {
+    // Add final AI response to messages
+    setMessages((prev) => [
+      ...prev, 
+      { role: "assistant", content: response.say_to_user }
+    ]);
+    
+    // Set the AI state for further processing
+    setCurrentAIState(response);
+    handleAIState(response);
+  };
+
   const { sendMessage: sendStreamingMessage, isStreaming } = useStreamingAI({
     onStreamingStart: () => {
       console.log("🌊 Streaming started");
       setIsAITyping(true);
-      setStreamingMessage("");
+      streamingParser.reset();
     },
     onStreamingDelta: (delta: string, accumulated: string) => {
-      console.log("📤 Streaming delta:", delta);
-      setStreamingMessage(accumulated);
+      console.log("📝 Streaming delta:", { delta, accumulated });
+      streamingParser.processRawChunk(delta, accumulated);
     },
-    onStreamingComplete: (response: AIStateResponse) => {
+    onStreamingComplete: (response) => {
       console.log("✅ Streaming complete:", response);
-      setIsAITyping(false);
-      setStreamingMessage("");
+      streamingParser.markComplete();
       
-      // Add final AI response to messages
-      setMessages((prev) => [
-        ...prev, 
-        { role: "assistant", content: response.say_to_user }
-      ]);
-      
-      // Set the AI state for further processing
-      setCurrentAIState(response);
-      handleAIState(response);
+      // Add the complete message to messages after streaming is done
+      setTimeout(() => {
+        handleAIResponse(response);
+        setIsAITyping(false);
+      }, 500); // Small delay to let the streaming animation finish
     },
-    onStreamingError: (error: any) => {
+    onStreamingError: (error) => {
       console.error("❌ Streaming error:", error);
       setIsAITyping(false);
-      setStreamingMessage("");
+      streamingParser.reset();
       
       // Add a fallback assistant message for better UX
       setMessages((prev) => [
@@ -290,14 +300,14 @@ const AIOnboardingWizard = () => {
           />
         ))}
         {/* Show streaming message while typing */}
-        {isAITyping && streamingMessage && (
+        {isAITyping && streamingParser.textChunks.length > 0 && (
           <ChatMessage 
             role="assistant" 
-            content={streamingMessage}
+            textChunks={streamingParser.textChunks}
             isStreaming={true}
           />
         )}
-        {isAITyping && !streamingMessage && <TypingIndicator />}
+        {isAITyping && streamingParser.textChunks.length === 0 && <TypingIndicator />}
       </div>
 
       {/* Choice Buttons for Project vs Checklist */}

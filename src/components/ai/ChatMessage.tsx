@@ -1,13 +1,16 @@
 import { cn } from "@/lib/utils";
+import { StreamingTextRenderer } from "./StreamingTextRenderer";
 
 interface ChatMessageProps {
   role: "user" | "assistant";
-  content: string;
+  content?: string;
+  textChunks?: string[];
   isStreaming?: boolean;
 }
 
-const ChatMessage = ({ role, content, isStreaming = false }: ChatMessageProps) => {
+const ChatMessage = ({ role, content, textChunks, isStreaming = false }: ChatMessageProps) => {
   const isUser = role === "user";
+  
   return (
     <div className={cn("flex", isUser ? "justify-end" : "justify-start")}>      
       <div
@@ -17,10 +20,14 @@ const ChatMessage = ({ role, content, isStreaming = false }: ChatMessageProps) =
         )}
         aria-label={isUser ? "Your message" : "Assistant message"}
       >
-        <span className={`${isStreaming ? 'animate-pulse' : ''}`}>
-          {content}
-          {isStreaming && <span className="inline-block w-2 h-4 ml-1 bg-current animate-pulse">|</span>}
-        </span>
+        {textChunks && textChunks.length > 0 ? (
+          <StreamingTextRenderer chunks={textChunks} />
+        ) : (
+          <span>
+            {content}
+            {isStreaming && <span className="inline-block w-2 h-4 ml-1 bg-current animate-pulse">|</span>}
+          </span>
+        )}
       </div>
     </div>
   );
