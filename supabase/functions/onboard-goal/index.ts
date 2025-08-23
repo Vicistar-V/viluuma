@@ -150,11 +150,13 @@ async function callAIStateEngine(messages: any[]): Promise<any> {
   console.log("🤖 Calling AI State Engine with", managedMessages.length, "messages (original:", messages.length, ")");
   
   const requestPayload = {
-    model: "mistralai/mistral-7b-instruct:free", // Free model for conversation flow
+    model: "google/gemini-2.5-flash-lite", // Fast Google model for conversation flow
     temperature: 0.3, // Increased for longer conversations and JSON responses
     messages: managedMessages,
     // Enable structured JSON response to ensure reliable formatting
     response_format: { type: "json_object" },
+    // Disable thinking mode
+    extra: { thinking: false }
   };
 
   const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
