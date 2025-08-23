@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 interface StreamingTextRendererProps {
   text: string;
@@ -8,19 +8,24 @@ interface StreamingTextRendererProps {
 
 export const StreamingTextRenderer = ({ 
   text, 
-  typingSpeed = 50,
+  typingSpeed = 30,
   onComplete 
 }: StreamingTextRendererProps) => {
   const [displayedText, setDisplayedText] = useState('');
   const intervalRef = useRef<NodeJS.Timeout>();
   const targetTextRef = useRef('');
+  const displayedTextRef = useRef('');
   const currentIndexRef = useRef(0);
   const isAnimatingRef = useRef(false);
 
-  // Memoize the text to avoid unnecessary re-renders
-  const memoizedText = useMemo(() => text, [text]);
+  console.log('🎬 StreamingTextRenderer render:', { 
+    newText: text.slice(0, 50) + '...', 
+    currentDisplayed: displayedText.slice(0, 50) + '...', 
+    isAnimating: isAnimatingRef.current 
+  });
 
   const cleanup = useCallback(() => {
+    console.log('🧹 Cleaning up animation');
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = undefined;
@@ -29,20 +34,44 @@ export const StreamingTextRenderer = ({
   }, []);
 
   const startTypingAnimation = useCallback(() => {
-    cleanup();
-    
     const targetText = targetTextRef.current;
-    if (!targetText) return;
-
-    // Check if we should continue from current position or restart
-    const currentText = displayedText;
-    let startIndex = 0;
+    const currentDisplayedText = displayedTextRef.current;
     
-    if (targetText.startsWith(currentText) && currentText.length > 0) {
-      startIndex = currentText.length;
+    console.log('🚀 Starting typing animation:', { 
+      target: targetText.slice(0, 50) + '...', 
+      current: currentDisplayedText.slice(0, 50) + '...',
+      targetLength: targetText.length,
+      currentLength: currentDisplayedText.length 
+    });
+
+    if (!targetText) {
+      console.log('❌ No target text, aborting animation');
+      return;
+    }
+
+    // If target text hasn't grown from current, don't animate
+    if (targetText.length <= currentDisplayedText.length && targetText === currentDisplayedText) {
+      console.log('📝 Text unchanged, skipping animation');
+      return;
+    }
+
+    // If animation is already running and text is growing incrementally, continue from current position
+    let startIndex = 0;
+    if (isAnimatingRef.current && targetText.startsWith(currentDisplayedText)) {
+      startIndex = currentDisplayedText.length;
+      console.log('➡️ Continuing animation from index:', startIndex);
     } else {
-      setDisplayedText('');
-      startIndex = 0;
+      // New text or restart needed
+      cleanup();
+      if (!targetText.startsWith(currentDisplayedText)) {
+        console.log('🔄 Text changed, restarting from beginning');
+        setDisplayedText('');
+        displayedTextRef.current = '';
+        startIndex = 0;
+      } else {
+        startIndex = currentDisplayedText.length;
+        console.log('📈 Text grew, continuing from:', startIndex);
+      }
     }
 
     currentIndexRef.current = startIndex;
@@ -53,6 +82,7 @@ export const StreamingTextRenderer = ({
       const target = targetTextRef.current;
       
       if (currentIndex >= target.length) {
+        console.log('✅ Animation complete');
         cleanup();
         onComplete?.();
         return;
@@ -61,30 +91,37 @@ export const StreamingTextRenderer = ({
       // Update displayed text
       const newText = target.slice(0, currentIndex + 1);
       setDisplayedText(newText);
+      displayedTextRef.current = newText;
       currentIndexRef.current = currentIndex + 1;
     }, typingSpeed);
-  }, [displayedText, typingSpeed, onComplete, cleanup]);
+  }, [typingSpeed, onComplete, cleanup]);
 
-  // Effect to handle text changes
+  // Effect to handle text changes - only restart animation if text actually changes
   useEffect(() => {
-    if (memoizedText !== targetTextRef.current) {
-      targetTextRef.current = memoizedText;
+    if (text !== targetTextRef.current) {
+      console.log('📨 New text received:', { 
+        old: targetTextRef.current.slice(0, 30) + '...', 
+        new: text.slice(0, 30) + '...' 
+      });
       
-      if (memoizedText) {
+      targetTextRef.current = text;
+      
+      if (text) {
         startTypingAnimation();
       } else {
         cleanup();
         setDisplayedText('');
+        displayedTextRef.current = '';
       }
     }
-  }, [memoizedText, startTypingAnimation, cleanup]);
+  }, [text, startTypingAnimation, cleanup]);
 
   // Cleanup on unmount
   useEffect(() => {
     return cleanup;
   }, [cleanup]);
 
-  const showCursor = displayedText.length < memoizedText.length && memoizedText.length > 0;
+  const showCursor = displayedText.length < text.length && text.length > 0;
 
   return (
     <span>

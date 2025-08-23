@@ -54,14 +54,22 @@ export const useStreamingParser = () => {
         }
       }
 
-      // Only update if we have new text content and it's different from what we had
-      if (extractedText && extractedText !== lastExtractedTextRef.current) {
-        console.log('📝 Parser extracted text:', { 
-          old: lastExtractedTextRef.current.slice(0, 50) + '...', 
-          new: extractedText.slice(0, 50) + '...',
-          length: extractedText.length 
+      // Only update if we have new text content and it's longer than what we had
+      if (extractedText && extractedText.length > lastExtractedTextRef.current.length) {
+        console.log('📝 Parser extracted new text:', { 
+          oldLength: lastExtractedTextRef.current.length,
+          newLength: extractedText.length,
+          delta: extractedText.slice(lastExtractedTextRef.current.length, lastExtractedTextRef.current.length + 20) + '...'
         });
         
+        lastExtractedTextRef.current = extractedText;
+        debouncedSetState(extractedText);
+      } else if (extractedText && extractedText !== lastExtractedTextRef.current) {
+        // Handle case where text changed but didn't grow (rare, but possible)
+        console.log('📝 Parser text changed (not grew):', { 
+          old: lastExtractedTextRef.current.slice(0, 30) + '...', 
+          new: extractedText.slice(0, 30) + '...'
+        });
         lastExtractedTextRef.current = extractedText;
         debouncedSetState(extractedText);
       }
