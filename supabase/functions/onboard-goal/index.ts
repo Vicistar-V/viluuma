@@ -150,7 +150,9 @@ async function callAIStateEngineStreaming(messages: any[]): Promise<ReadableStre
   console.log("🤖 Calling AI State Engine with streaming, messages:", managedMessages.length, "messages (original:", messages.length, ")");
   
   const requestPayload = {
-    model: "google/gemini-2.5-flash-lite", // Fast Google model for conversation flow
+    // NOTE: Using free OpenAI model for development/testing
+    model: "openai/gpt-oss-20b:free", // Free OpenAI model for conversation flow
+    // model: "google/gemini-2.5-flash-lite", // Fast Google model - RESERVED FOR PRODUCTION USE
     temperature: 0.3,
     messages: managedMessages,
     stream: true, // Enable streaming
