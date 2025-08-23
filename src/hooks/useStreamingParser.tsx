@@ -1,19 +1,20 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 
 interface StreamingParserState {
   displayText: string;
   isComplete: boolean;
   error: string | null;
-  previousTextLength: number;
 }
 
 export const useStreamingParser = () => {
   const [state, setState] = useState<StreamingParserState>({
     displayText: '',
     isComplete: false,
-    error: null,
-    previousTextLength: 0
+    error: null
   });
+  
+  const previousTextLengthRef = useRef(0);
+  const lastExtractedTextRef = useRef('');
 
   const processRawChunk = useCallback((rawDelta: string, accumulated: string) => {
     try {
@@ -38,12 +39,20 @@ export const useStreamingParser = () => {
         }
       }
 
-      // Only update if we have new text content
-      if (extractedText && extractedText.length > state.previousTextLength) {
+      // Only update if we have new text content and it's different from what we had
+      if (extractedText && extractedText !== lastExtractedTextRef.current) {
+        console.log('📝 Parser extracted text:', { 
+          old: lastExtractedTextRef.current, 
+          new: extractedText,
+          length: extractedText.length 
+        });
+        
+        lastExtractedTextRef.current = extractedText;
+        previousTextLengthRef.current = extractedText.length;
+        
         setState(prev => ({
           ...prev,
           displayText: extractedText,
-          previousTextLength: extractedText.length,
           error: null
         }));
       }
@@ -54,7 +63,7 @@ export const useStreamingParser = () => {
         error: 'Failed to process streaming text'
       }));
     }
-  }, [state.previousTextLength]);
+  }, []); // No dependencies to avoid recreation
 
   const markComplete = useCallback(() => {
     setState(prev => ({
@@ -67,9 +76,10 @@ export const useStreamingParser = () => {
     setState({
       displayText: '',
       isComplete: false,
-      error: null,
-      previousTextLength: 0
+      error: null
     });
+    previousTextLengthRef.current = 0;
+    lastExtractedTextRef.current = '';
   }, []);
 
   return {

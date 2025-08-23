@@ -8,16 +8,21 @@ interface StreamingTextRendererProps {
 
 export const StreamingTextRenderer = ({ 
   text, 
-  typingSpeed = 80, // Slower, more natural speed
+  typingSpeed = 50, // Faster but still natural
   onComplete 
 }: StreamingTextRendererProps) => {
   const [displayedText, setDisplayedText] = useState('');
+  const animationFrameRef = useRef<number>();
   const timeoutRef = useRef<NodeJS.Timeout>();
   const isTypingRef = useRef(false);
+  const startTimeRef = useRef<number>();
   const targetTextRef = useRef('');
-  const currentIndexRef = useRef(0);
 
   const cleanup = useCallback(() => {
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = undefined;
+    }
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
       timeoutRef.current = undefined;
@@ -25,65 +30,68 @@ export const StreamingTextRenderer = ({
     isTypingRef.current = false;
   }, []);
 
-  const typeNextCharacter = useCallback(() => {
+  const animateTyping = useCallback(() => {
     const targetText = targetTextRef.current;
-    const currentIndex = currentIndexRef.current;
+    const currentTime = Date.now();
+    const elapsed = currentTime - (startTimeRef.current || currentTime);
+    const targetLength = Math.min(
+      Math.floor(elapsed / typingSpeed) + 1,
+      targetText.length
+    );
 
-    if (currentIndex >= targetText.length) {
-      // Typing complete
+    if (targetLength >= targetText.length) {
+      // Animation complete
+      setDisplayedText(targetText);
       cleanup();
       onComplete?.();
       return;
     }
 
-    // Add next character
-    const nextChar = targetText[currentIndex];
-    setDisplayedText(targetText.slice(0, currentIndex + 1));
-    currentIndexRef.current = currentIndex + 1;
-
-    // Schedule next character
-    timeoutRef.current = setTimeout(typeNextCharacter, typingSpeed);
+    // Update displayed text
+    setDisplayedText(targetText.slice(0, targetLength));
+    
+    // Schedule next frame
+    animationFrameRef.current = requestAnimationFrame(animateTyping);
   }, [typingSpeed, onComplete, cleanup]);
 
-  const startTyping = useCallback(() => {
+  const startTyping = useCallback((newText: string) => {
     if (isTypingRef.current) {
       cleanup();
     }
 
-    const targetText = targetTextRef.current;
-    const currentText = displayedText;
-
-    // If the new text starts with what we already have, continue from where we left off
-    if (targetText.startsWith(currentText)) {
-      currentIndexRef.current = currentText.length;
-    } else {
-      // Text changed completely, start over
+    targetTextRef.current = newText;
+    
+    // If text is empty, just clear
+    if (!newText) {
       setDisplayedText('');
-      currentIndexRef.current = 0;
-    }
-
-    // Only start typing if there's new content to type
-    if (currentIndexRef.current < targetText.length) {
-      isTypingRef.current = true;
-      typeNextCharacter();
-    }
-  }, [displayedText, typeNextCharacter, cleanup]);
-
-  // Handle text changes
-  useEffect(() => {
-    if (!text) {
-      setDisplayedText('');
-      cleanup();
       return;
     }
 
-    targetTextRef.current = text;
-
-    // Start typing if the text is different from what we're currently displaying
-    if (text !== displayedText) {
-      startTyping();
+    // If new text starts with current text, continue from where we left off
+    const currentLength = displayedText.length;
+    if (newText.startsWith(displayedText) && currentLength < newText.length) {
+      // Continue typing from current position
+      startTimeRef.current = Date.now() - (currentLength * typingSpeed);
+    } else if (newText !== displayedText) {
+      // Text changed, start over
+      setDisplayedText('');
+      startTimeRef.current = Date.now();
+    } else {
+      // Text is the same, no need to animate
+      return;
     }
-  }, [text, displayedText, startTyping, cleanup]);
+
+    isTypingRef.current = true;
+    animationFrameRef.current = requestAnimationFrame(animateTyping);
+  }, [displayedText, typingSpeed, animateTyping, cleanup]);
+
+  // Handle text changes
+  useEffect(() => {
+    if (text !== targetTextRef.current) {
+      console.log('🎬 Text changed for animation:', { from: displayedText, to: text });
+      startTyping(text);
+    }
+  }, [text, startTyping, displayedText]);
 
   // Cleanup on unmount
   useEffect(() => {
