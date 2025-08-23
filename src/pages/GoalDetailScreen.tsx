@@ -7,16 +7,15 @@ import { useReopenGoal, useUpdateGoalStatus } from "@/hooks/useGoals";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
-// Import our new mobile components
-import MobileGoalDetailHeader from "@/components/goals/MobileGoalDetailHeader";
-import MobileActiveProjectView from "@/components/goals/MobileActiveProjectView";
-import MobileActiveChecklistView from "@/components/goals/MobileActiveChecklistView";
+// Import our new components
+import { GoalDetailHeader } from "@/components/goals/GoalDetailHeader";
+import { GoalOverviewCard } from "@/components/goals/GoalOverviewCard";
+import { ActiveProjectView } from "@/components/goals/ActiveProjectView";
+import { ActiveChecklistView } from "@/components/goals/ActiveChecklistView";
 import { CompletedGoalView } from "@/components/goals/CompletedGoalView";
 import { ArchivedGoalView } from "@/components/goals/ArchivedGoalView";
 import TaskDetailModal from "@/components/tasks/TaskDetailModal";
 import { PlanUpdateOverlay } from "@/components/ui/plan-update-overlay";
-import { Card, CardContent } from "@/components/ui/card";
-import { Target } from "lucide-react";
 
 interface Goal { 
   id: string; 
@@ -293,28 +292,16 @@ const GoalDetailScreen = () => {
 
   if (loading || !user) return null;
   if (!goal) return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <Card className="rounded-2xl animate-scale-in">
-        <CardContent className="p-8 text-center">
-          <div className="flex flex-col items-center gap-4">
-            <div className="p-4 bg-gradient-to-br from-primary/10 to-accent/10 rounded-full">
-              <Target className="h-8 w-8 text-primary" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-foreground mb-2">Loading your goal...</h3>
-              <p className="text-muted-foreground text-sm">
-                Just a moment while we fetch the details.
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+    <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="text-center">
+        <div className="text-lg text-muted-foreground">Loading goal...</div>
+      </div>
     </div>
   );
 
   return (
     <div className="min-h-screen bg-background">
-      <MobileGoalDetailHeader
+      <GoalDetailHeader
         goal={goal}
         onTitleUpdate={handleTitleUpdate}
         onDescriptionUpdate={handleDescriptionUpdate}
@@ -324,7 +311,9 @@ const GoalDetailScreen = () => {
         onDelete={handleDelete}
       />
 
-      <div className="p-4 pb-28 space-y-6">
+      <main className="container mx-auto px-4 py-6 pb-28 space-y-6">
+        <GoalOverviewCard goal={goal} />
+
         {goal.status === 'archived' ? (
           <ArchivedGoalView
             goal={goal}
@@ -341,7 +330,7 @@ const GoalDetailScreen = () => {
             groupedTasks={groupedTasks}
           />
         ) : goal.modality === 'project' ? (
-          <MobileActiveProjectView
+          <ActiveProjectView
             milestones={milestones}
             groupedTasks={groupedTasks}
             onMilestoneEdit={handleMilestoneEdit}
@@ -353,7 +342,7 @@ const GoalDetailScreen = () => {
             onAddMilestone={addMilestone}
           />
         ) : (
-          <MobileActiveChecklistView
+          <ActiveChecklistView
             milestones={milestones}
             groupedTasks={groupedTasks}
             onMilestoneEdit={handleMilestoneEdit}
@@ -365,7 +354,7 @@ const GoalDetailScreen = () => {
             onAddMilestone={addMilestone}
           />
         )}
-      </div>
+      </main>
 
       <TaskDetailModal
         taskId={activeTaskId}
