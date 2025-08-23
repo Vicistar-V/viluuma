@@ -9,7 +9,7 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { useToast } from '@/hooks/use-toast';
 import { Target, Plus, TrendingUp, CheckCircle, Archive, Crown, Lock } from 'lucide-react';
 import { GoalCard } from '@/components/goals/GoalCard';
-import { MobileGoalFilters, GoalFilters } from '@/components/goals/MobileGoalFilters';
+import MobileGoalFilters, { GoalFilters } from '@/components/goals/MobileGoalFilters';
 import { SmartArchivedGoalsSection } from '@/components/goals/SmartArchivedGoalsSection';
 import { UpgradePrompt } from '@/components/paywall/UpgradePrompt';
 import GoalsHeader from '@/components/goals/GoalsHeader';

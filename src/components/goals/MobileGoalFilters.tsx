@@ -204,3 +204,5 @@ export const MobileGoalFilters: React.FC<MobileGoalFiltersProps> = ({
     </div>
   );
 };
+
+export default MobileGoalFilters;
