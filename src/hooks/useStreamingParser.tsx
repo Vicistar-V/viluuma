@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useMemo } from 'react';
 
 interface StreamingParserState {
   displayText: string;
@@ -13,8 +13,23 @@ export const useStreamingParser = () => {
     error: null
   });
   
-  const previousTextLengthRef = useRef(0);
   const lastExtractedTextRef = useRef('');
+  const updateTimeoutRef = useRef<NodeJS.Timeout>();
+
+  // Debounced state update to prevent React queue issues
+  const debouncedSetState = useCallback((newText: string) => {
+    if (updateTimeoutRef.current) {
+      clearTimeout(updateTimeoutRef.current);
+    }
+    
+    updateTimeoutRef.current = setTimeout(() => {
+      setState(prev => ({
+        ...prev,
+        displayText: newText,
+        error: null
+      }));
+    }, 16); // ~60fps update rate
+  }, []);
 
   const processRawChunk = useCallback((rawDelta: string, accumulated: string) => {
     try {
@@ -42,19 +57,13 @@ export const useStreamingParser = () => {
       // Only update if we have new text content and it's different from what we had
       if (extractedText && extractedText !== lastExtractedTextRef.current) {
         console.log('📝 Parser extracted text:', { 
-          old: lastExtractedTextRef.current, 
-          new: extractedText,
+          old: lastExtractedTextRef.current.slice(0, 50) + '...', 
+          new: extractedText.slice(0, 50) + '...',
           length: extractedText.length 
         });
         
         lastExtractedTextRef.current = extractedText;
-        previousTextLengthRef.current = extractedText.length;
-        
-        setState(prev => ({
-          ...prev,
-          displayText: extractedText,
-          error: null
-        }));
+        debouncedSetState(extractedText);
       }
     } catch (error) {
       console.warn('Error processing streaming chunk:', error);
@@ -63,9 +72,12 @@ export const useStreamingParser = () => {
         error: 'Failed to process streaming text'
       }));
     }
-  }, []); // No dependencies to avoid recreation
+  }, [debouncedSetState]);
 
   const markComplete = useCallback(() => {
+    if (updateTimeoutRef.current) {
+      clearTimeout(updateTimeoutRef.current);
+    }
     setState(prev => ({
       ...prev,
       isComplete: true
@@ -73,21 +85,34 @@ export const useStreamingParser = () => {
   }, []);
 
   const reset = useCallback(() => {
+    if (updateTimeoutRef.current) {
+      clearTimeout(updateTimeoutRef.current);
+    }
     setState({
       displayText: '',
       isComplete: false,
       error: null
     });
-    previousTextLengthRef.current = 0;
     lastExtractedTextRef.current = '';
   }, []);
 
-  return {
+  // Cleanup on unmount
+  const cleanup = useCallback(() => {
+    if (updateTimeoutRef.current) {
+      clearTimeout(updateTimeoutRef.current);
+    }
+  }, []);
+
+  // Memoize the return object to prevent unnecessary re-renders
+  const returnValue = useMemo(() => ({
     displayText: state.displayText,
     isComplete: state.isComplete,
     error: state.error,
     processRawChunk,
     markComplete,
-    reset
-  };
+    reset,
+    cleanup
+  }), [state.displayText, state.isComplete, state.error, processRawChunk, markComplete, reset, cleanup]);
+
+  return returnValue;
 };

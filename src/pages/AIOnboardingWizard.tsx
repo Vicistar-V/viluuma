@@ -49,7 +49,7 @@ const AIOnboardingWizard = () => {
   const [userInput, setUserInput] = useState("");
   const [isAITyping, setIsAITyping] = useState(false);
   
-  // Initialize streaming parser
+  // Initialize streaming parser with useMemo to prevent recreation
   const streamingParser = useStreamingParser();
   const [currentAIState, setCurrentAIState] = useState<AIStateResponse | null>(null);
   const [showHandoff, setShowHandoff] = useState(false);
