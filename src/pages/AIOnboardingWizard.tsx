@@ -12,6 +12,7 @@ import HandoffConfirmation from "@/components/ai/HandoffConfirmation";
 import CommitmentProfileUI from "@/components/ai/CommitmentProfileUI";
 import DatePickerInChat from "@/components/ai/DatePickerInChat";
 import ChoiceButtons from "@/components/ai/ChoiceButtons";
+import { useStreamingAI } from "@/hooks/useStreamingAI";
 import { 
   ChatMessageType, 
   Intel, 
@@ -46,6 +47,7 @@ const AIOnboardingWizard = () => {
   ]);
   const [userInput, setUserInput] = useState("");
   const [isAITyping, setIsAITyping] = useState(false);
+  const [streamingMessage, setStreamingMessage] = useState("");
   const [currentAIState, setCurrentAIState] = useState<AIStateResponse | null>(null);
   const [showHandoff, setShowHandoff] = useState(false);
   const [showChoices, setShowChoices] = useState(false);
@@ -58,59 +60,35 @@ const AIOnboardingWizard = () => {
   const { toast } = useToast();
   const inputRef = useRef<HTMLInputElement | null>(null);
 
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
-
-  const handleSend = async (userMessage?: string) => {
-    const message = userMessage || userInput.trim();
-    if (!message || isAITyping) return;
-
-    // Add user message to conversation
-    const newUserMessage: ChatMessageType = { role: "user", content: message };
-    const updatedMessages = [...messages, newUserMessage];
-    setMessages(updatedMessages);
-    setUserInput("");
-    setIsAITyping(true);
-
-    // Hide any UI elements
-    setShowChoices(false);
-    setShowDatePicker(false);
-    setShowCommitmentUI(false);
-
-    try {
-      console.log("📤 Sending conversation to AI State Engine");
-      
-      const { data, error } = await supabase.functions.invoke("onboard-goal", {
-        body: { 
-          conversationHistory: updatedMessages,
-          userTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-        },
-      });
-      
-      if (error) {
-        console.error("❌ Supabase function error:", error);
-        throw error;
-      }
-
-      console.log("📥 AI State Engine Response:", data);
-
-      // Set the AI state for further processing
-      setCurrentAIState(data);
+  const { sendMessage: sendStreamingMessage, isStreaming } = useStreamingAI({
+    onStreamingStart: () => {
+      console.log("🌊 Streaming started");
+      setIsAITyping(true);
+      setStreamingMessage("");
+    },
+    onStreamingDelta: (delta: string, accumulated: string) => {
+      console.log("📤 Streaming delta:", delta);
+      setStreamingMessage(accumulated);
+    },
+    onStreamingComplete: (response: AIStateResponse) => {
+      console.log("✅ Streaming complete:", response);
       setIsAITyping(false);
-
-      // Add AI response to messages
+      setStreamingMessage("");
+      
+      // Add final AI response to messages
       setMessages((prev) => [
         ...prev, 
-        { role: "assistant", content: data.say_to_user }
+        { role: "assistant", content: response.say_to_user }
       ]);
-
-      // Handle different states based on AI's analysis
-      handleAIState(data);
-
-    } catch (error: any) {
-      console.error("❌ Error in conversation:", error);
+      
+      // Set the AI state for further processing
+      setCurrentAIState(response);
+      handleAIState(response);
+    },
+    onStreamingError: (error: any) => {
+      console.error("❌ Streaming error:", error);
       setIsAITyping(false);
+      setStreamingMessage("");
       
       // Add a fallback assistant message for better UX
       setMessages((prev) => [
@@ -127,6 +105,32 @@ const AIOnboardingWizard = () => {
         variant: "destructive" 
       });
     }
+  });
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  const handleSend = async (userMessage?: string) => {
+    const message = userMessage || userInput.trim();
+    if (!message || isAITyping || isStreaming) return;
+
+    // Add user message to conversation
+    const newUserMessage: ChatMessageType = { role: "user", content: message };
+    const updatedMessages = [...messages, newUserMessage];
+    setMessages(updatedMessages);
+    setUserInput("");
+
+    // Hide any UI elements
+    setShowChoices(false);
+    setShowDatePicker(false);
+    setShowCommitmentUI(false);
+
+    // Send streaming message
+    await sendStreamingMessage(
+      updatedMessages,
+      Intl.DateTimeFormat().resolvedOptions().timeZone
+    );
   };
 
   const handleAIState = (aiResponse: AIStateResponse) => {
@@ -285,7 +289,15 @@ const AIOnboardingWizard = () => {
             content={message.content} 
           />
         ))}
-        {isAITyping && <TypingIndicator />}
+        {/* Show streaming message while typing */}
+        {isAITyping && streamingMessage && (
+          <ChatMessage 
+            role="assistant" 
+            content={streamingMessage}
+            isStreaming={true}
+          />
+        )}
+        {isAITyping && !streamingMessage && <TypingIndicator />}
       </div>
 
       {/* Choice Buttons for Project vs Checklist */}
@@ -356,7 +368,7 @@ const AIOnboardingWizard = () => {
               value={userInput}
               onChange={(e) => setUserInput(e.target.value)}
               placeholder="Type your message..."
-              disabled={isAITyping}
+              disabled={isAITyping || isStreaming}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
@@ -367,7 +379,7 @@ const AIOnboardingWizard = () => {
             />
             <Button 
               onClick={() => handleSend()} 
-              disabled={!userInput.trim() || isAITyping}
+              disabled={!userInput.trim() || isAITyping || isStreaming}
               size="sm"
             >
               Send

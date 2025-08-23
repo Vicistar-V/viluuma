@@ -138,7 +138,7 @@ function manageConversationLength(messages: any[]): any[] {
 // AI COMMUNICATION FUNCTION
 // ===============================
 
-async function callAIStateEngine(messages: any[]): Promise<any> {
+async function callAIStateEngineStreaming(messages: any[]): Promise<ReadableStream> {
   const apiKey = Deno.env.get("OPENROUTER_API_KEY");
   if (!apiKey) {
     throw new Error("Missing OPENROUTER_API_KEY");
@@ -147,15 +147,14 @@ async function callAIStateEngine(messages: any[]): Promise<any> {
   // Manage conversation length to prevent context overflow
   const managedMessages = manageConversationLength(messages);
   
-  console.log("🤖 Calling AI State Engine with", managedMessages.length, "messages (original:", messages.length, ")");
+  console.log("🤖 Calling AI State Engine with streaming, messages:", managedMessages.length, "messages (original:", messages.length, ")");
   
   const requestPayload = {
     model: "google/gemini-2.5-flash-lite", // Fast Google model for conversation flow
-    temperature: 0.3, // Increased for longer conversations and JSON responses
+    temperature: 0.3,
     messages: managedMessages,
-    // Enable structured JSON response to ensure reliable formatting
+    stream: true, // Enable streaming
     response_format: { type: "json_object" },
-    // Disable thinking mode
     extra: { thinking: false }
   };
 
@@ -174,30 +173,11 @@ async function callAIStateEngine(messages: any[]): Promise<any> {
     throw new Error(`AI API error: ${response.status}`);
   }
 
-  const data = await response.json();
-  const content = data?.choices?.[0]?.message?.content;
-  
-  if (!content) {
-    throw new Error("No content in AI response");
+  if (!response.body) {
+    throw new Error("No response body for streaming");
   }
 
-  console.log("📦 Raw AI Response:", content);
-
-  // Parse the JSON response from AI
-  try {
-    const parsedResponse = JSON.parse(content);
-    console.log("✅ Parsed AI JSON Response:", JSON.stringify(parsedResponse, null, 2));
-    return parsedResponse;
-  } catch (parseError) {
-    console.error("❌ Failed to parse AI response as JSON:", parseError);
-    console.error("Raw content:", content);
-    
-    // Fallback response in case AI doesn't return proper JSON
-    return {
-      say_to_user: "Sorry, I had a hiccup there! Can you tell me again about your goal?",
-      next_action: "WAIT_FOR_TEXT_INPUT"
-    };
-  }
+  return response.body;
 }
 
 // ===============================
@@ -234,21 +214,104 @@ serve(async (req) => {
       ...conversationHistory
     ];
     
-    // 2. CALL THE AI STATE ENGINE - ALWAYS RETURNS JSON
-    const aiResponse = await callAIStateEngine(messagesForAI);
+    // 2. GET STREAMING RESPONSE FROM AI
+    const streamingResponse = await callAIStateEngineStreaming(messagesForAI);
     
-    // 3. VALIDATE RESPONSE STRUCTURE
-    if (!aiResponse.say_to_user || !aiResponse.next_action) {
-      console.error("❌ Invalid AI response structure:", aiResponse);
-      throw new Error("AI returned invalid response structure");
-    }
-
-    console.log("✅ AI State Engine Response:", JSON.stringify(aiResponse, null, 2));
+    // 3. CREATE SERVER-SENT EVENTS STREAM
+    const encoder = new TextEncoder();
+    let accumulatedContent = "";
     
-    // 4. RETURN THE STRUCTURED RESPONSE DIRECTLY
-    // Frontend will handle the state_analysis.status to determine UI
-    return new Response(JSON.stringify(aiResponse), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    const sseStream = new ReadableStream({
+      async start(controller) {
+        const reader = streamingResponse.getReader();
+        const decoder = new TextDecoder();
+        
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            
+            if (done) {
+              // Parse the final accumulated content as JSON
+              try {
+                const finalResponse = JSON.parse(accumulatedContent);
+                
+                // Validate final response structure
+                if (!finalResponse.say_to_user || !finalResponse.next_action) {
+                  throw new Error("Invalid final response structure");
+                }
+                
+                // Send final complete event
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+                  type: "complete",
+                  data: finalResponse
+                })}\n\n`));
+                
+                console.log("✅ AI State Engine Final Response:", JSON.stringify(finalResponse, null, 2));
+                
+              } catch (parseError) {
+                console.error("❌ Failed to parse final JSON:", parseError);
+                // Send error event
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+                  type: "error",
+                  data: {
+                    say_to_user: "Sorry, I had a hiccup there! Can you tell me again about your goal?",
+                    next_action: "WAIT_FOR_TEXT_INPUT"
+                  }
+                })}\n\n`));
+              }
+              
+              controller.close();
+              break;
+            }
+            
+            const chunk = decoder.decode(value, { stream: true });
+            const lines = chunk.split('\n');
+            
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                const dataStr = line.slice(6);
+                if (dataStr === '[DONE]') continue;
+                
+                try {
+                  const data = JSON.parse(dataStr);
+                  const delta = data.choices?.[0]?.delta?.content;
+                  
+                  if (delta) {
+                    accumulatedContent += delta;
+                    
+                    // Send streaming delta
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+                      type: "delta",
+                      data: { delta, accumulated: accumulatedContent }
+                    })}\n\n`));
+                  }
+                } catch (e) {
+                  console.warn("⚠️ Failed to parse streaming chunk:", e);
+                }
+              }
+            }
+          }
+        } catch (error) {
+          console.error("❌ Streaming error:", error);
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+            type: "error",
+            data: {
+              say_to_user: "Sorry, I had a technical hiccup! Can you tell me about your goal again?",
+              next_action: "WAIT_FOR_TEXT_INPUT"
+            }
+          })}\n\n`));
+          controller.close();
+        }
+      }
+    });
+    
+    return new Response(sseStream, {
+      headers: {
+        ...corsHeaders,
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+      },
     });
 
   } catch (error) {

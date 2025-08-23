@@ -1,6 +1,12 @@
 import { cn } from "@/lib/utils";
 
-const ChatMessage = ({ role, content }: { role: "user" | "assistant"; content: string }) => {
+interface ChatMessageProps {
+  role: "user" | "assistant";
+  content: string;
+  isStreaming?: boolean;
+}
+
+const ChatMessage = ({ role, content, isStreaming = false }: ChatMessageProps) => {
   const isUser = role === "user";
   return (
     <div className={cn("flex", isUser ? "justify-end" : "justify-start")}>      
@@ -11,7 +17,10 @@ const ChatMessage = ({ role, content }: { role: "user" | "assistant"; content: s
         )}
         aria-label={isUser ? "Your message" : "Assistant message"}
       >
-        {content}
+        <span className={`${isStreaming ? 'animate-pulse' : ''}`}>
+          {content}
+          {isStreaming && <span className="inline-block w-2 h-4 ml-1 bg-current animate-pulse">|</span>}
+        </span>
       </div>
     </div>
   );
