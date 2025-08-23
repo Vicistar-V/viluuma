@@ -4,11 +4,11 @@ import { StreamingTextRenderer } from "./StreamingTextRenderer";
 interface ChatMessageProps {
   role: "user" | "assistant";
   content?: string;
-  textChunks?: string[];
+  streamingText?: string;
   isStreaming?: boolean;
 }
 
-const ChatMessage = ({ role, content, textChunks, isStreaming = false }: ChatMessageProps) => {
+const ChatMessage = ({ role, content, streamingText, isStreaming = false }: ChatMessageProps) => {
   const isUser = role === "user";
   
   return (
@@ -20,8 +20,8 @@ const ChatMessage = ({ role, content, textChunks, isStreaming = false }: ChatMes
         )}
         aria-label={isUser ? "Your message" : "Assistant message"}
       >
-        {textChunks && textChunks.length > 0 ? (
-          <StreamingTextRenderer chunks={textChunks} />
+        {streamingText ? (
+          <StreamingTextRenderer text={streamingText} />
         ) : (
           <span>
             {content}

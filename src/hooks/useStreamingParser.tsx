@@ -1,33 +1,49 @@
 import { useState, useCallback } from 'react';
 
 interface StreamingParserState {
-  textChunks: string[];
+  displayText: string;
   isComplete: boolean;
   error: string | null;
+  previousTextLength: number;
 }
 
 export const useStreamingParser = () => {
   const [state, setState] = useState<StreamingParserState>({
-    textChunks: [],
+    displayText: '',
     isComplete: false,
-    error: null
+    error: null,
+    previousTextLength: 0
   });
 
   const processRawChunk = useCallback((rawDelta: string, accumulated: string) => {
     try {
-      // Extract clean text from the delta
-      let cleanText = rawDelta;
+      // Try to parse the accumulated JSON to extract the text content
+      let extractedText = '';
       
-      // Remove any JSON artifacts or formatting
-      cleanText = cleanText.replace(/^\s*["']|["']\s*$/g, ''); // Remove surrounding quotes
-      cleanText = cleanText.replace(/\\n/g, '\n'); // Convert escaped newlines
-      cleanText = cleanText.replace(/\\"/g, '"'); // Convert escaped quotes
-      
-      // Only add non-empty chunks
-      if (cleanText.trim()) {
+      try {
+        // Attempt to parse the accumulated JSON
+        const parsed = JSON.parse(accumulated);
+        if (parsed.say_to_user) {
+          extractedText = parsed.say_to_user;
+        }
+      } catch (jsonError) {
+        // If JSON is incomplete, try to extract partial text using regex
+        const sayToUserMatch = accumulated.match(/"say_to_user":\s*"([^"]*(?:\\.[^"]*)*)/);
+        if (sayToUserMatch) {
+          // Unescape the extracted text
+          extractedText = sayToUserMatch[1]
+            .replace(/\\"/g, '"')
+            .replace(/\\n/g, '\n')
+            .replace(/\\\\/g, '\\');
+        }
+      }
+
+      // Only update if we have new text content
+      if (extractedText && extractedText.length > state.previousTextLength) {
         setState(prev => ({
           ...prev,
-          textChunks: [...prev.textChunks, cleanText],
+          displayText: extractedText,
+          previousTextLength: extractedText.length,
           error: null
         }));
       }
@@ -38,7 +54,7 @@ export const useStreamingParser = () => {
         error: 'Failed to process streaming text'
       }));
     }
-  }, []);
+  }, [state.previousTextLength]);
 
   const markComplete = useCallback(() => {
     setState(prev => ({
@@ -49,14 +65,15 @@ export const useStreamingParser = () => {
 
   const reset = useCallback(() => {
     setState({
-      textChunks: [],
+      displayText: '',
       isComplete: false,
-      error: null
+      error: null,
+      previousTextLength: 0
     });
   }, []);
 
   return {
-    textChunks: state.textChunks,
+    displayText: state.displayText,
     isComplete: state.isComplete,
     error: state.error,
     processRawChunk,

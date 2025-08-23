@@ -1,48 +1,44 @@
 import { useState, useEffect, useRef } from 'react';
 
 interface StreamingTextRendererProps {
-  chunks: string[];
+  text: string;
   typingSpeed?: number;
   onComplete?: () => void;
 }
 
 export const StreamingTextRenderer = ({ 
-  chunks, 
+  text, 
   typingSpeed = 30, 
   onComplete 
 }: StreamingTextRendererProps) => {
   const [displayedText, setDisplayedText] = useState('');
-  const [currentChunkIndex, setCurrentChunkIndex] = useState(0);
   const [currentCharIndex, setCurrentCharIndex] = useState(0);
   const timeoutRef = useRef<NodeJS.Timeout>();
   const isCompletedRef = useRef(false);
+  const previousTextRef = useRef('');
 
   useEffect(() => {
-    if (chunks.length === 0) return;
+    // Reset if text changed significantly (not just appended)
+    if (!text.startsWith(previousTextRef.current)) {
+      setDisplayedText('');
+      setCurrentCharIndex(0);
+      isCompletedRef.current = false;
+      previousTextRef.current = '';
+    }
+
+    if (!text) return;
 
     const typeNextCharacter = () => {
-      if (currentChunkIndex >= chunks.length) {
-        if (!isCompletedRef.current) {
+      if (currentCharIndex >= text.length) {
+        if (!isCompletedRef.current && text === displayedText) {
           isCompletedRef.current = true;
           onComplete?.();
         }
         return;
       }
 
-      const currentChunk = chunks[currentChunkIndex];
-      
-      if (currentCharIndex >= currentChunk.length) {
-        // Move to next chunk
-        setCurrentChunkIndex(prev => prev + 1);
-        setCurrentCharIndex(0);
-        
-        // Add a small delay between chunks for natural flow
-        timeoutRef.current = setTimeout(typeNextCharacter, typingSpeed * 2);
-        return;
-      }
-
       // Add next character
-      const nextChar = currentChunk[currentCharIndex];
+      const nextChar = text[currentCharIndex];
       setDisplayedText(prev => prev + nextChar);
       setCurrentCharIndex(prev => prev + 1);
       
@@ -50,21 +46,33 @@ export const StreamingTextRenderer = ({
       timeoutRef.current = setTimeout(typeNextCharacter, typingSpeed);
     };
 
-    // Reset when chunks change
-    if (chunks.length > 0) {
-      setDisplayedText('');
-      setCurrentChunkIndex(0);
-      setCurrentCharIndex(0);
-      isCompletedRef.current = false;
-      typeNextCharacter();
+    // Start typing if we have new content
+    if (text.length > displayedText.length && currentCharIndex <= text.length) {
+      // Clear any existing timeout
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      
+      // If text was extended, continue from where we left off
+      if (text.startsWith(displayedText)) {
+        typeNextCharacter();
+      } else {
+        // Text was replaced, start over
+        setDisplayedText('');
+        setCurrentCharIndex(0);
+        isCompletedRef.current = false;
+        typeNextCharacter();
+      }
     }
+
+    previousTextRef.current = text;
 
     return () => {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
     };
-  }, [chunks, typingSpeed, onComplete]);
+  }, [text, typingSpeed, onComplete, currentCharIndex, displayedText]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -78,7 +86,7 @@ export const StreamingTextRenderer = ({
   return (
     <span>
       {displayedText}
-      {currentChunkIndex < chunks.length && (
+      {currentCharIndex < text.length && (
         <span className="inline-block w-2 h-4 ml-1 bg-current animate-pulse">|</span>
       )}
     </span>

@@ -300,14 +300,14 @@ const AIOnboardingWizard = () => {
           />
         ))}
         {/* Show streaming message while typing */}
-        {isAITyping && streamingParser.textChunks.length > 0 && (
+        {isAITyping && streamingParser.displayText && (
           <ChatMessage 
             role="assistant" 
-            textChunks={streamingParser.textChunks}
+            streamingText={streamingParser.displayText}
             isStreaming={true}
           />
         )}
-        {isAITyping && streamingParser.textChunks.length === 0 && <TypingIndicator />}
+        {isAITyping && !streamingParser.displayText && <TypingIndicator />}
       </div>
 
       {/* Choice Buttons for Project vs Checklist */}
