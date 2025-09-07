@@ -62,7 +62,7 @@ export const GoalDetailHeader = ({ goal, onTitleUpdate, onDescriptionUpdate, onS
   };
 
   return (
-    <header className="sticky top-0 z-50 border-b bg-card/80 backdrop-blur-sm">
+    <header className="sticky top-0 z-50 border-b bg-card/80">
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3 flex-1 min-w-0">

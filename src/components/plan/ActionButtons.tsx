@@ -20,7 +20,7 @@ const ActionButtons = ({
   onSave: () => void;
 }) => {
   return (
-    <div className="fixed inset-x-0 bottom-0 mx-auto max-w-screen-md border-t bg-background/80 p-3 backdrop-blur">
+    <div className="fixed inset-x-0 bottom-0 mx-auto max-w-screen-md border-t bg-background/80 p-3">
       <div className="flex items-center justify-between gap-3">
         {message ? (
           <p className="text-xs text-muted-foreground line-clamp-2" aria-live="polite">{message}</p>

@@ -147,7 +147,7 @@ const ProjectActionFooter = ({ blueprint, intel, userConstraints, recomputing, s
   const config = getProjectScenarioConfig();
 
   return (
-    <div className="fixed inset-x-0 bottom-0 mx-auto max-w-screen-md border-t bg-background/80 backdrop-blur">
+    <div className="fixed inset-x-0 bottom-0 mx-auto max-w-screen-md border-t bg-background/80">
       {/* Message Area */}
       <div className="px-4 py-3 border-b border-border/50">
         <p 

@@ -16,7 +16,7 @@ export const PlanUpdateOverlay = ({
 
   return (
     <div className={cn(
-      "fixed inset-0 z-50 bg-background/80 backdrop-blur-sm",
+      "fixed inset-0 z-50 bg-background/80",
       "flex items-center justify-center"
     )}>
       <div className="bg-card border rounded-lg shadow-lg p-8 max-w-sm w-full mx-4">

@@ -27,7 +27,7 @@ export const CoachingNudgeToast = ({ nudge, onDismiss }: CoachingNudgeToastProps
   }, [onDismiss]);
 
   return (
-    <Card className="fixed top-4 left-4 right-4 z-50 shadow-lg border-primary/30 bg-background/95 backdrop-blur-sm animate-in slide-in-from-top-2 duration-300">
+    <Card className="fixed top-4 left-4 right-4 z-50 shadow-lg border-primary/30 bg-background/95 animate-in slide-in-from-top-2 duration-300">
       <CardContent className="p-4">
         <div className="flex items-start gap-3">
           <div className="flex-shrink-0 mt-0.5">
