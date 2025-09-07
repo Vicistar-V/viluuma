@@ -207,113 +207,205 @@ const CreateManualGoalScreen = () => {
           </CardContent>
         </Card>
 
-        {/* Goal Creation Form */}
+        {/* Premium Goal Creation Form */}
         {showForm && (
-          <Card className="bg-gradient-to-br from-card/80 to-card/40 border-border/50 shadow-xl animate-fade-in">
-            <CardHeader className="pb-6">
-              <CardTitle className="text-xl bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-                Goal Details
-              </CardTitle>
-              <CardDescription className="text-base">
-                Configure your new goal with precision
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-3">
-                <Label htmlFor="title" className="text-base font-medium">Goal Title</Label>
-                <Input 
-                  id="title" 
-                  value={title} 
-                  onChange={(e) => setTitle(e.target.value)} 
-                  placeholder="e.g., Master React Development" 
-                  className="h-12 text-base bg-gradient-to-r from-background/80 to-background/60 border-border/70"
-                />
-              </div>
+          <div className="space-y-8 animate-fade-in">
+            {/* Form Header Card */}
+            <Card className="bg-gradient-to-r from-primary/10 via-primary/5 to-secondary/10 border-primary/20 shadow-xl">
+              <CardHeader className="text-center pb-6">
+                <div className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center mb-4">
+                  <Target className="h-8 w-8 text-primary" />
+                </div>
+                <CardTitle className="text-2xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+                  Craft Your Goal
+                </CardTitle>
+                <CardDescription className="text-lg text-muted-foreground">
+                  Every great achievement starts with a clear vision
+                </CardDescription>
+              </CardHeader>
+            </Card>
 
-              <div className="space-y-3">
-                <Label htmlFor="description" className="text-base font-medium">Description (Optional)</Label>
-                <Input 
-                  id="description" 
-                  value={description} 
-                  onChange={(e) => setDescription(e.target.value)} 
-                  placeholder="e.g., Build modern web applications with React and TypeScript" 
-                  className="h-12 text-base bg-gradient-to-r from-background/80 to-background/60 border-border/70"
-                />
-              </div>
+            {/* Goal Title Section */}
+            <Card className="bg-gradient-to-br from-card/90 to-card/60 border-border/50 shadow-lg hover:shadow-xl transition-all duration-300">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center space-x-3 text-lg">
+                  <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500/20 to-blue-600/20">
+                    <Lightbulb className="h-5 w-5 text-blue-500" />
+                  </div>
+                  <span>Goal Identity</span>
+                </CardTitle>
+                <CardDescription>Give your goal a powerful name and purpose</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                <div className="space-y-3">
+                  <Label htmlFor="title" className="text-base font-semibold flex items-center space-x-2">
+                    <span>Title</span>
+                    <span className="text-destructive">*</span>
+                  </Label>
+                  <Input 
+                    id="title" 
+                    value={title} 
+                    onChange={(e) => setTitle(e.target.value)} 
+                    placeholder="e.g., Master React & TypeScript Development" 
+                    className="h-14 text-lg bg-gradient-to-r from-background to-background/80 border-2 border-border/50 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all duration-300"
+                  />
+                </div>
+                <div className="space-y-3">
+                  <Label htmlFor="description" className="text-base font-semibold">Description</Label>
+                  <Input 
+                    id="description" 
+                    value={description} 
+                    onChange={(e) => setDescription(e.target.value)} 
+                    placeholder="e.g., Build modern, scalable web applications with React and TypeScript for enterprise clients" 
+                    className="h-14 text-lg bg-gradient-to-r from-background to-background/80 border-2 border-border/50 focus:border-secondary/50 focus:ring-2 focus:ring-secondary/20 transition-all duration-300"
+                  />
+                </div>
+              </CardContent>
+            </Card>
 
-              <div className="space-y-4">
-                <Label className="text-base font-medium">Goal Type</Label>
-                <RadioGroup value={modality} onValueChange={(v) => setModality(v as any)} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="relative border-2 rounded-xl p-4 bg-gradient-to-br from-blue-500/10 to-blue-600/10 border-blue-500/30 hover:from-blue-500/20 hover:to-blue-600/20 hover:border-blue-500/50 transition-all duration-300">
-                    <RadioGroupItem value="project" id="project" className="absolute top-4 right-4" />
-                    <Label htmlFor="project" className="cursor-pointer">
-                      <div className="flex items-center space-x-3">
-                        <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500/20 to-blue-600/20">
-                          <Rocket className="h-5 w-5 text-blue-500" />
+            {/* Goal Type Section */}
+            <Card className="bg-gradient-to-br from-card/90 to-card/60 border-border/50 shadow-lg hover:shadow-xl transition-all duration-300">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center space-x-3 text-lg">
+                  <div className="p-2 rounded-lg bg-gradient-to-br from-purple-500/20 to-purple-600/20">
+                    <Zap className="h-5 w-5 text-purple-500" />
+                  </div>
+                  <span>Goal Structure</span>
+                </CardTitle>
+                <CardDescription>Choose the format that fits your goal best</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <RadioGroup value={modality} onValueChange={(v) => setModality(v as any)} className="grid grid-cols-1 gap-6">
+                  <div className={cn(
+                    "relative border-3 rounded-2xl p-6 transition-all duration-500 cursor-pointer group",
+                    modality === "project" 
+                      ? "bg-gradient-to-br from-blue-500/20 to-blue-600/20 border-blue-500/60 shadow-lg shadow-blue-500/20" 
+                      : "bg-gradient-to-br from-card/50 to-card/30 border-border/30 hover:border-blue-500/40 hover:from-blue-500/10 hover:to-blue-600/10"
+                  )}>
+                    <RadioGroupItem value="project" id="project" className="absolute top-6 right-6 scale-125" />
+                    <Label htmlFor="project" className="cursor-pointer block">
+                      <div className="flex items-start space-x-4">
+                        <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500/30 to-blue-600/30 group-hover:from-blue-500/40 group-hover:to-blue-600/40 transition-all duration-300">
+                          <Rocket className="h-7 w-7 text-blue-500" />
                         </div>
-                        <div>
-                          <p className="font-medium">Project</p>
-                          <p className="text-sm text-muted-foreground">Complex goals with deadlines</p>
+                        <div className="flex-1">
+                          <h3 className="font-bold text-lg mb-2">Project Goal</h3>
+                          <p className="text-muted-foreground text-base leading-relaxed mb-3">
+                            Complex, multi-phase goals with specific deadlines and milestones. Perfect for learning new skills, launching products, or completing major initiatives.
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            <span className="px-3 py-1 rounded-full bg-blue-500/20 text-blue-600 text-sm font-medium">Deadlines</span>
+                            <span className="px-3 py-1 rounded-full bg-blue-500/20 text-blue-600 text-sm font-medium">Milestones</span>
+                            <span className="px-3 py-1 rounded-full bg-blue-500/20 text-blue-600 text-sm font-medium">Progress Tracking</span>
+                          </div>
                         </div>
                       </div>
                     </Label>
                   </div>
-                  <div className="relative border-2 rounded-xl p-4 bg-gradient-to-br from-green-500/10 to-green-600/10 border-green-500/30 hover:from-green-500/20 hover:to-green-600/20 hover:border-green-500/50 transition-all duration-300">
-                    <RadioGroupItem value="checklist" id="checklist" className="absolute top-4 right-4" />
-                    <Label htmlFor="checklist" className="cursor-pointer">
-                      <div className="flex items-center space-x-3">
-                        <div className="p-2 rounded-lg bg-gradient-to-br from-green-500/20 to-green-600/20">
-                          <Target className="h-5 w-5 text-green-500" />
+                  
+                  <div className={cn(
+                    "relative border-3 rounded-2xl p-6 transition-all duration-500 cursor-pointer group",
+                    modality === "checklist" 
+                      ? "bg-gradient-to-br from-green-500/20 to-green-600/20 border-green-500/60 shadow-lg shadow-green-500/20" 
+                      : "bg-gradient-to-br from-card/50 to-card/30 border-border/30 hover:border-green-500/40 hover:from-green-500/10 hover:to-green-600/10"
+                  )}>
+                    <RadioGroupItem value="checklist" id="checklist" className="absolute top-6 right-6 scale-125" />
+                    <Label htmlFor="checklist" className="cursor-pointer block">
+                      <div className="flex items-start space-x-4">
+                        <div className="p-3 rounded-xl bg-gradient-to-br from-green-500/30 to-green-600/30 group-hover:from-green-500/40 group-hover:to-green-600/40 transition-all duration-300">
+                          <Target className="h-7 w-7 text-green-500" />
                         </div>
-                        <div>
-                          <p className="font-medium">Checklist</p>
-                          <p className="text-sm text-muted-foreground">Simple task lists</p>
+                        <div className="flex-1">
+                          <h3 className="font-bold text-lg mb-2">Checklist Goal</h3>
+                          <p className="text-muted-foreground text-base leading-relaxed mb-3">
+                            Simple, actionable task lists that you can check off one by one. Ideal for habits, routines, or straightforward objectives.
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            <span className="px-3 py-1 rounded-full bg-green-500/20 text-green-600 text-sm font-medium">Simple Tasks</span>
+                            <span className="px-3 py-1 rounded-full bg-green-500/20 text-green-600 text-sm font-medium">Quick Wins</span>
+                            <span className="px-3 py-1 rounded-full bg-green-500/20 text-green-600 text-sm font-medium">Easy Tracking</span>
+                          </div>
                         </div>
                       </div>
                     </Label>
                   </div>
                 </RadioGroup>
-              </div>
+              </CardContent>
+            </Card>
 
-              {modality === "project" && (
-                <div className="space-y-3">
-                  <Label className="text-base font-medium">Target Date</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button 
-                        variant="outline" 
-                        className={cn(
-                          "w-full h-12 justify-start text-base bg-gradient-to-r from-background/80 to-background/60 border-border/70", 
-                          !date && "text-muted-foreground"
-                        )}
-                      > 
-                        <CalendarIcon className="mr-3 h-5 w-5" />
-                        {date ? format(date, "PPP") : "Choose a target date"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={date}
-                        onSelect={setDate}
-                        initialFocus
-                        className="p-3"
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-              )}
+            {/* Target Date Section - Only for Projects */}
+            {modality === "project" && (
+              <Card className="bg-gradient-to-br from-card/90 to-card/60 border-border/50 shadow-lg hover:shadow-xl transition-all duration-300 animate-fade-in">
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center space-x-3 text-lg">
+                    <div className="p-2 rounded-lg bg-gradient-to-br from-orange-500/20 to-orange-600/20">
+                      <CalendarIcon className="h-5 w-5 text-orange-500" />
+                    </div>
+                    <span>Timeline</span>
+                  </CardTitle>
+                  <CardDescription>Set your target completion date to stay focused</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <Label className="text-base font-semibold">Target Completion Date</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button 
+                          variant="outline" 
+                          className={cn(
+                            "w-full h-16 justify-start text-lg bg-gradient-to-r from-background to-background/80 border-2 border-border/50 hover:border-orange-500/50 hover:bg-orange-500/5 transition-all duration-300", 
+                            !date && "text-muted-foreground"
+                          )}
+                        > 
+                          <CalendarIcon className="mr-4 h-6 w-6" />
+                          <div className="text-left">
+                            <div className="font-medium">
+                              {date ? format(date, "EEEE, MMMM do, yyyy") : "Choose your target date"}
+                            </div>
+                            {date && (
+                              <div className="text-sm text-muted-foreground">
+                                {Math.ceil((date.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))} days from now
+                              </div>
+                            )}
+                          </div>
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={date}
+                          onSelect={setDate}
+                          initialFocus
+                          className="p-4"
+                          disabled={(date) => date < new Date()}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
-              <Button 
-                className="w-full h-14 text-lg font-medium bg-gradient-to-r from-primary to-secondary hover:shadow-xl transition-all duration-300" 
-                onClick={onCreate} 
-                disabled={!title.trim()}
-              >
-                <Target className="mr-2 h-5 w-5" />
-                Create Goal
-              </Button>
-            </CardContent>
-          </Card>
+            {/* Create Button Section */}
+            <Card className="bg-gradient-to-r from-primary/15 via-primary/10 to-secondary/15 border-primary/30 shadow-xl">
+              <CardContent className="p-8 text-center">
+                <Button 
+                  className="w-full h-16 text-xl font-bold bg-gradient-to-r from-primary via-primary to-secondary hover:from-primary/90 hover:via-primary/90 hover:to-secondary/90 shadow-lg hover:shadow-2xl transform hover:scale-[1.02] transition-all duration-300" 
+                  onClick={onCreate} 
+                  disabled={!title.trim()}
+                >
+                  <div className="flex items-center space-x-3">
+                    <Rocket className="h-6 w-6" />
+                    <span>Launch Your Goal</span>
+                    <Sparkles className="h-5 w-5" />
+                  </div>
+                </Button>
+                <p className="text-sm text-muted-foreground mt-3">
+                  Ready to turn your vision into reality?
+                </p>
+              </CardContent>
+            </Card>
+          </div>
         )}
       </main>
 
